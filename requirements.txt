@@ -1,0 +1,8 @@
+requests
+ujson
+joblib
+pandas
+tables
+ccxt
+django
+psycopg2-binary
