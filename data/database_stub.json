@@ -1,0 +1,150 @@
+[
+    {
+        "name": "Exchange",
+        "items": [
+            {
+                "id": 1,
+                "name": "bitfinex",
+                "slug": "bitfinex",
+                "exchange_email": "admin@rcdb.io"
+            }
+        ]
+    },
+    {
+        "name": "ExchangeCredentials",
+        "items": [
+            {
+                "id": 1,
+                "name": "admin-rcdb-bitfinex",
+                "exchange_id": 1,
+                "init_kwargs": "{\r\n  \"apiKey\": \"XXX\",\r\n  \"secret\": \"YYY\",\r\n  \"timeout\": 5000,  \r\n  \"enableRateLimit\": true,\r\n  \"options\": {\r\n      \"orderTypes\": {\r\n          \"limit\": \"limit\",\r\n          \"market\": \"market\"\r\n      }\r\n  }\r\n}"
+            }
+        ]
+    },
+    {
+        "name": "Currency",
+        "items": [
+            {
+                "id": 1,
+                "name": "BTC",
+                "slug": "BTC"
+            },
+            {
+                "id": 2,
+                "name": "USD",
+                "slug": "USD"
+            }
+        ]
+    },
+    {
+        "name": "Symbol",
+        "items": [
+            {
+                "id": 1,
+                "base_id": 1,
+                "quote_id": 2
+            }
+        ]
+    },
+    {
+        "name": "Instrument",
+        "items": [
+            {
+                "id": 1,
+                "exchange_id": 1,
+                "symbol_id": 1,
+                "type": "SPOT"
+            }
+        ]
+    },
+    {
+        "name": "Consolidator",
+        "items": [
+            {
+                "id": 1,
+                "parent_id": null,
+                "instrument_id": 1,
+                "type": "TIME",
+                "kwargs": "{\r\n    \"time_frame_seconds\": 60\r\n}",
+                "update_timestamp": 1585069320,
+                "parent_update_timestamp": 0,
+                "latest_bar_data": "{\"open\": 6614.4, \"high\": 6633.3, \"low\": 6614.5, \"close\": 6633.3, \"volume\": 6.02419933, \"timestamp\": 1585069320}",
+                "is_active": true
+            },
+            {
+                "id": 2,
+                "parent_id": 1,
+                "instrument_id": 1,
+                "type": "PERCENT",
+                "kwargs": "{\r\n    \"bar_size\": 0.0005\r\n}",
+                "update_timestamp": 1584629640,
+                "parent_update_timestamp": 1584629700,
+                "latest_bar_data": "{\"open\": 5828.0, \"high\": 5845.0, \"low\": 5827.8, \"close\": 5845.0, \"volume\": 10.29570019, \"f\": 1, \"timestamp\": 1584629640}",
+                "is_active": false
+            },
+            {
+                "id": 3,
+                "parent_id": 1,
+                "instrument_id": 1,
+                "type": "PERCENT",
+                "kwargs": "{\r\n    \"bar_size\": 0.015\r\n}",
+                "update_timestamp": 1585055340,
+                "parent_update_timestamp": 1585062300,
+                "latest_bar_data": "{\"open\": 6708.1, \"high\": 6775.0, \"low\": 6600.0, \"close\": 6606.4, \"volume\": 1237.1183133700004, \"f\": 1, \"timestamp\": 1585055340}",
+                "is_active": true
+            }
+        ]
+    },
+    {
+        "name": "BotSizing",
+        "items": [
+            {
+                "id": 1,
+                "name": "Fixed 0.00082 for testing",
+                "type": "FIXED",
+                "kwargs": "{\r\n    \"amount\": 0.00082,\r\n    \"multiply_by_signal\": false\r\n}",
+                "is_short_allowed": true,
+                "is_long_allowed": true
+            },
+            {
+                "id": 2,
+                "name": "Kelly for 1.5% bars",
+                "type": "KELLY",
+                "kwargs": "{\"win_size\": 0.01375219851210607, \"loss_size\": 0.02201460558593496, \"divider\": 10, \"direction\": \"both\"}",
+                "is_short_allowed": false,
+                "is_long_allowed": true
+            }
+        ]
+    },
+    {
+        "name": "Bot",
+        "items": [
+            {
+                "id": 1,
+                "name": "Bot 1 // 0.05%",
+                "exchange_credentials_id": 1,
+                "instrument_id": 1,
+                "data_feed_id": 2,
+                "sizing_id": 2,
+                "is_active": false,
+                "min_trade_amount": 0.00082,
+                "max_trade_amount": 0.00082,
+                "slippage_pct_position_increase": 0.001,
+                "slippage_pct_position_decrease": 0.1
+            },
+            {
+                "id": 3,
+                "name": "Bot 2 // 1.5%",
+                "exchange_credentials_id": 1,
+                "instrument_id": 1,
+                "data_feed_id": 3,
+                "sizing_id": 2,
+                "is_active": true,
+                "min_trade_amount": 0.00082,
+                "max_trade_amount": 0.05,
+                "slippage_pct_position_increase": 0.001,
+                "slippage_pct_position_decrease": 0.1
+            }
+        ]
+    }
+]
