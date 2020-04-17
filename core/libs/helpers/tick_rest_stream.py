@@ -145,7 +145,7 @@ class KaikoTickApi:
             "X-Api-Key": self.api_key,
             "Accept": "application/json"
         }
-        r = requests.get(url, headers=headers, params=params)
+        r = requests.get(url, headers=headers, params=params, timeout=30)
         return json.loads(r.text)
 
 

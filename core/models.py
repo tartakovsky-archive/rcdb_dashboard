@@ -250,7 +250,7 @@ class BotSizing(models.Model):
 class BotMlConfig(models.Model):
     name = models.TextField(max_length=100, unique=True)
     description = models.TextField()
-    file = models.FileField(help_text="Model JobLib dump file", upload_to=f"{settings.MODELS_DIRECTORY}/models")
+    file = models.FileField(help_text="Model JobLib dump file", upload_to=f"{settings.MODELS_DIRECTORY}")
     fn_tasks = models.TextField(help_text="JobManager fn_tasks JSON object")
     last_update_timestamp = models.IntegerField(default=0)
 
