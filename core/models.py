@@ -250,7 +250,7 @@ class BotSizing(models.Model):
 class BotMlConfig(models.Model):
     name = models.TextField(max_length=100, unique=True)
     description = models.TextField()
-    file = models.FileField(help_text="Model JobLib dump file", upload_to=f"{settings.DATA_DIRECTORY}/models")
+    file = models.FileField(help_text="Model JobLib dump file", upload_to=f"{settings.MODELS_DIRECTORY}/models")
     fn_tasks = models.TextField(help_text="JobManager fn_tasks JSON object")
     last_update_timestamp = models.IntegerField(default=0)
 
@@ -322,7 +322,7 @@ class Bot(models.Model):
 
     def get_feed_dataframe(self, rows_count=None) -> pd.DataFrame:
         feed_id = self.data_feed.id
-        file_path = f"{settings.DATA_DIRECTORY}/{feed_id}.h5"
+        file_path = f"{settings.BARS_DIRECTORY}/{feed_id}.h5"
 
         with pd.HDFStore(file_path, mode='r') as store:
             store_rows_count = store.get_storer('table').nrows

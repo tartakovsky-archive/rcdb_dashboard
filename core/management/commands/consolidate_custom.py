@@ -97,13 +97,13 @@ def consolidate(
 ):
 
     feed_base = HdfDataFeed(
-        instrument=kaiko_instrument, file_path=f"{settings.DATA_DIRECTORY}/{feed_from_id}.h5")
+        instrument=kaiko_instrument, file_path=f"{settings.BARS_DIRECTORY}/{feed_from_id}.h5")
 
     feed_custom = ConsolidationCustomFeed(
         feed_base=feed_base,
         consolidate_fn_name=consolidate_fn_name,
         consolidate_fn_kwargs=consolidate_fn_kwargs,
-        file_path=f"{settings.DATA_DIRECTORY}/{feed_id}.h5",
+        file_path=f"{settings.BARS_DIRECTORY}/{feed_id}.h5",
     )
 
     has_new_bars, latest_bar_data = feed_custom.run(verbose=False)

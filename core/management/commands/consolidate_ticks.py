@@ -41,7 +41,7 @@ def consolidate(
 
     cons = TickToTimeframeConsolidator(
         exchange, instrument_class,
-        base, quote, time_frame_seconds, f"{settings.DATA_DIRECTORY}/{feed_id}.h5",
+        base, quote, time_frame_seconds, f"{settings.BARS_DIRECTORY}/{feed_id}.h5",
         backfill_api=backfill_api,
         dataset_flush_auto=False
     )

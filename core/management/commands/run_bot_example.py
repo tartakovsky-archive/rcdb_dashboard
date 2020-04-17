@@ -1,12 +1,13 @@
 import joblib
 import time
-import numpy as np
 import ccxt
+
 from django.core.management.base import BaseCommand
+from django.db import transaction
+
 from core.models import Bot, BotSignal
 from core.libs.data_feed.functions import get_bot_feed_dataframe
 from core.libs.helpers.features import get_calc_features_fn
-from django.db import transaction
 
 
 def get_feature_config():

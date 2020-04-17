@@ -41,7 +41,7 @@ else:
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["local.rcdb", 'prod.rcdb']
+ALLOWED_HOSTS = ["local.execution.rcdb", 'prod.execution.rcdb']
 
 
 # Application definition
@@ -148,8 +148,21 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
-
+##########################
 # RCDB config
+##########################
 
 DATA_DIRECTORY = os.environ.get('DATA_DIRECTORY', 'data')
+BARS_DIRECTORY = os.environ.get('DATA_DIRECTORY', os.path.join(DATA_DIRECTORY, "bars"))
+MODELS_DIRECTORY = os.environ.get('DATA_DIRECTORY', os.path.join(DATA_DIRECTORY, "models"))
+RESULTS_DIRECTORY = os.environ.get('DATA_DIRECTORY', os.path.join(DATA_DIRECTORY, "results"))
+
+for d in [
+        DATA_DIRECTORY,
+        BARS_DIRECTORY,
+        MODELS_DIRECTORY,
+        RESULTS_DIRECTORY
+]:
+    os.makedirs(d, exist_ok=True)
+
 KAIKO_API_KEY = os.environ.get('KAIKO_API_KEY')
