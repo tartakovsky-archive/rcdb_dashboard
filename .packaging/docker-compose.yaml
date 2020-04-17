@@ -1,0 +1,82 @@
+version: '3.7'
+
+x-env-vars: &env-vars
+  GITHUB_TOKEN: ${GITHUB_TOKEN}
+  POSTGRES_HOST: ${POSTGRES_HOST:-db}
+  SENTRY_DSN: ${SENTRY_DSN}
+  KAIKO_API_KEY: ${KAIKO_API_KEY}
+
+services:
+  db:
+    image: postgres:11-alpine
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: 'trust'
+    volumes:
+      - db:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+
+  migration:
+    image: rcdb/execution-0.0.1
+    environment:
+      <<: *env-vars
+    command: python manage.py migrate
+    volumes:
+      - data:/app/data
+    depends_on:
+      - db
+
+  web:
+    image: rcdb/execution-0.0.1
+    environment:
+      <<: *env-vars
+    command: python manage.py runserver 0.0.0.0:8000
+    depends_on:
+      - db
+      - migration
+    ports:
+      - 80:8000
+    logging:
+      driver: gcplogs
+
+  consolidate_ticks:
+    build: .
+    environment:
+      <<: *env-vars
+      KAIKO_API_KEY: ${KAIKO_API_KEY}
+    volumes:
+      - data:/app/data
+    command: python manage.py consolidate_ticks
+    depends_on:
+      - db
+      - migration
+
+  consolidate_custom:
+    image: rcdb/execution-0.0.1
+    environment: *env-vars
+    volumes:
+      - data:/app/data
+    command: python manage.py consolidate_custom
+    depends_on:
+      - db
+      - migration
+
+  execute_target:
+    image: rcdb/execution-0.0.1
+    environment: *env-vars
+    command: python manage.py execute_target
+    depends_on:
+      - db
+      - migration
+
+  run_bot_example:
+    image: rcdb/execution-0.0.1
+    environment: *env-vars
+    command: ./manage.py run_bot_example
+    depends_on:
+      - db
+      - migration
+
+volumes:
+  db:
+  data:

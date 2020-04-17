@@ -1,4 +1,4 @@
-#!/usr/local/bin/bash
+#!/bin/bash
 
 requirenments_file=${1:-requirements.github}
 
