@@ -26,26 +26,7 @@ class CcxtBotExecutor:
             self.exchange_api = exchange_api
         return self.exchange_api
 
-    def get_balance(self):
-        balance = self.get_api().fetch_balance()['info']
-        for item in balance:
-            if item['type'] == 'trading':
-                if item['currency'].upper() == self.bot.instrument.symbol.quote.slug:
-                    return BotQuoteBalance(amount_all=float(item['amount']), amount_free=float(item['available']))
 
-        return None
-
-    def get_ticker(self):
-        ticker = self.get_api().fetch_ticker(
-            f"{self.bot.instrument.symbol.base.slug}/{self.bot.instrument.symbol.quote.slug}"
-        )
-
-        return BotTicker(
-            timestamp=int(ticker['timestamp'] / 1000),
-            ask=ticker['ask'],
-            bid=ticker['bid'],
-            price_avg=ticker['average'],
-        )
 
     def execute_target_state(self, bot_target: "BotTargetState"):
         try:
@@ -79,7 +60,7 @@ class CcxtBotExecutor:
                     is_position_increase = False
 
                 # calculate order size
-                order_size = bot_target.instrument_target_size - bot_position.size
+                order_size = round(bot_target.instrument_target_size - bot_position.size, bot.instrument.size_round_precision)
                 if abs(order_size) > bot.max_trade_amount:
                     # limit order size to bot max allowed trade size
                     order_size = math.copysign(bot.max_trade_amount, order_size)
@@ -143,29 +124,73 @@ class CcxtBotExecutor:
     # Methods below should be implemented and tested for each exchange
     ##############################
 
-    def get_position(self, target=None):
+    def get_ticker(self):
         per_exchange_methods = dict(
-            bitfinex=self.__bitfinex__get_position
+            bitfinex=self.__bitfinex__get_ticker,
+            binance=self.__binance__get_ticker
         )
 
-        position = per_exchange_methods[self.bot.exchange_credentials.exchange.slug](
+        return per_exchange_methods[self.bot.exchange_credentials.exchange.slug](
+            self.get_api(), self.bot
+        )
+
+    def get_balance(self):
+        per_exchange_methods = dict(
+            bitfinex=self.__bitfinex__get_balance,
+            binance=self.__binance__get_balance
+        )
+
+        return per_exchange_methods[self.bot.exchange_credentials.exchange.slug](
+            self.get_api(), self.bot
+        )
+
+    def get_position(self, target=None):
+        per_exchange_methods = dict(
+            bitfinex=self.__bitfinex__get_position,
+            binance=self.__binance__get_position
+        )
+
+        return per_exchange_methods[self.bot.exchange_credentials.exchange.slug](
             self.get_api(), self.bot.instrument.symbol
         )
-        return position
 
     def create_order(self, size):
         per_exchange_methods = dict(
-            bitfinex=self.__bitfinex__create_order
+            bitfinex=self.__bitfinex__create_order,
+            binance=self.__binance__create_order
         )
 
         order_result = per_exchange_methods[self.bot.exchange_credentials.exchange.slug](
-            self.get_api(), self.bot.instrument.symbol, size
+            self.get_api(), self.bot.instrument, size
         )
         return order_result
 
     ##############################
     # Bitfinex custom methods
     ##############################
+
+    @staticmethod
+    def __bitfinex__get_balance(api, bot):
+        balance = api.fetch_balance()['info']
+        for item in balance:
+            if item['type'] == 'trading':
+                if item['currency'].upper() == bot.instrument.symbol.quote.slug:
+                    return BotQuoteBalance(amount_all=float(item['amount']), amount_free=float(item['available']))
+
+        return None
+
+    @staticmethod
+    def __bitfinex__get_ticker(api, bot):
+        ticker = api.fetch_ticker(
+            f"{bot.instrument.symbol.base.slug}/{bot.instrument.symbol.quote.slug}"
+        )
+
+        return BotTicker(
+            timestamp=int(ticker['timestamp'] / 1000),
+            ask=ticker['ask'],
+            bid=ticker['bid'],
+            price_avg=ticker['average'],
+        )
 
     @staticmethod
     def __bitfinex__get_position(api, symbol: "Symbol") -> BotPosition:
@@ -189,8 +214,8 @@ class CcxtBotExecutor:
         )
 
     @staticmethod
-    def __bitfinex__create_order(api, symbol: "Symbol", size: float):
-        api_symbol = symbol.to_ccxt()
+    def __bitfinex__create_order(api, instrument: "BotInstrument", size: float):
+        api_symbol = instrument.symbol.to_ccxt()
         side = "buy" if size > 0 else "sell"
         amount = abs(size)
         order = api.create_order(
@@ -198,7 +223,10 @@ class CcxtBotExecutor:
             type="market",
             side=side,
             amount=amount,
-            params={'type': 'market'}
+            params={
+                'type': 'market',
+                'aff_code': 'KZE9Xsts2'
+            }
         )
         order_id = order['info']['id']
         for i in range(0, 5):
@@ -213,4 +241,79 @@ class CcxtBotExecutor:
             type="market",
             size=float(order['executed_amount']) * (1 if order['side'] == 'buy' else -1),
             price_avg=float(order['avg_execution_price'])
+        )
+
+    ##############################
+    # Bitfinex custom methods
+    ##############################
+
+    @staticmethod
+    def __binance__get_balance(api, bot):
+        balance = api.fetch_balance()
+        if bot.instrument.symbol.quote.slug in balance:
+            item = balance[bot.instrument.symbol.quote.slug]
+            return BotQuoteBalance(amount_all=float(item['total']), amount_free=float(item['free']))
+
+        return None
+
+    @staticmethod
+    def __binance__get_ticker(api, bot):
+        ticker = api.fetch_ticker(
+            f"{bot.instrument.symbol.base.slug}/{bot.instrument.symbol.quote.slug}"
+        )
+
+        return BotTicker(
+            timestamp=int(ticker['timestamp'] / 1000),
+            ask=ticker['ask'],
+            bid=ticker['bid'],
+            price_avg=(ticker['ask'] + ticker['bid']) / 2,
+        )
+
+    @staticmethod
+    def __binance__get_position(api, symbol: "Symbol") -> BotPosition:
+        api_symbol = f"{symbol.base.slug.upper()}{symbol.quote.slug.upper()}"
+        positions = api.fapiPrivateGetPositionRisk()
+
+        for p in positions:
+            if p['symbol'] == api_symbol:
+                price_avg = float(p['entryPrice'])
+                size = float(p['positionAmt'])
+                return BotPosition(
+                    timestamp=int(time.time()),
+                    price_avg=price_avg,
+                    size=size,
+                    pnl=size if size == 0 else float(p['unRealizedProfit']) / (price_avg * size)
+                )
+
+        return BotPosition(
+            timestamp=int(time.time()),
+            price_avg=-1,
+            size=0,
+            pnl=0
+        )
+
+    @staticmethod
+    def __binance__create_order(api, instrument: "BotInstrument", size: float):
+        api_symbol = instrument.symbol.to_binance()
+        side = "BUY" if size > 0 else "SELL"
+        amount = abs(size)
+        order_resp = api.fapiPrivatePostOrder(params=dict(
+            symbol=api_symbol,
+            type="MARKET",
+            side=side,
+            quantity=amount
+        ))
+
+        for i in range(0, 5):
+            order = api.fapiPrivateGetOrder(dict(symbol=order_resp['symbol'], orderId=order_resp['orderId']))
+            time.sleep(1)
+
+            if order['status'] == 'FILLED':
+                break
+
+        return BotOrderResult(
+            timestamp=int(float(order['time'] / 1000)),
+            type="market",
+            size=float(order['executedQty']) * (1 if order['side'] == 'BUY' else -1),
+            price_avg=float(order['avgPrice'])
         )

@@ -14,6 +14,7 @@ class Command(BaseCommand):
     help = 'Displays current time'
 
     def handle(self, *args, **kwargs):
+        # return debug()
         # if BotSignal.objects.all().count() == 0:
         #     BotSignal.push_signal(Bot.objects.get(id=1), 2)
 
@@ -25,4 +26,20 @@ class Command(BaseCommand):
             except Exception as ex:
                 print("Got exception: ", ex)
 
-            time.sleep(5)
+
+            time.sleep(1)
+
+
+def debug():
+    # bot_parent = Bot.objects.get(id=3)
+    # signal = BotSignal.push_signal(bot_parent, 0.4)
+    #
+    bot_child = Bot.objects.get(id=3)
+    # target_child = BotTargetState.objects.get(bot=bot_child, is_active=True)
+    ccxt_manager = CcxtBotExecutor(bot_child)
+    print(ccxt_manager.create_order(0.001))
+    # print(ccxt_manager.get_balance())
+    # print(ccxt_manager.get_ticker())
+    # print(ccxt_manager.get_position())
+
+    # order_result = ccxt_manager.execute_target_state(target_child)

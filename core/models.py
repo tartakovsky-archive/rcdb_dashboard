@@ -14,7 +14,10 @@ from django.core.exceptions import ValidationError
 class Exchange(models.Model):
     name = models.TextField(max_length=100)
     slug = models.TextField(max_length=30, default="bitfinex")
-    exchange_email = models.EmailField(unique=True)
+    exchange_email = models.EmailField()
+
+    class Meta:
+        unique_together = ('slug', 'exchange_email')
 
     def __str__(self):
         return f"{self.name} ({self.exchange_email})"
@@ -39,6 +42,9 @@ class Symbol(models.Model):
     def to_ccxt(self):
         return f"{self.base.slug}/{self.quote.slug}"
 
+    def to_binance(self):
+        return f"{self.base.slug.upper()}{self.quote.slug.upper()}"
+
     def __str__(self):
         return f"{self.base.slug}-{self.quote.slug}"
 
@@ -47,15 +53,17 @@ class Instrument(models.Model):
     TYPE_CHOICES = (
         ("SPOT", "spot"),
         ("MARGIN", "margin"),
+        ("FUTURE", "future"),
     )
 
     exchange = models.ForeignKey(Exchange, null=False, blank=False, on_delete=models.PROTECT)
     symbol = models.ForeignKey(Symbol, on_delete=models.PROTECT)
-    type = models.TextField(choices=TYPE_CHOICES,
-                            default="SPOT")
+    kaiko_type = models.TextField(choices=TYPE_CHOICES, default="SPOT")
+
+    size_round_precision = models.IntegerField(default=9)
 
     def __str__(self):
-        return f"{self.symbol} - {self.type} on {self.exchange}"
+        return f"{self.symbol} - {self.kaiko_type} on {self.exchange}"
 
 
 @dataclass
@@ -160,7 +168,7 @@ class BotSizing(models.Model):
     @staticmethod
     def calc_size_for_signal(bot_signal: "BotSignal"):
         sizing_method = bot_signal.bot.sizing.__get_sizing_method_by_type()
-        return sizing_method(bot_signal)
+        return round(sizing_method(bot_signal), bot_signal.bot.instrument.size_round_precision)
 
     ################################
     # Helper methods
@@ -189,7 +197,10 @@ class BotSizing(models.Model):
         balance = ccxt_manager.get_balance()
         ticker = ccxt_manager.get_ticker()
 
-        return balance.amount_all * sizing.size(bot_signal.signal) / ticker.price_avg
+        # TODO: ticker price for limit order tupes should be swapped
+        ticker_price = ticker.bid if bot_signal.signal > 0.5 else ticker.ask
+
+        return balance.amount_all * sizing.size(bot_signal.signal) / ticker_price
 
     def __fixed__(self, bot_signal: "BotSignal"):
         kwargs = self.__get_sizing_kwargs()
@@ -231,6 +242,10 @@ class BotSizing(models.Model):
 
 
 class Bot(models.Model):
+    # if parent is not null, then this is DummyBot
+    # that receiving signals on parent.push_signal
+    parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.PROTECT)
+
     name = models.TextField(max_length=200)
     exchange_credentials = models.ForeignKey(ExchangeCredentials, on_delete=models.PROTECT)
     instrument = models.ForeignKey(Instrument, on_delete=models.PROTECT)
@@ -298,10 +313,14 @@ class BotSignal(models.Model):
         except cls.DoesNotExist:
             return None
 
+    def save(self, *args, **kwargs):
+        # Disable latest active BotSignal
+        BotSignal.objects.filter(bot=self.bot).update(is_active=False)
+        super().save(*args, **kwargs)
+
     @staticmethod
     def push_signal(bot: "Bot", signal: float):
         # Disable latest active Signal
-        BotSignal.objects.filter(bot=bot).update(is_active=False)
 
         # Add new signal
         bot_signal = BotSignal(
@@ -333,6 +352,10 @@ class BotSignal(models.Model):
             ), indent=4)
         )
         target_state.save()
+
+        # Push signals to children
+        for child_bot in Bot.objects.filter(parent=bot, is_active=True):
+            BotSignal.push_signal(bot=child_bot, signal=signal)
 
         return bot_signal
 

@@ -18,6 +18,10 @@ exchange_names_to_slug = {
 
 
 class ConsolidationCustomFeed:
+    # we'll take `df.tail(CONSOLIDATE_LAST_N_BARS).timestamp.values[0]`
+    # as a timestamp to start consolidation from
+    CONSOLIDATE_LAST_N_BARS = 2
+
     def __init__(self, feed_base: HdfDataFeed, consolidate_fn_name, consolidate_fn_kwargs, file_path):
         self.feed_base = feed_base
         self.consolidate_fn = consolidation_functions_name[consolidate_fn_name](**consolidate_fn_kwargs)
@@ -39,13 +43,14 @@ class ConsolidationCustomFeed:
         return df.index.values[0]
 
     def get_timestamp_to_start(self):
-        df = self.get_tail_from_file(2)
+        df = self.get_tail_from_file(self.CONSOLIDATE_LAST_N_BARS)
         if df.shape[0] == 0:
             return 0
         return df.index.values[0]
 
     def run(self, verbose=False):
         ts_start = self.get_timestamp_to_start()
+        ts_last = self.get_latest_ts_from_file()
         # print(ts_start, pd.to_datetime(ts_start * 1e9))
         df = self.feed_base.get_since(ts_start)
 
@@ -66,10 +71,10 @@ class ConsolidationCustomFeed:
             print("==============")
 
         has_new_bars = False
-        if bars.shape[0] > 1:
+        if bars[bars.index > ts_last].shape[0] > 0:
             # we consolidate bars from the TIMESTAMP_START of the previous consolidated bar
             # So we have to skip it
-            hdf_append(self.file_path, bars.tail(bars.shape[0] - 1))
+            hdf_append(self.file_path, bars[bars.index > ts_last])
             has_new_bars = True
 
         df_last_bar = self.get_tail_from_file()
@@ -101,7 +106,7 @@ def consolidate(
         file_path=f"{DATA_DIRECTORY}/{feed_id}.h5",
     )
 
-    has_new_bars, latest_bar_data = feed_custom.run(verbose=False)
+    has_new_bars, latest_bar_data = feed_custom.run(verbose=True)
 
     return {
         "feed_id": feed_id,
@@ -128,6 +133,9 @@ class Command(BaseCommand):
                 if cons.parent_update_timestamp == cons.parent.update_timestamp:
                     continue
 
+                cons.parent_update_timestamp = cons.parent.update_timestamp
+                cons.save()
+
                 jobs.append(dict(
                     feed_id=cons.id,
                     feed_from_id=cons.parent.id,
@@ -135,7 +143,7 @@ class Command(BaseCommand):
                     consolidate_fn_kwargs=cons.get_kwargs(),
                     kaiko_instrument=dict(
                         exchange=exchange_names_to_slug[cons.instrument.exchange.slug],
-                        instrument_class=cons.instrument.type.lower(),
+                        instrument_class=cons.instrument.kaiko_type.lower(),
                         instrument=cons.instrument.symbol.to_kaiko(),
                     )
                 ))
@@ -149,6 +157,7 @@ class Command(BaseCommand):
 
                 for feed_resp in resps:
                     if feed_resp['has_new_bars']:
+                        print(feed_resp)
                         # for each job response handle new bar only
                         c = Consolidator.objects.get(id=feed_resp['feed_id'])
                         c.new_bars_event(feed_resp['latest_bar_data'])
@@ -161,6 +170,7 @@ class Command(BaseCommand):
 
 
 def print_job_results(job):
+    print(f">> Job results: {job['feed_id']}")
     df_res = pd.read_hdf(f"data/{job['feed_id']}.h5", key='table')
     df_res.index = pd.to_datetime((df_res.index * 1e9).astype("int"))
     print(df_res)

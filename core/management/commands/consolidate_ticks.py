@@ -67,7 +67,7 @@ class Command(BaseCommand):
                                 base=cons.instrument.symbol.base.slug.lower(),
                                 quote=cons.instrument.symbol.quote.slug.lower(),
                                 custom_kwargs=json.loads(cons.kwargs),
-                                instrument_class=cons.instrument.type.lower(),  # Spot market
+                                instrument_class=cons.instrument.kaiko_type.lower(),  # Spot market
                             ))
 
                 # TODO: dedicated process per instrument, to prevent blocking on new instrument history fetch
