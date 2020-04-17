@@ -129,15 +129,15 @@ class TickToTimeframeConsolidator:
         if self.dataset is None:
             return
 
-        print("======> FILE <========")
-        df_tmp_file = self.get_dataset().tail(3)
-        df_tmp_file.index = pd.to_datetime(df_tmp_file.index * 1000000000)
-        print(df_tmp_file)
-        print("======> TICKS <========")
-        df_tmp = self.dataset.copy()
-        df_tmp.index = pd.to_datetime(df_tmp.index * 1000000000)
-        print(df_tmp)
-        print("======> /// <========")
+        # print("======> FILE <========")
+        # df_tmp_file = self.get_dataset().tail(3)
+        # df_tmp_file.index = pd.to_datetime(df_tmp_file.index * 1000000000)
+        # print(df_tmp_file)
+        # print("======> TICKS <========")
+        # df_tmp = self.dataset.copy()
+        # df_tmp.index = pd.to_datetime(df_tmp.index * 1000000000)
+        # print(df_tmp)
+        # print("======> /// <========")
 
         hdf_append(self.file_path, self.dataset)
         self.dataset = None
