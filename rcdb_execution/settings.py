@@ -11,6 +11,10 @@ https://docs.djangoproject.com/en/3.0/ref/settings/
 """
 
 import os
+import logging
+
+import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -22,10 +26,22 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = '7#7l88fkd4og&i^z+zk4bmqq0o5@t40vviwnax*da5-)5eixgc'
 
+if  os.environ.get('SENTRY_DSN'):
+    sentry_sdk.init(
+        dsn=os.environ['SENTRY_DSN'],
+        integrations=[DjangoIntegration()],
+
+        # If you wish to associate users to errors (assuming you are using
+        # django.contrib.auth) you may enable sending PII data.
+        send_default_pii=True
+    )
+else:
+    logging.warning('Running without sentry. Provide SENTRY_DSN env variable to enable sentry')
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["local.rcdb", 'prod.rcdb']
 
 
 # Application definition
@@ -75,6 +91,8 @@ WSGI_APPLICATION = 'rcdb_execution.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
 
+logging.info(f"Database host: {os.environ.get('POSTGRES_HOST', '127.0.0.1')}")
+
 DATABASES = {
     # 'default': {
     #     'ENGINE': 'django.db.backends.sqlite3',
@@ -86,7 +104,7 @@ DATABASES = {
         'NAME': 'postgres',
         'USER': 'postgres',
         'PASSWORD': '',
-        'HOST': '127.0.0.1',
+        'HOST': os.environ.get('POSTGRES_HOST', '127.0.0.1'),
         'PORT': '5432',
     }
 }
@@ -129,3 +147,9 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/3.0/howto/static-files/
 
 STATIC_URL = '/static/'
+
+
+# RCDB config
+
+DATA_DIRECTORY = os.environ.get('DATA_DIRECTORY', 'data')
+KAIKO_API_KEY = os.environ.get('KAIKO_API_KEY')

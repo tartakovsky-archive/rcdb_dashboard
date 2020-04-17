@@ -1,9 +1,9 @@
+venv
 # IDE
 .vscode/
 .idea
 notebooks/data
-data/*.h5
-data/models/*.joblib
+data/*
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -91,7 +91,6 @@ celerybeat-schedule
 
 # Environments
 .env
-.envs
 .venv
 env/
 venv/

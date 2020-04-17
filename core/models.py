@@ -250,7 +250,7 @@ class BotSizing(models.Model):
 class BotMlConfig(models.Model):
     name = models.TextField(max_length=100, unique=True)
     description = models.TextField()
-    file = models.FileField(help_text="Model JobLib dump file")
+    file = models.FileField(help_text="Model JobLib dump file", upload_to=f"{settings.DATA_DIRECTORY}/models")
     fn_tasks = models.TextField(help_text="JobManager fn_tasks JSON object")
     last_update_timestamp = models.IntegerField(default=0)
 
@@ -258,12 +258,10 @@ class BotMlConfig(models.Model):
         self.last_update_timestamp = int(time.time())
         super().save(*args, **kwargs)
 
-    cache = None
+    # TODO: implement correct in-memory model caching (redis? need to research)
+    cache = dict()
 
     def __get_from_cache__(self):
-        if self.cache is None:
-            self.cache = dict()
-
         cache_key = f"{self.id}-{self.last_update_timestamp}"
 
         if cache_key not in self.cache:
