@@ -17,7 +17,7 @@ services:
       - 5432:5432
 
   migration:
-    image: rcdb/execution-0.0.1
+    image: ${DOCKER_IMAGE_NAME}
     environment:
       <<: *env-vars
     command: python manage.py migrate
@@ -27,7 +27,7 @@ services:
       - db
 
   web:
-    image: rcdb/execution-0.0.1
+    image: ${DOCKER_IMAGE_NAME}
     environment:
       <<: *env-vars
     command: python manage.py runserver 0.0.0.0:8000
@@ -40,7 +40,7 @@ services:
       driver: gcplogs
 
   consolidate_ticks:
-    build: .
+    image: ${DOCKER_IMAGE_NAME}
     environment:
       <<: *env-vars
       KAIKO_API_KEY: ${KAIKO_API_KEY}
@@ -52,7 +52,7 @@ services:
       - migration
 
   consolidate_custom:
-    image: rcdb/execution-0.0.1
+    image: ${DOCKER_IMAGE_NAME}
     environment: *env-vars
     volumes:
       - data:/app/data
@@ -62,17 +62,17 @@ services:
       - migration
 
   execute_target:
-    image: rcdb/execution-0.0.1
+    image: ${DOCKER_IMAGE_NAME}
     environment: *env-vars
     command: python manage.py execute_target
     depends_on:
       - db
       - migration
 
-  run_bot_example:
-    image: rcdb/execution-0.0.1
+  run_bot:
+    image: ${DOCKER_IMAGE_NAME}
     environment: *env-vars
-    command: ./manage.py run_bot_example
+    command: ./manage.py run_bot
     depends_on:
       - db
       - migration

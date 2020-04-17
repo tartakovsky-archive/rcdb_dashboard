@@ -5,6 +5,6 @@ if [ -z "$GITHUB_TOKEN" ]; then
   exit 1
 fi
 
-image_name=${1:-"rcdb/execution-$(cat .version)"}
+image_name=${1:-"rcdb/execution:$(cat .version)"}
 echo "Building docker image: $image_name"
-docker build -t $image_name -f .packaging/Dockerfile .
+docker build --build-arg  GITHUB_TOKEN=$GITHUB_TOKEN -t $image_name -f .packaging/Dockerfile .

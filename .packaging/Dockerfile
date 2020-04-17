@@ -7,11 +7,11 @@ COPY requirements.txt /app/
 WORKDIR /app
 RUN pip install -r requirements.txt
 
-COPY req.github /app/
-COPY github_release_install_python.sh /app/github_release_install_python.sh
-RUN chmod 0755 github_release_install_python.sh
+COPY requirements.github /app/
+COPY install_github.sh /app/install_github.sh
+RUN chmod 0755 install_github.sh
 ARG GITHUB_TOKEN=""
 ENV GITHUB_TOKEN=${GITHUB_TOKEN}
-RUN /bin/bash github_release_install_python.sh req.github
+RUN /bin/bash install_github.sh requirements.github
 RUN python -c "import rcdb_libs"
 COPY . /app/
