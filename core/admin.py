@@ -49,7 +49,12 @@ admin.site.register(BotSizing, BotSizingAdmin)
 
 
 class BotAdmin(admin.ModelAdmin):
-    pass
+    list_display = ('name', 'is_active')
+
+    def name(self, obj: BotSignal):
+        return str(obj)
+
+
 admin.site.register(Bot, BotAdmin)
 
 
@@ -132,4 +137,12 @@ class BotOrderLogAdmin(admin.ModelAdmin):
     def get_name(self, obj):
         return str(obj)
 admin.site.register(BotOrderLog, BotOrderLogAdmin)
+
+
+class BotMlConfigAdmin(admin.ModelAdmin):
+    list_display = ('get_name',)
+
+    def get_name(self, obj):
+        return str(obj)
+admin.site.register(BotMlConfig, BotMlConfigAdmin)
 

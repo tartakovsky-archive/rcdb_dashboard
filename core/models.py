@@ -1,14 +1,20 @@
 import time
 import json
 import math
+import joblib
+import logging
+import pandas as pd
 
 from django.db import models
+from django.db import transaction
+from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator, MinValueValidator, MaxValueValidator
 
 from core.libs.helpers.data_classes import *
 from core.libs.helpers.ccxt import CcxtBotExecutor
 from core.libs.helpers.sizing import KellySizing, PercentSizing
-from django.core.exceptions import ValidationError
+from core.libs.helpers.features import get_calc_features_fn
 
 
 class Exchange(models.Model):
@@ -241,6 +247,40 @@ class BotSizing(models.Model):
         # return kwargs['percent'] * bot_balance.amount_all * signal
 
 
+class BotMlConfig(models.Model):
+    name = models.TextField(max_length=100, unique=True)
+    description = models.TextField()
+    file = models.FileField(help_text="Model JobLib dump file")
+    fn_tasks = models.TextField(help_text="JobManager fn_tasks JSON object")
+    last_update_timestamp = models.IntegerField(default=0)
+
+    def save(self, *args, **kwargs):
+        self.last_update_timestamp = int(time.time())
+        super().save(*args, **kwargs)
+
+    cache = None
+
+    def __get_from_cache__(self):
+        if self.cache is None:
+            self.cache = dict()
+
+        cache_key = f"{self.id}-{self.last_update_timestamp}"
+
+        if cache_key not in self.cache:
+            self.cache[cache_key] = dict(
+                model=joblib.load(self.file.path),
+                fn_tasks=json.loads(self.fn_tasks)
+            )
+
+        return self.cache[cache_key]
+
+    def get_fn_tasks(self):
+        return self.__get_from_cache__()['fn_tasks']
+
+    def get_model(self):
+        return self.__get_from_cache__()['model']
+
+
 class Bot(models.Model):
     # if parent is not null, then this is DummyBot
     # that receiving signals on parent.push_signal
@@ -249,8 +289,13 @@ class Bot(models.Model):
     name = models.TextField(max_length=200)
     exchange_credentials = models.ForeignKey(ExchangeCredentials, on_delete=models.PROTECT)
     instrument = models.ForeignKey(Instrument, on_delete=models.PROTECT)
+
     data_feed = models.ForeignKey(Consolidator, on_delete=models.PROTECT)
+    predict_timestamp = models.IntegerField(default=0)
+
     sizing = models.ForeignKey(BotSizing, on_delete=models.PROTECT)
+
+    ml_config = models.ForeignKey(BotMlConfig, on_delete=models.PROTECT, null=True)
 
     is_active = models.BooleanField(default=False)
 
@@ -273,6 +318,50 @@ class Bot(models.Model):
         default=0,
         validators=[MinValueValidator(0), MaxValueValidator(0.1)],
         help_text="Max diff between current price and target instrument execution price on position decrease.")
+
+    def datafeed_has_new_data_to_predict(self):
+        return self.data_feed.update_timestamp > self.predict_timestamp
+
+    def get_feed_dataframe(self, rows_count=None) -> pd.DataFrame:
+        feed_id = self.data_feed.id
+        file_path = f"{settings.DATA_DIRECTORY}/{feed_id}.h5"
+
+        with pd.HDFStore(file_path, mode='r') as store:
+            store_rows_count = store.get_storer('table').nrows
+            if rows_count is None:
+                df = store.select('table')
+            else:
+                if store_rows_count < rows_count:
+                    raise Exception(f"Bars feed_id={feed_id} has {store_rows_count} bars in store "
+                                    f"(less then requested amount {rows_count}).")
+                df = store.select('table', start=store_rows_count - rows_count, stop=store_rows_count)
+
+            return df
+
+    @transaction.atomic
+    def predict_and_push_signal(self):
+        if not self.datafeed_has_new_data_to_predict():
+            return None
+
+        features_fn = get_calc_features_fn(fn_tasks=self.ml_config.get_fn_tasks())
+        m = self.ml_config.get_model()
+
+        bot_signal_latest = BotSignal.get_active(self)
+
+        bot_signal = None
+        if bot_signal_latest is None or \
+                self.data_feed.update_timestamp > bot_signal_latest.timestamp_consolidator:
+            # new bar exists, should be executed
+            bars = self.get_feed_dataframe(rows_count=101)
+            X, y, X_to_predict = features_fn(bars)
+            y_pred = m.predict_proba(X_to_predict)
+            # as long as X_to_predict is 1 bar only
+            signal = y_pred[0][1]
+            bot_signal = BotSignal.push_signal(self, signal)
+            self.predict_timestamp = self.data_feed.update_timestamp
+            self.save()
+
+        return bot_signal
 
     def clean(self, *args, **kwargs):
         active_bots = Bot.objects.filter(exchange_credentials=self.exchange_credentials, is_active=True)
@@ -332,6 +421,8 @@ class BotSignal(models.Model):
         )
         bot_signal.save()
 
+        logging.info(f"bot ({bot}) has new signal ({bot_signal})")
+
         # log bot performance
         BotPerformanceLog.fetch_and_log(bot_signal)
 
@@ -356,6 +447,8 @@ class BotSignal(models.Model):
         # Push signals to children
         for child_bot in Bot.objects.filter(parent=bot, is_active=True):
             BotSignal.push_signal(bot=child_bot, signal=signal)
+
+        logging.info(f"bot ({bot}) has new target state ({target_state})")
 
         return bot_signal
 
