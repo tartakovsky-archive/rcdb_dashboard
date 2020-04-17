@@ -3,7 +3,13 @@ import numpy as np
 from rcdb_libs.job_manager import JobManager
 
 
-def get_calc_features_fn(features_config):
+def get_calc_features_fn(features_config=None, fn_tasks=None):
+    if features_config is None and fn_tasks is None:
+        raise Exception("Both features_config and fn_tasks can't be None")
+
+    if features_config is not None and fn_tasks is not None:
+        raise Exception("Both features_config and fn_tasks can't be declared")
+
     def calc_features(bars):
         if bars.index.dtype.name == 'datetime64[ns]':
             bars.index = bars.index.tz_localize(None)
@@ -13,10 +19,14 @@ def get_calc_features_fn(features_config):
 
         bars['direction'] = np.where(bars.open < bars.close, 1, np.where(bars.open > bars.close, -1, 0))
 
-        jm = JobManager(
-            bars, config=features_config, batch_size=100, n_jobs=1,
-            # temp_folder="/mnt/ramdisk"
-        )
+        if fn_tasks is not None:
+            jm = JobManager(
+                bars, fn_tasks=fn_tasks, batch_size=100, n_jobs=1,
+            )
+        else:
+            jm = JobManager(
+                bars, config=features_config, batch_size=100, n_jobs=1,
+            )
 
         job_results = jm.run_job()
         results = job_results.get_pandas()

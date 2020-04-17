@@ -1,20 +1,12 @@
-import ujson as json
-# import json
-# import websocket
 import time
 import pandas as pd
-import numpy as np
 
-import requests
-import os
+from core.libs.helpers.hdf import hdf_append, hdf_read
+from core.libs.helpers.tick_rest_stream import TickRequest
 
 import logging
-from core.libs.helpers.hdf import hdf_append, hdf_read
-
 logging.basicConfig()
 logging.getLogger().setLevel(logging.DEBUG)
-
-from core.libs.helpers.tick_rest_stream import TickRequest
 
 
 class BackfillProxyApi:
@@ -24,6 +16,7 @@ class BackfillProxyApi:
     def backfill(self, tick_consolidator: "TickConsolidator", until_timestamp, one_batch_only=False):
         timestamp_start = tick_consolidator.get_dataset_end_date()
         timestamp_end = time.time() // tick_consolidator.time_frame_seconds * tick_consolidator.time_frame_seconds
+        logging.info(f'Timestamp start: {timestamp_start}')
 
         fetch_req = TickRequest(
             exchange=tick_consolidator.exchange,

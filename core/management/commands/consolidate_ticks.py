@@ -4,11 +4,13 @@ import time
 
 from joblib import Parallel, delayed
 from django.core.management.base import BaseCommand
+from django.conf import settings
 
 from core.models import Consolidator
 from core.libs.data_feed.consolidation_from_ticks import TickToTimeframeConsolidator, BackfillProxyApi
-
 from core.libs.helpers.tick_rest_stream import TickApiProxy
+
+import logging
 
 
 exchange_names_to_slug = {
@@ -22,18 +24,24 @@ def consolidate(
         instrument_class,
         base, quote, custom_kwargs
 ):
-    KAIKO_API_KEY = os.environ.get('KAIKO_API_KEY', '__REPLACE_ME__')
-    DATA_DIRECTORY = os.environ.get('DATA_DIRECTORY', 'data')
+    logging.debug(
+        f"""
+        consolidate api: 
+            KAIKO_API_KEY: {bool(settings.KAIKO_API_KEY)}
+            feed_id: {feed_id}
+            exchange: {exchange}
+            instrument_class: {instrument_class} {base}/{quote} **{custom_kwargs}
+        """)
 
     backfill_api = BackfillProxyApi(api=TickApiProxy(
-        kaiko_api_params=dict(api_key=KAIKO_API_KEY)
+        kaiko_api_params=dict(api_key=settings.KAIKO_API_KEY)
     ))
 
     time_frame_seconds = custom_kwargs['time_frame_seconds']
 
     cons = TickToTimeframeConsolidator(
         exchange, instrument_class,
-        base, quote, time_frame_seconds, f"{DATA_DIRECTORY}/{feed_id}.h5",
+        base, quote, time_frame_seconds, f"{settings.DATA_DIRECTORY}/{feed_id}.h5",
         backfill_api=backfill_api,
         dataset_flush_auto=False
     )
@@ -86,5 +94,4 @@ class Command(BaseCommand):
 
                 time.sleep(2)
             except Exception as ex:
-                with open("errors.log", "a+") as f:
-                    f.write(str(ex) + "\r\n\r\n")
+                logging.exception("Tick consolidation unhandled exception")

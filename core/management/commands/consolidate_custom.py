@@ -5,6 +5,7 @@ import pandas as pd
 
 from joblib import Parallel, delayed
 from django.core.management.base import BaseCommand
+from django.conf import settings
 
 from core.models import Consolidator
 from core.libs.helpers.hdf import hdf_append
@@ -94,19 +95,18 @@ def consolidate(
         consolidate_fn_name,
         consolidate_fn_kwargs
 ):
-    DATA_DIRECTORY = os.environ.get('DATA_DIRECTORY', 'data')
 
     feed_base = HdfDataFeed(
-        instrument=kaiko_instrument, file_path=f"{DATA_DIRECTORY}/{feed_from_id}.h5")
+        instrument=kaiko_instrument, file_path=f"{settings.DATA_DIRECTORY}/{feed_from_id}.h5")
 
     feed_custom = ConsolidationCustomFeed(
         feed_base=feed_base,
         consolidate_fn_name=consolidate_fn_name,
         consolidate_fn_kwargs=consolidate_fn_kwargs,
-        file_path=f"{DATA_DIRECTORY}/{feed_id}.h5",
+        file_path=f"{settings.DATA_DIRECTORY}/{feed_id}.h5",
     )
 
-    has_new_bars, latest_bar_data = feed_custom.run(verbose=True)
+    has_new_bars, latest_bar_data = feed_custom.run(verbose=False)
 
     return {
         "feed_id": feed_id,

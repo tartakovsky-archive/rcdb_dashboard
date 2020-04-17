@@ -143,19 +143,19 @@ consolidation_functions_name = dict(
 )
 
 
-def get_bot_feed_dataframe(bot: "Bot", rows_count=None) -> pd.DataFrame:
-    data_directory = os.environ.get('DATA_DIRECTORY', 'data')
-    feed_id = bot.data_feed.id
-    file_path = f"{data_directory}/{feed_id}.h5"
-
-    with pd.HDFStore(file_path, mode='r') as store:
-        store_rows_count = store.get_storer('table').nrows
-        if rows_count is None:
-            df = store.select('table')
-        else:
-            if store_rows_count < rows_count:
-                raise Exception(f"Bars feed_id={feed_id} has {store_rows_count} bars in store "
-                                f"(less then requested amount {rows_count}).")
-            df = store.select('table', start=store_rows_count - rows_count, stop=store_rows_count)
-
-        return df
+# def get_bot_feed_dataframe(bot: "Bot", rows_count=None) -> pd.DataFrame:
+#     data_directory = os.environ.get('DATA_DIRECTORY', 'data')
+#     feed_id = bot.data_feed.id
+#     file_path = f"{data_directory}/{feed_id}.h5"
+#
+#     with pd.HDFStore(file_path, mode='r') as store:
+#         store_rows_count = store.get_storer('table').nrows
+#         if rows_count is None:
+#             df = store.select('table')
+#         else:
+#             if store_rows_count < rows_count:
+#                 raise Exception(f"Bars feed_id={feed_id} has {store_rows_count} bars in store "
+#                                 f"(less then requested amount {rows_count}).")
+#             df = store.select('table', start=store_rows_count - rows_count, stop=store_rows_count)
+#
+#         return df
