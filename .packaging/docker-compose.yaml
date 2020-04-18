@@ -1,6 +1,7 @@
 version: '3.7'
 
 x-env-vars: &env-vars
+  DOCKER_IMAGE_NAME: ${DOCKER_IMAGE_NAME:-rcdb/execution}
   GITHUB_TOKEN: ${GITHUB_TOKEN}
   POSTGRES_HOST: ${POSTGRES_HOST:-db}
   SENTRY_DSN: ${SENTRY_DSN}
@@ -38,7 +39,7 @@ services:
       - db
       - migration
     ports:
-      - 80:8000
+      - 16458:8000
     volumes:
       - data:/app/data
     # logging:

@@ -34,11 +34,11 @@ export DOCKER_IMAGE_NAME=$image_name
 export DOCKER_STACK_NAME=rcdb_exec
 #export POSTGRES_HOST="$DOCKER_STACK_NAME"_db
 
-if [ $command = "logs" ]; then
+if [[ $command = "logs" ]]; then
   docker-compose -f .packaging/docker-compose.yaml logs -f
 fi
 
-if [ $command = "up" ]; then
+if [[ $command = "up" ]]; then
   docker-compose -f .packaging/docker-compose.yaml up -d
 fi
 

@@ -15,7 +15,8 @@ class Command(BaseCommand):
             for bot in bots:
                 try:
                     bot_signal = bot.predict_and_push_signal()
-                except (ccxt.base.errors.RequestTimeout):
+                    print("bot_signal: ", bot_signal)
+                except (ccxt.base.errors.RequestTimeout,):
                     pass
 
             time.sleep(2)
