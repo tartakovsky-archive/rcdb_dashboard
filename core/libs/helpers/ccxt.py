@@ -258,15 +258,20 @@ class CcxtBotExecutor:
 
     @staticmethod
     def __binance__get_ticker(api, bot):
-        ticker = api.fetch_ticker(
+        # ticker = api.fetch_ticker(
+        #     f"{bot.instrument.symbol.base.slug}/{bot.instrument.symbol.quote.slug}"
+        # )
+
+        orderbook = api.fetch_order_book(
             f"{bot.instrument.symbol.base.slug}/{bot.instrument.symbol.quote.slug}"
         )
+        timestamp = int(orderbook['timestamp'] / 1000) if orderbook['timestamp'] is not None else int(time.time())
 
         return BotTicker(
-            timestamp=int(ticker['timestamp'] / 1000),
-            ask=ticker['ask'],
-            bid=ticker['bid'],
-            price_avg=(ticker['ask'] + ticker['bid']) / 2,
+            timestamp=timestamp,
+            ask=orderbook['asks'][0][0],
+            bid=orderbook['bids'][0][0],
+            price_avg=(orderbook['asks'][0][0] + orderbook['bids'][0][0]) / 2,
         )
 
     @staticmethod
