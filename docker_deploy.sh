@@ -1,5 +1,7 @@
 #!/bin/bash
 
+command=$1
+
 if [ -z "$GITHUB_TOKEN" ]; then
   echo "GITHUB_TOKEN is missing, can't build docker image"
   exit 1
@@ -29,5 +31,18 @@ fi
 
 
 export DOCKER_IMAGE_NAME=$image_name
-docker-compose -f .packaging/docker-compose.yaml up
+export DOCKER_STACK_NAME=rcdb_exec
+#export POSTGRES_HOST="$DOCKER_STACK_NAME"_db
 
+if [ $command = "logs" ]; then
+  docker-compose -f .packaging/docker-compose.yaml logs -f
+fi
+
+if [ $command = "up" ]; then
+  docker-compose -f .packaging/docker-compose.yaml up -d
+fi
+
+
+# > dc.yaml
+# cat dc.yaml
+# cat dc.yaml | docker stack deploy --compose-file - rcdb_exec

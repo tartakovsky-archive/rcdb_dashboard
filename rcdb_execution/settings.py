@@ -152,10 +152,12 @@ STATIC_URL = '/static/'
 # RCDB config
 ##########################
 
-DATA_DIRECTORY = os.environ.get('DATA_DIRECTORY', 'data')
-BARS_DIRECTORY = os.environ.get('DATA_DIRECTORY', os.path.join(DATA_DIRECTORY, "bars"))
-MODELS_DIRECTORY = os.environ.get('DATA_DIRECTORY', os.path.join(DATA_DIRECTORY, "models"))
-RESULTS_DIRECTORY = os.environ.get('DATA_DIRECTORY', os.path.join(DATA_DIRECTORY, "results"))
+DATA_DIRECTORY = os.path.join(BASE_DIR, os.environ.get('DATA_DIRECTORY', 'data'))
+MEDIA_ROOT = DATA_DIRECTORY
+
+BARS_DIRECTORY = os.path.join(DATA_DIRECTORY, "bars")
+MODELS_DIRECTORY = "models"
+RESULTS_DIRECTORY = os.path.join(DATA_DIRECTORY, "results")
 
 for d in [
         DATA_DIRECTORY,

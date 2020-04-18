@@ -9,6 +9,7 @@ x-env-vars: &env-vars
 services:
   db:
     image: postgres:11-alpine
+    restart: always
     environment:
       POSTGRES_HOST_AUTH_METHOD: 'trust'
     volumes:
@@ -18,6 +19,7 @@ services:
 
   migration:
     image: ${DOCKER_IMAGE_NAME}
+    restart: "no"
     environment:
       <<: *env-vars
     command: python manage.py migrate
@@ -28,6 +30,7 @@ services:
 
   web:
     image: ${DOCKER_IMAGE_NAME}
+    restart: always
     environment:
       <<: *env-vars
     command: python manage.py runserver 0.0.0.0:8000
@@ -36,11 +39,14 @@ services:
       - migration
     ports:
       - 80:8000
-    logging:
-      driver: gcplogs
+    volumes:
+      - data:/app/data
+    # logging:
+    #  driver: gcplogs
 
   consolidate_ticks:
     image: ${DOCKER_IMAGE_NAME}
+    restart: always
     environment:
       <<: *env-vars
       KAIKO_API_KEY: ${KAIKO_API_KEY}
@@ -53,7 +59,9 @@ services:
 
   consolidate_custom:
     image: ${DOCKER_IMAGE_NAME}
-    environment: *env-vars
+    restart: always
+    environment: 
+      <<: *env-vars
     volumes:
       - data:/app/data
     command: python manage.py consolidate_custom
@@ -63,7 +71,9 @@ services:
 
   execute_target:
     image: ${DOCKER_IMAGE_NAME}
-    environment: *env-vars
+    restart: always
+    environment:
+      <<: *env-vars
     command: python manage.py execute_target
     depends_on:
       - db
@@ -71,11 +81,15 @@ services:
 
   run_bot:
     image: ${DOCKER_IMAGE_NAME}
-    environment: *env-vars
+    restart: always
+    environment:
+      <<:  *env-vars
     command: ./manage.py run_bot
     depends_on:
       - db
       - migration
+    volumes:
+      - data:/app/data
 
 volumes:
   db:
