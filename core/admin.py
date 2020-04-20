@@ -31,7 +31,7 @@ class MyAdminSite(AdminSite):
             df = df[df.index >= date_start]
 
         if date_end is not None:
-            df = df[df.index >= date_end]
+            df = df[df.index <= date_end]
 
         if format == "html":
             response_content = df.to_html()
