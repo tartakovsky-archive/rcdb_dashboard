@@ -1,27 +1,72 @@
+import io
 import pandas as pd
 
 from django.contrib import admin
+from django.conf import settings
 from core.models import *
 
+from django.contrib.admin import AdminSite
+from django.http import HttpResponse, StreamingHttpResponse
 
+
+class MyAdminSite(AdminSite):
+    def get_urls(self):
+        from django.urls import path
+        urls = super().get_urls()
+        urls += [
+            path('get_cons_data/', self.admin_view(self.my_view))
+        ]
+        return urls
+
+    def get_cons_data(self, request):
+        date_start = request.GET.get("date_start", None)
+        date_end = request.GET.get("date_end", None)
+        cons_id = request.GET.get("cons_id")
+        format = request.GET.get("format", "html")
+
+        df = pd.read_hdf(f"{settings.BARS_DIRECTORY}/{cons_id}.h5", key='table')
+        df.index = pd.to_datetime((df.index * 1e9).astype(int))
+
+        if date_start is not None:
+            df = df[df.index >= date_start]
+
+        if date_end is not None:
+            df = df[df.index >= date_end]
+
+        if format == "html":
+            response_content = df.to_html()
+            return HttpResponse(response_content)
+        elif format == "csv":
+            response_content = df.to_csv()
+            return HttpResponse(response_content)
+
+admin_site = MyAdminSite()
+
+
+@admin.register(Exchange, site=admin_site)
 class ExchangeAdmin(admin.ModelAdmin):
     pass
-admin.site.register(Exchange, ExchangeAdmin)
 
 
 class CurrencyAdmin(admin.ModelAdmin):
     pass
-admin.site.register(Currency, CurrencyAdmin)
+
+
+admin_site.register(Currency, CurrencyAdmin)
 
 
 class SymbolAdmin(admin.ModelAdmin):
     pass
-admin.site.register(Symbol, SymbolAdmin)
+
+
+admin_site.register(Symbol, SymbolAdmin)
 
 
 class InstrumentAdmin(admin.ModelAdmin):
     pass
-admin.site.register(Instrument, InstrumentAdmin)
+
+
+admin_site.register(Instrument, InstrumentAdmin)
 
 
 class ConsolidatorAdmin(admin.ModelAdmin):
@@ -35,17 +80,23 @@ class ConsolidatorAdmin(admin.ModelAdmin):
 
     latest_update.allow_tags = True
     latest_update.short_description = 'Latest bar datetime'
-admin.site.register(Consolidator, ConsolidatorAdmin)
+
+
+admin_site.register(Consolidator, ConsolidatorAdmin)
 
 
 class ExchangeCredentialsAdmin(admin.ModelAdmin):
     pass
-admin.site.register(ExchangeCredentials, ExchangeCredentialsAdmin)
+
+
+admin_site.register(ExchangeCredentials, ExchangeCredentialsAdmin)
 
 
 class BotSizingAdmin(admin.ModelAdmin):
     pass
-admin.site.register(BotSizing, BotSizingAdmin)
+
+
+admin_site.register(BotSizing, BotSizingAdmin)
 
 
 class BotAdmin(admin.ModelAdmin):
@@ -55,7 +106,7 @@ class BotAdmin(admin.ModelAdmin):
         return str(obj)
 
 
-admin.site.register(Bot, BotAdmin)
+admin_site.register(Bot, BotAdmin)
 
 
 class BotSignalAdmin(admin.ModelAdmin):
@@ -66,7 +117,9 @@ class BotSignalAdmin(admin.ModelAdmin):
 
     def latest_update(self, obj: BotSignal):
         return f"{pd.to_datetime(obj.timestamp_consolidator * 1000000000)}"
-admin.site.register(BotSignal, BotSignalAdmin)
+
+
+admin_site.register(BotSignal, BotSignalAdmin)
 
 
 class BotTargetStateAdmin(admin.ModelAdmin):
@@ -111,7 +164,8 @@ class BotTargetStateAdmin(admin.ModelAdmin):
 
         return ""
 
-admin.site.register(BotTargetState, BotTargetStateAdmin)
+
+admin_site.register(BotTargetState, BotTargetStateAdmin)
 
 
 class BotPositionLogAdmin(admin.ModelAdmin):
@@ -128,7 +182,9 @@ class BotPositionLogAdmin(admin.ModelAdmin):
 
     def get_bot_target(self, obj):
         return str(obj.bot_target_state)
-admin.site.register(BotPositionLog, BotPositionLogAdmin)
+
+
+admin_site.register(BotPositionLog, BotPositionLogAdmin)
 
 
 class BotOrderLogAdmin(admin.ModelAdmin):
@@ -136,7 +192,9 @@ class BotOrderLogAdmin(admin.ModelAdmin):
 
     def get_name(self, obj):
         return str(obj)
-admin.site.register(BotOrderLog, BotOrderLogAdmin)
+
+
+admin_site.register(BotOrderLog, BotOrderLogAdmin)
 
 
 class BotMlConfigAdmin(admin.ModelAdmin):
@@ -144,5 +202,6 @@ class BotMlConfigAdmin(admin.ModelAdmin):
 
     def get_name(self, obj):
         return str(obj)
-admin.site.register(BotMlConfig, BotMlConfigAdmin)
 
+
+admin_site.register(BotMlConfig, BotMlConfigAdmin)
