@@ -10,7 +10,7 @@ from django.db import transaction
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator, MinValueValidator, MaxValueValidator
-
+import sklearn
 from core.libs.helpers.data_classes import *
 from core.libs.helpers.ccxt import CcxtBotExecutor
 from core.libs.helpers.sizing import KellySizing, PercentSizing
