@@ -14,7 +14,7 @@ class MyAdminSite(AdminSite):
         from django.urls import path
         urls = super().get_urls()
         urls += [
-            path('get_cons_data/', self.admin_view(self.my_view))
+            path('get_cons_data/', self.admin_view(self.get_cons_data))
         ]
         return urls
 
