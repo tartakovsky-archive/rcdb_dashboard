@@ -74,10 +74,15 @@ class BitfinexTickApi:
 
         for t in trades_resp:
             # t ~= [423318666, 1583917184478, -0.00267668, 7862.11271616]
+
+            # TODO: REMOVE THIS SHIT AS SOON AS POSSIBLE
+            #       added to support back compatibility with Kaiko timestamps (rounded mathematically)
+            timestamp = round(t[1] / 1000, 0)
+
             amount = float(t[2])
             ticks.append(Tick(
                 trade_id=str(t[0]),  # id
-                timestamp=t[1] / 1000,  # timestamp milliseconds
+                timestamp=timestamp,  # timestamp milliseconds
                 amount=abs(amount),  # amount
                 price=float(t[3]),  # price,
                 taker_side_sell=amount < 0  # no api equivalent
@@ -126,9 +131,9 @@ class KaikoTickApi:
             # since we can't request ticks with millisecond precision, it's ok to append ".000Z"
             # but anyway TODO: fix iso 8601 datetime with millisecond precision
             #                  (".000Z" part should be generated from timestamp_start mantissa)
-            time_start = datetime.datetime.fromtimestamp(timestamp_start).isoformat()
+            time_start = datetime.datetime.utcfromtimestamp(timestamp_start).isoformat()
             time_start += ".000Z"
-            time_end = datetime.datetime.fromtimestamp(timestamp_end).isoformat()
+            time_end = datetime.datetime.utcfromtimestamp(timestamp_end).isoformat()
             time_end += ".000Z"
 
             if time_start:
