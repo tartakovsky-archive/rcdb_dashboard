@@ -318,7 +318,21 @@ class Bot(models.Model):
         help_text="Max diff between current price and target instrument execution price on position decrease.")
 
     def datafeed_has_new_data_to_predict(self):
-        return self.data_feed.update_timestamp > self.predict_timestamp
+        data_feed = self.data_feed
+        while True:
+            if data_feed.parent is not None:
+                data_feed = data_feed.parent
+            else:
+                break
+
+        can_predict = time.time() - data_feed.update_timestamp < data_feed.get_kwargs()['time_frame_seconds'] * 2
+        has_new_data = self.data_feed.update_timestamp > self.predict_timestamp
+
+        # print(time.time() - data_feed.update_timestamp, data_feed.get_kwargs()['time_frame_seconds'],
+        #       data_feed.get_kwargs()['time_frame_seconds'] * 2)
+        # print(f"can_predict: {can_predict}, has_new_data: {has_new_data}")
+
+        return can_predict and has_new_data
 
     def get_feed_dataframe(self, rows_count=None) -> pd.DataFrame:
         feed_id = self.data_feed.id
