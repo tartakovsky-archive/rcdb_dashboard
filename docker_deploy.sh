@@ -42,6 +42,10 @@ if [[ $command = "up" ]]; then
   docker-compose -f .packaging/docker-compose.yaml up -d
 fi
 
+if [[ $command = "stop" ]]; then
+  docker-compose -f .packaging/docker-compose.yaml stop
+fi
+
 
 # > dc.yaml
 # cat dc.yaml
