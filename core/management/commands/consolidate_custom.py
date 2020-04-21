@@ -12,6 +12,10 @@ from core.libs.helpers.hdf import hdf_append
 from core.libs.data_feed.consolidation_from_timebars import HdfDataFeed
 from core.libs.data_feed.functions import consolidation_functions_name
 
+import logging
+logging.basicConfig()
+logging.getLogger().setLevel(settings.LOG_LEVEL)
+
 
 exchange_names_to_slug = {
     "bitfinex": "bfnx"
@@ -157,7 +161,7 @@ class Command(BaseCommand):
 
                 for feed_resp in resps:
                     if feed_resp['has_new_bars']:
-                        print(feed_resp)
+                        logging.info(f"{feed_resp}")
                         # for each job response handle new bar only
                         c = Consolidator.objects.get(id=feed_resp['feed_id'])
                         c.new_bars_event(feed_resp['latest_bar_data'])

@@ -28,6 +28,8 @@ services:
       - data:/app/data
     depends_on:
       - db
+    logging:
+      driver: gcplogs
 
   web:
     image: ${DOCKER_IMAGE_NAME}
@@ -42,8 +44,8 @@ services:
       - 16458:8000
     volumes:
       - data:/app/data
-    # logging:
-    #  driver: gcplogs
+    logging:
+      driver: gcplogs
 
   consolidate_ticks:
     image: ${DOCKER_IMAGE_NAME}
@@ -57,11 +59,13 @@ services:
     depends_on:
       - db
       - migration
+    logging:
+      driver: gcplogs
 
   consolidate_custom:
     image: ${DOCKER_IMAGE_NAME}
     restart: always
-    environment: 
+    environment:
       <<: *env-vars
     volumes:
       - data:/app/data
@@ -69,6 +73,8 @@ services:
     depends_on:
       - db
       - migration
+    logging:
+      driver: gcplogs
 
   execute_target:
     image: ${DOCKER_IMAGE_NAME}
@@ -79,6 +85,8 @@ services:
     depends_on:
       - db
       - migration
+    logging:
+      driver: gcplogs
 
   run_bot:
     image: ${DOCKER_IMAGE_NAME}
@@ -91,6 +99,8 @@ services:
       - migration
     volumes:
       - data:/app/data
+    logging:
+      driver: gcplogs
 
 volumes:
   db:

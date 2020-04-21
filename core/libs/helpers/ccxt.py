@@ -3,7 +3,10 @@ import json
 import ccxt
 import math
 import requests
+
 from core.libs.helpers.data_classes import *
+import logging
+logging.basicConfig()
 
 
 class CcxtBotExecutor:
@@ -85,7 +88,7 @@ class CcxtBotExecutor:
                     else:
                         # current slippage if bigger then allowed, log information and do nothing
                         max_price = bot_target.instrument_target_execution_price + bot_target.instrument_target_execution_price * slippage_pct__allowed
-                        print(f"[Long] Instrument price {bot_ticker.ask} is higher then "
+                        logging.debug(f"[Long] Instrument price {bot_ticker.ask} is higher then "
                               f"target price {bot_target.instrument_target_execution_price} (with slippage {slippage_pct__allowed}% == {max_price})")
                 else:
                     # calculate current slippage between live price and state's target price
@@ -97,7 +100,7 @@ class CcxtBotExecutor:
                     else:
                         # current slippage if bigger then allowed, log information and do nothing
                         min_price = bot_target.instrument_target_execution_price - bot_target.instrument_target_execution_price * slippage_pct__allowed
-                        print(f"[Short] Instrument price {bot_ticker.ask} is lower then "
+                        logging.debug(f"[Short] Instrument price {bot_ticker.ask} is lower then "
                               f"target price {bot_target.instrument_target_execution_price} (with slippage {slippage_pct__allowed}% == {min_price})")
 
                 if is_trade_allowed:

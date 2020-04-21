@@ -1,31 +1,29 @@
-import os
-import json
 import time
-import ccxt
-import math
-from joblib import Parallel, delayed
+
+from django.conf import settings
 from django.core.management.base import BaseCommand
 
 from core.libs.helpers.ccxt import CcxtBotExecutor
-from core.models import Symbol, Consolidator, ExchangeCredentials, Instrument, Bot, BotTargetState, BotSignal, BotOrderLog
+from core.models import Bot, BotTargetState
+
+import logging
+logging.basicConfig()
+logging.getLogger().setLevel(settings.LOG_LEVEL)
 
 
 class Command(BaseCommand):
     help = 'Displays current time'
 
     def handle(self, *args, **kwargs):
-        # return debug()
-        # if BotSignal.objects.all().count() == 0:
-        #     BotSignal.push_signal(Bot.objects.get(id=1), 2)
-
         while True:
             try:
                 for bot_target in BotTargetState.objects.filter(is_active=True):
                     ccxt_manager = CcxtBotExecutor(bot_target.bot)
                     order_result = ccxt_manager.execute_target_state(bot_target)
+                    if order_result is not None:
+                        logging.info(f"new target state executed: {order_result}")
             except Exception as ex:
-                print("Got exception: ", ex)
-
+                logging.exception("Target execution unhandled exception")
 
             time.sleep(1)
 

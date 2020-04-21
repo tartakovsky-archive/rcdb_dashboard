@@ -1,8 +1,14 @@
 import time
 import ccxt
 
+from django.conf import settings
 from django.core.management.base import BaseCommand
+
 from core.models import Bot
+
+import logging
+logging.basicConfig()
+logging.getLogger().setLevel(settings.LOG_LEVEL)
 
 
 class Command(BaseCommand):
@@ -15,7 +21,8 @@ class Command(BaseCommand):
             for bot in bots:
                 try:
                     bot_signal = bot.predict_and_push_signal()
-                    print("bot_signal: ", bot_signal)
+                    if bot_signal is not None:
+                        logging.info(f"new bot_signal: {bot_signal}")
                 except (ccxt.base.errors.RequestTimeout,):
                     pass
 

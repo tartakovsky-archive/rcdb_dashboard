@@ -2,7 +2,6 @@ import time
 import json
 import math
 import joblib
-import logging
 import pandas as pd
 
 from django.db import models
@@ -10,11 +9,26 @@ from django.db import transaction
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator, MinValueValidator, MaxValueValidator
-import sklearn
+
 from core.libs.helpers.data_classes import *
 from core.libs.helpers.ccxt import CcxtBotExecutor
 from core.libs.helpers.sizing import KellySizing, PercentSizing
 from core.libs.helpers.features import get_calc_features_fn
+
+import logging
+logging.basicConfig()
+logging.getLogger().setLevel(settings.LOG_LEVEL)
+
+
+class SaveLogMixin(models.Model):
+    pass
+
+    def save(self, *args, **kwargs):
+        super(SaveLogMixin, self).save(*args, **kwargs)
+        logging.info(f"{self._meta} // {self} // {self.pk}, {self.__dict__}")
+
+    class Meta:
+        abstract = True
 
 
 class Exchange(models.Model):
@@ -262,6 +276,9 @@ class BotMlConfig(models.Model):
     cache = dict()
 
     def __get_from_cache__(self):
+        # TODO: Remove. Added to review predictions without caching.
+        self.cache = dict()
+
         cache_key = f"{self.id}-{self.last_update_timestamp}"
 
         if cache_key not in self.cache:
@@ -398,7 +415,7 @@ class Bot(models.Model):
         return bot_position.size * position_price / bot_balance.amount_all
 
 
-class BotSignal(models.Model):
+class BotSignal(SaveLogMixin, models.Model):
     bot = models.ForeignKey(Bot, on_delete=models.PROTECT)
     signal = models.FloatField(validators=[
         MinValueValidator(-1), MaxValueValidator(1)
@@ -465,7 +482,7 @@ class BotSignal(models.Model):
         return bot_signal
 
 
-class BotTargetState(models.Model):
+class BotTargetState(SaveLogMixin, models.Model):
     bot = models.ForeignKey("Bot", on_delete=models.PROTECT)
     bot_signal = models.ForeignKey("BotSignal", on_delete=models.PROTECT)
     # MaxValueValidator - max leverage in exchange prices
@@ -508,7 +525,7 @@ class BotTargetState(models.Model):
         order_log.save()
 
 
-class BotOrderLog(models.Model):
+class BotOrderLog(SaveLogMixin, models.Model):
     TYPE_CHOICES = (
         ("MARKET", "market"),
     )
@@ -520,7 +537,7 @@ class BotOrderLog(models.Model):
     timestamp = models.FloatField(default=-1)
 
 
-class BotPositionLog(models.Model):
+class BotPositionLog(SaveLogMixin, models.Model):
     bot = models.ForeignKey("Bot", on_delete=models.PROTECT)
     bot_target_state = models.ForeignKey(BotTargetState, on_delete=models.PROTECT, null=True, blank=True)
     price_avg = models.FloatField(default=None)
@@ -528,7 +545,7 @@ class BotPositionLog(models.Model):
     timestamp = models.FloatField(default=-1)
 
 
-class BotPerformanceLog(models.Model):
+class BotPerformanceLog(SaveLogMixin, models.Model):
     bot = models.ForeignKey(Bot, on_delete=models.PROTECT, null=True, blank=True)
     bot_signal = models.ForeignKey(BotSignal, on_delete=models.CASCADE, null=True, blank=True)
     balance = models.FloatField()
@@ -555,5 +572,4 @@ class BotPerformanceLog(models.Model):
             exposure=exposure,
             timestamp=time.time()
         )
-
         log_entry.save()

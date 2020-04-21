@@ -11,6 +11,8 @@ from core.libs.data_feed.consolidation_from_ticks import TickToTimeframeConsolid
 from core.libs.helpers.tick_rest_stream import TickApiProxy
 
 import logging
+logging.basicConfig()
+logging.getLogger().setLevel(settings.LOG_LEVEL)
 
 
 exchange_names_to_slug = {

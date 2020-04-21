@@ -152,6 +152,11 @@ STATIC_URL = '/static/'
 # RCDB config
 ##########################
 
+import logging
+
+LOG_LEVEL_NAME = os.environ.get('LOG_LEVEL', 'INFO')
+LOG_LEVEL = getattr(logging, LOG_LEVEL_NAME)
+
 DATA_DIRECTORY = os.path.join(BASE_DIR, os.environ.get('DATA_DIRECTORY', 'data'))
 MEDIA_ROOT = DATA_DIRECTORY
 
