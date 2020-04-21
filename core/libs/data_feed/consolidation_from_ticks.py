@@ -16,7 +16,8 @@ class BackfillProxyApi:
     def backfill(self, tick_consolidator: "TickConsolidator", until_timestamp, one_batch_only=False):
         timestamp_start = tick_consolidator.get_dataset_end_date()
         timestamp_end = time.time() // tick_consolidator.time_frame_seconds * tick_consolidator.time_frame_seconds
-        logging.info(f'Timestamp start: {timestamp_start}')
+
+        logging.debug(f'Backfill timestamp start: {timestamp_start}')
 
         fetch_req = TickRequest(
             exchange=tick_consolidator.exchange,

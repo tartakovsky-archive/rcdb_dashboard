@@ -29,8 +29,6 @@ class CcxtBotExecutor:
             self.exchange_api = exchange_api
         return self.exchange_api
 
-
-
     def execute_target_state(self, bot_target: "BotTargetState"):
         try:
             # TODO lock in transaction
