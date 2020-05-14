@@ -33,15 +33,17 @@ def hdf_read(file_path: str, tail: int = None) -> pd.DataFrame:
     :param tail: number of rows from the end to return
     :return: pd.DataFrame
     """
+
     while True:
         try:
-            if tail is None:
-                return pd.HDFStore(file_path, mode='r', key="table")
-            else:
-                with pd.HDFStore(file_path, mode='r') as store:
-                    store_rows_count = store.get_storer('table').nrows
-                    df = store.select('table', start=store_rows_count - tail, stop=store_rows_count)
-                    return df
+            with pd.HDFStore(file_path, mode='r') as store:
+                store_rows_count = store.get_storer('table').nrows
+
+                if tail is None:
+                    tail = store_rows_count
+
+                df = store.select('table', start=store_rows_count - tail, stop=store_rows_count)
+                return df
         except tables.exceptions.HDF5ExtError as ex:
             time.sleep(0.1)
             continue

@@ -1,12 +1,12 @@
 import json
 from django.core.management.base import BaseCommand
 
-from core.models import Symbol, Consolidator, ExchangeCredentials, Instrument, Bot, Exchange, Currency, BotSizing
+from core.models import SymbolData, Consolidator, ExchangeCredentials, Instrument, Bot, Exchange, Currency, BotSizing
 from core import models
 
 
 def dump():
-    classes = [Exchange, ExchangeCredentials, Currency, Symbol, Instrument, Consolidator, BotSizing, Bot]
+    classes = [Exchange, ExchangeCredentials, Currency, SymbolData, Instrument, Consolidator, BotSizing, Bot]
 
     results = []
     for c in classes:

@@ -4,23 +4,11 @@ import ccxt
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from core.models import Bot, BotTargetState, BotSignal, BotOrderLog, BotPerformanceLog, BotPositionLog
+from core.models import Bot
 
 import logging
 logging.basicConfig()
 logging.getLogger().setLevel(settings.LOG_LEVEL)
-
-
-def clean_for_debug(bot):
-    BotPositionLog.objects.filter(bot=bot).delete()
-    BotPerformanceLog.objects.filter(bot=bot).delete()
-    BotOrderLog.objects.filter(bot=bot).delete()
-    BotTargetState.objects.filter(bot=bot).delete()
-    BotSignal.objects.filter(bot=bot).delete()
-
-    bot.predict_timestamp = 0
-    bot.data_feed.update_timestamp = 1
-    bot.save()
 
 
 class Command(BaseCommand):
@@ -31,13 +19,11 @@ class Command(BaseCommand):
             bots = Bot.objects.filter(is_active=True)
 
             for bot in bots:
-                # clean_for_debug(bot)
                 try:
                     bot_signal = bot.predict_and_push_signal()
                     if bot_signal is not None:
                         logging.info(f"new bot_signal: {bot_signal}")
-                except ccxt.RequestTimeout:
+                except (ccxt.base.errors.RequestTimeout,):
                     pass
 
-            # exit()
             time.sleep(2)

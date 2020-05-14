@@ -205,3 +205,13 @@ class BotMlConfigAdmin(admin.ModelAdmin):
 
 
 admin_site.register(BotMlConfig, BotMlConfigAdmin)
+
+
+class RiskAdmin(admin.ModelAdmin):
+    list_display = ('get_name',)
+
+    def get_name(self, obj):
+        return str(obj)
+
+
+admin_site.register(Risk, RiskAdmin)

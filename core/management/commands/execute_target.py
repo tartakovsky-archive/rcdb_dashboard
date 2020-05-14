@@ -1,14 +1,29 @@
 import time
 
+from django.db import DatabaseError, transaction
+from django.db.utils import InterfaceError
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from core.libs.helpers.ccxt import CcxtBotExecutor
-from core.models import Bot, BotTargetState
+from core.models import BotTargetState
 
 import logging
 logging.basicConfig()
 logging.getLogger().setLevel(settings.LOG_LEVEL)
+
+@transaction.atomic
+def execute_target_state():
+    bot_targets = BotTargetState.objects.filter(is_active=True).select_for_update(skip_locked=True)[0:1]
+    if not bot_targets:
+        return
+    bot_target = bot_targets[0]
+
+    order_result = bot_target.execute()
+
+    if order_result is not None:
+        logging.info(f"new target state executed: {order_result}")
+
+    return order_result
 
 
 class Command(BaseCommand):
@@ -17,27 +32,17 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         while True:
             try:
-                for bot_target in BotTargetState.objects.filter(is_active=True):
-                    ccxt_manager = CcxtBotExecutor(bot_target.bot)
-                    order_result = ccxt_manager.execute_target_state(bot_target)
-                    if order_result is not None:
-                        logging.info(f"new target state executed: {order_result}")
-            except Exception as ex:
-                logging.exception("Target execution unhandled exception")
+                execute_target_state()
+            except DatabaseError:
+                # When multiple execute_target process running concurrently race condition can be observed.
+                # This scenario is handle by Django's `select_for_update(nowait=True, skip_locked=True)` query,
+                # which will skip locked objects or raise `django.db.DatabaseError`
+                # on access attempt to the locked target_state object.
+                raise
+            except InterfaceError:
+                logging.exception("There is no space left on device (It's not 100% true, but the most common scenario)")
+                return
+            except Exception:
+                logging.exception("BotTargetState execution unhandled exception")
 
             time.sleep(1)
-
-
-def debug():
-    # bot_parent = Bot.objects.get(id=3)
-    # signal = BotSignal.push_signal(bot_parent, 0.4)
-    #
-    bot_child = Bot.objects.get(id=3)
-    # target_child = BotTargetState.objects.get(bot=bot_child, is_active=True)
-    ccxt_manager = CcxtBotExecutor(bot_child)
-    print(ccxt_manager.create_order(0.001))
-    # print(ccxt_manager.get_balance())
-    # print(ccxt_manager.get_ticker())
-    # print(ccxt_manager.get_position())
-
-    # order_result = ccxt_manager.execute_target_state(target_child)

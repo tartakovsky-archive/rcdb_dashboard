@@ -1,6 +1,6 @@
 class SizingAlgo:
     def size(self, proba: float) -> float:
-        pass
+        raise NotImplementedError
 
 
 class PercentSizing(SizingAlgo):

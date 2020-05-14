@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 
+
 @dataclass
-class BotPosition:
+class PositionData:
     timestamp: int
     price_avg: float
     size: float
@@ -9,7 +10,7 @@ class BotPosition:
 
 
 @dataclass
-class BotTicker:
+class TickerData:
     timestamp: int
     bid: float
     ask: float
@@ -17,7 +18,7 @@ class BotTicker:
 
 
 @dataclass
-class BotOrderResult:
+class OrderResultData:
     timestamp: int
     type: str
     size: float
@@ -25,6 +26,30 @@ class BotOrderResult:
 
 
 @dataclass
-class BotQuoteBalance:
+class QuoteBalanceData:
     amount_all: float
     amount_free: float
+
+
+#
+# BotDataClasses
+#
+
+@dataclass
+class SymbolData:
+    base: str
+    quote: str
+
+    def __post_init__(self):
+        assert self.base == self.base.upper()
+        assert self.quote == self.quote.upper()
+
+    def to_kaiko(self):
+        return f"{self.base.lower()}-{self.quote.lower()}"
+
+    def to_ccxt(self):
+        return f"{self.base}/{self.quote}"
+
+    def to_binance(self):
+        return f"{self.base.upper()}{self.quote.upper()}"
+

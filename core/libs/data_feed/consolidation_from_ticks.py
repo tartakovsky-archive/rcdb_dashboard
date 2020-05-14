@@ -36,6 +36,9 @@ class BackfillProxyApi:
         if err:
             raise Exception(err)
 
+        if not ticks:
+            return
+
         # "is live" means "first tick timestamp is less then 10 min delay from time.time()"
         is_live_data = time.time() - ticks[1].timestamp < 60 * 10
         if is_live_data:
