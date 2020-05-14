@@ -31,4 +31,4 @@ jobs:
         cd ..
     - name: Test with pytest
       run: |
-        pytest
+        TEST_ENV=True pytest
