@@ -91,24 +91,26 @@ WSGI_APPLICATION = 'rcdb_execution.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
 
-logging.info(f"Database host: {os.environ.get('POSTGRES_HOST', '127.0.0.1')}")
-
-DATABASES = {
-    # 'default': {
-    #     'ENGINE': 'django.db.backends.sqlite3',
-    #     'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-    # }
-
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'postgres',
-        'USER': 'postgres',
-        'PASSWORD': '',
-        'HOST': os.environ.get('POSTGRES_HOST', '127.0.0.1'),
-        'PORT': '5432',
+if 'TEST_ENV' in os.environ:
+    logging.warning('DB is SQLite. Use it only for testing purpose')
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        }
     }
-}
-
+else:
+    logging.info(f"Database host: {os.environ.get('POSTGRES_HOST', '127.0.0.1')}")
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'postgres',
+            'USER': 'postgres',
+            'PASSWORD': '',
+            'HOST': os.environ.get('POSTGRES_HOST', '127.0.0.1'),
+            'PORT': '5432',
+        }
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/3.0/ref/settings/#auth-password-validators
@@ -163,6 +165,8 @@ MEDIA_ROOT = DATA_DIRECTORY
 BARS_DIRECTORY = os.path.join(DATA_DIRECTORY, "bars")
 MODELS_DIRECTORY = "models"
 RESULTS_DIRECTORY = os.path.join(DATA_DIRECTORY, "results")
+
+CACHE_DIRECTORY = 'cache'
 
 for d in [
         DATA_DIRECTORY,

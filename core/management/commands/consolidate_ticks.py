@@ -61,6 +61,12 @@ def consolidate(
 class Command(BaseCommand):
     help = 'Consolidate TickToTimeFrame consolidators'
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--one-step',
+            action='store_true',
+        )
+
     def handle(self, *args, **kwargs):
         while True:
             try:
@@ -93,7 +99,10 @@ class Command(BaseCommand):
                             # for each job response handle new bar only
                             c = Consolidator.objects.get(id=feed_resp['feed_id'])
                             c.new_bars_event(feed_resp['latest_bar_data'])
-
-                time.sleep(2)
             except Exception as ex:
                 logging.exception("Tick consolidation unhandled exception")
+
+            if kwargs['one_step']:
+                return
+
+            time.sleep(2)

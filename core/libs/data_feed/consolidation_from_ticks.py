@@ -31,7 +31,8 @@ class BackfillProxyApi:
         try:
             ticks, err = self.api.fetch_trades(fetch_req)
         except Exception as ex:
-            err = str(ex)
+            import traceback
+            err = traceback.format_exc()
 
         if err:
             raise Exception(err)

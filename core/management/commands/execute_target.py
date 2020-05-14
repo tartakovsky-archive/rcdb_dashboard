@@ -14,6 +14,12 @@ logging.getLogger().setLevel(settings.LOG_LEVEL)
 class Command(BaseCommand):
     help = 'Displays current time'
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--one-step',
+            action='store_true',
+        )
+
     def handle(self, *args, **kwargs):
         while True:
             try:
@@ -22,8 +28,11 @@ class Command(BaseCommand):
                     order_result = ccxt_manager.execute_target_state(bot_target)
                     if order_result is not None:
                         logging.info(f"new target state executed: {order_result}")
-            except Exception as ex:
+            except Exception:
                 logging.exception("Target execution unhandled exception")
+
+            if kwargs['one_step']:
+                return
 
             time.sleep(1)
 

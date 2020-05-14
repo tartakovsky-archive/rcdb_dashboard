@@ -108,7 +108,7 @@ class Consolidator(models.Model):
 
     """
     Example kwargs per TYPE_CHOICE
-        PERCENT -> { "percent": 0.0005 }
+        PERCENT -> { "bar_size": 0.0005 }
         TIME -> { "time_frame_seconds": 60 }
     """
     kwargs = models.TextField()

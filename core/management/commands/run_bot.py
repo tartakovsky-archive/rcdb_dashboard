@@ -14,6 +14,12 @@ logging.getLogger().setLevel(settings.LOG_LEVEL)
 class Command(BaseCommand):
     help = 'Displays current time'
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--one-step',
+            action='store_true',
+        )
+
     def handle(self, *args, **kwargs):
         while True:
             bots = Bot.objects.filter(is_active=True)
@@ -25,5 +31,8 @@ class Command(BaseCommand):
                         logging.info(f"new bot_signal: {bot_signal}")
                 except (ccxt.base.errors.RequestTimeout,):
                     pass
+
+            if kwargs['one_step']:
+                return
 
             time.sleep(2)
