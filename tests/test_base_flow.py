@@ -21,89 +21,6 @@ use_db = pytest.mark.django_db
 logging.getLogger('numba').setLevel(logging.WARNING)
 
 
-START_TIME = 1389303949
-
-TICKS = [
-    dict(
-        timestamp=START_TIME * 1000,
-        price=100,
-        amount=1.05,
-        taker_side_sell=None, trade_id=1
-    ),
-    dict(
-        timestamp=(START_TIME + (15 * 2)) * 1000,
-        price=110,
-        amount=2.1,
-        taker_side_sell=None, trade_id=1
-    ),
-    dict(
-        timestamp=(START_TIME + (15 * 3)) * 1000,
-        price=120,
-        amount=3.05,
-        taker_side_sell=None, trade_id=1
-    ),
-    dict(
-        timestamp=(START_TIME + (15 * 5)) * 1000,
-        price=130,
-        amount=4.1,
-        taker_side_sell=None, trade_id=1
-    ),
-    dict(
-        timestamp=(START_TIME + (15 * 6)) * 1000,
-        price=140,
-        amount=5.05,
-        taker_side_sell=None, trade_id=1
-    ),
-    dict(
-        timestamp=(START_TIME + (15 * 7)) * 1000,
-        price=150,
-        amount=6.1,
-        taker_side_sell=None, trade_id=1
-    ),
-    dict(
-        timestamp=(START_TIME + (15 * 8)) * 1000,
-        price=160,
-        amount=7.05,
-        taker_side_sell=None, trade_id=1
-    ),
-    dict(
-        timestamp=(START_TIME + (15 * 9)) * 1000,
-        price=180,
-        amount=10.12,
-        taker_side_sell=None, trade_id=1
-    ),
-    dict(
-        timestamp=(START_TIME + (15 * 10)) * 1000,
-        price=190,
-        amount=12.13,
-        taker_side_sell=None, trade_id=1
-    ),
-    dict(
-        timestamp=(START_TIME + (15 * 10)) * 1000,
-        price=200,
-        amount=12.14,
-        taker_side_sell=None, trade_id=1
-    ),
-    dict(
-        timestamp=(START_TIME + (15 * 11)) * 1000,
-        price=190,
-        amount=13.14,
-        taker_side_sell=None, trade_id=1
-    ),
-    dict(
-        timestamp=(START_TIME + (15 * 12)) * 1000,
-        price=180,
-        amount=14.15,
-        taker_side_sell=None, trade_id=1
-    ),
-    dict(
-        timestamp=(START_TIME + (15 * 13)) * 1000,
-        price=170,
-        amount=15.11,
-        taker_side_sell=None, trade_id=1
-    ),
-]
-
 TEST_CONSOLIDATED_TICKS = pd.DataFrame(
     dict(
         open=[100, 120, 160],
@@ -172,7 +89,7 @@ def assert_dfs(df_a, df_b, eps=1e-10):
 
 @pytest.fixture
 def market_cache_dir(tmp_path, monkeypatch):
-    monkeypatch.setenv('MARKET_CACHE_DIR', tmp_path.resolve())
+    monkeypatch.setenv('MARKET_CACHE_DIR', str(tmp_path.resolve()))
     yield
 
 
@@ -203,11 +120,11 @@ def test_consolidate_ticks(requests_mock: Mocker, tmp_path, monkeypatch):
         instrument=instrument
     )
     consolidator.save()
-
-    m = requests_mock.get(re.compile('market-api.kaiko.io'), json={'data': TICKS, 'result': TICKS})
+    with resources.open_text('tests.dataset', 'ticks.json') as file:
+        ticks = json.load(file)
+    requests_mock.get(re.compile('market-api.kaiko.io'), json={'data': ticks, 'result': ticks})
 
     call_command('consolidate_ticks', '--one-step')
-
 
     consolidator.refresh_from_db()
 
