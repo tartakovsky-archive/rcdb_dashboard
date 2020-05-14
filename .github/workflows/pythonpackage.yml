@@ -21,7 +21,7 @@ jobs:
       run: |
         python -m pip install --upgrade "pip<20"
         pip install -r requirements.txt
-        GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN=${{ secrets.RCDB_GITHUB_TOKEN }}
         ./install_github.sh requirements.github
     - name: Test with pytest
       run: |
