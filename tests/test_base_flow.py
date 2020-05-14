@@ -236,7 +236,7 @@ def test_run_bot(requests_mock: Mocker, tmp_path: Path, monkeypatch, mocker, mar
     assert BotSignal.objects.count() == 1
 
     signal: BotSignal = BotSignal.objects.first()
-    assert signal.signal == 0.571933079655672
+    assert signal.signal > 0.5
     assert signal.bot == bot
     assert signal.timestamp_consolidator == 1389304080
     assert signal.timestamp_real == 0
