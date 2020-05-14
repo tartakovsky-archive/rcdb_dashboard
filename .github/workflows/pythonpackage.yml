@@ -23,6 +23,7 @@ jobs:
         pip install -r requirements.txt
         GITHUB_TOKEN=${{ secrets.RCDB_GITHUB_TOKEN }}
         /bin/bash install_github.sh requirements.github
+        ls
     - name: Test with pytest
       run: |
         pytest
