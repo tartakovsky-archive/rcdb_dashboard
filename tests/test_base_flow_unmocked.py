@@ -18,7 +18,9 @@ use_db = pytest.mark.django_db
 
 logging.getLogger('numba').setLevel(logging.WARNING)
 
-AMOUNT = 30
+AMOUNT = 0.03
+BASE_CURRENCY = 'ETH'
+QUOTE_CURRENCY = 'USDT'
 
 
 class Classifier(DummyClassifier):
@@ -45,11 +47,23 @@ def market_cache_dir(tmp_path, monkeypatch):
     yield
 
 
-@pytest.fixture
-def init_db(tmp_path, monkeypatch):
-    base_currency = Currency(name='IOTA', slug='IOTA')
-    quote_currency = Currency(name='USD', slug='USD')
-    exchange = Exchange(name='bitfinex', slug='bitfinex', exchange_email='test@mail.com')
+EXCHANGE_CREDENTIALS = [
+    p for p in
+    [
+        (os.environ.get('BITFINEX_KEY'), os.environ.get('BITFINEX_SECRET'), 'bitfinex'),
+        (os.environ.get('BINANCE_KEY'), os.environ.get('BINANCE_SECRET'), 'binance')
+    ]
+    if all(p)
+]
+
+
+@pytest.fixture(params=EXCHANGE_CREDENTIALS, ids=list(map(lambda x: x[-1], EXCHANGE_CREDENTIALS)))
+def init_db(tmp_path, monkeypatch, request):
+    exchange_key, exchange_secret, exchange_name = request.param
+
+    base_currency = Currency(name=BASE_CURRENCY, slug=BASE_CURRENCY)
+    quote_currency = Currency(name=QUOTE_CURRENCY, slug=QUOTE_CURRENCY)
+    exchange = Exchange(name=exchange_name, slug=exchange_name, exchange_email='test@mail.com')
 
     base_currency.save()
     quote_currency.save()
@@ -88,22 +102,22 @@ def init_db(tmp_path, monkeypatch):
     )
     bot_sizing.save()
 
+    if exchange_name == 'bitfinex':
+        exchange_options = dict(orderTypes=dict(limit='limit', market='market'))
+    else:
+        exchange_options = dict(defaultType="future", defaultMarket="future")
+
     credentials = ExchangeCredentials(
         name="admin-rcdb-bitfinex",
         exchange=Exchange.objects.first(),
         init_kwargs=json.dumps(
             dict(
-                apiKey=os.environ['BITFINEX_KEY'],
-                secret=os.environ['BITFINEX_SECRET'],
+                apiKey=exchange_key,
+                secret=exchange_secret,
                 timeout=5000,
                 enableRateLimit=True,
-                options=dict(
-                    orderTypes=dict(
-                        limit='limit',
-                        market='market'
-                    )
+                options=exchange_options
                 )
-            )
         )
     )
     credentials.save()
@@ -134,7 +148,8 @@ def init_db(tmp_path, monkeypatch):
 
 
 @pytest.mark.skipif(
-    'BITFINEX_KEY' not in os.environ or 'BITFINEX_SECRET' not in os.environ,
+    not (os.environ.get('BITFINEX_KEY') and os.environ.get('BITFINEX_SECRET') or
+            os.environ.get('BINANCE_KEY') and os.environ.get('BINANCE_SECRET')),
     reason='Exchange creds does not provide'
 )
 @use_db
