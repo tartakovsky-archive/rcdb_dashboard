@@ -23,7 +23,7 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
-      run: ./install_deps.sh
+      run: /bin/bash install_deps.sh
     - name: Tests
       run: pytest --ignore tests/test_base_flow_unmocked.py
     - name: Tests [real exchanges]
