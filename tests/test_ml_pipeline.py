@@ -55,6 +55,10 @@ class MockedCcxtApi:
     def private_post_positions():
         return []
 
+    @staticmethod
+    def load_markets():
+        pass
+
 
 @pytest.fixture
 def init_db(tmp_path, monkeypatch, mocker):
