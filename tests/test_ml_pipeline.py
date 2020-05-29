@@ -201,6 +201,16 @@ class MLPipeline:
         return has_new
 
 
+@pytest.fixture
+def minutes():
+    with resources.path('tests.datasets', 'bars.hdf') as path:
+        df: pd.DataFrame = pd.read_hdf(path, 'table')
+        df.index = df.index * 1000
+        df['volume'] = df.volume_sell + df.volume_buy
+
+        return df[['open', 'high', 'low', 'close', 'volume']]
+
+
 @use_db
 def test_compare_consolidation(init_db):
     ticks_consolidator = Consolidator.objects.get(parent__isnull=True)
@@ -209,11 +219,7 @@ def test_compare_consolidation(init_db):
     ticks_bars_path = os.path.join(settings.BARS_DIRECTORY, f'{ticks_consolidator.id}.h5')
     percent_bars_path = os.path.join(settings.BARS_DIRECTORY, f'{percent_consolidator.id}.h5')
 
-    df: pd.DataFrame = pd.read_hdf('/home/sanin/PycharmProjects/rcdb_execution/tests/dataset/bars.hdf', 'table')
-    df.index = df.index * 1000
-    df['volume'] = df.volume_sell + df.volume_buy
 
-    df = df[['open', 'high', 'low', 'close', 'volume']]
 
     initial = 500
     from_, to = initial + 1, initial + 20
