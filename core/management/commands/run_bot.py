@@ -28,8 +28,9 @@ class Command(BaseCommand):
                 try:
                     bot_signal = bot.predict_and_push_signal()
                     if bot_signal is not None:
-                        logging.info(f"new bot_signal: {bot_signal}")
+                        logging.info(f"new bot_signal: {bot_signal} {bot_signal.signal}")
                 except (ccxt.RequestTimeout,):
+                    logging.exception('run_bot')
                     pass
 
             if kwargs['one_step']:

@@ -10,11 +10,12 @@ import pytest
 import numpy as np
 import pandas as pd
 from requests_mock import Mocker
+from django.conf import settings
 from django.core.files import File
 from django.core.management import call_command
 
 from core.models import *
-from django.conf import settings
+from .utils import assert_dfs
 
 use_db = pytest.mark.django_db
 
@@ -79,12 +80,6 @@ class MockedCcxtApi:
     @staticmethod
     def private_post_order_status(self, params):
         pass
-
-
-def assert_dfs(df_a, df_b, eps=1e-10):
-    assert df_a.index.equals(df_b.index)
-    assert np.array_equal(df_a.columns, df_b.columns)
-    assert ((df_a.values - df_b.values) < eps).all()
 
 
 @pytest.fixture
