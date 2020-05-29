@@ -203,7 +203,7 @@ class MLPipeline:
 
 @pytest.fixture
 def minutes():
-    with resources.path('tests.datasets', 'bars.hdf') as path:
+    with resources.path('tests.dataset', 'bars.hdf') as path:
         df: pd.DataFrame = pd.read_hdf(path, 'table')
         df.index = df.index * 1000
         df['volume'] = df.volume_sell + df.volume_buy
@@ -212,14 +212,13 @@ def minutes():
 
 
 @use_db
-def test_compare_consolidation(init_db):
+def test_compare_consolidation(init_db, minutes):
+    df = minutes
     ticks_consolidator = Consolidator.objects.get(parent__isnull=True)
     percent_consolidator = Consolidator.objects.get(parent__isnull=False)
 
     ticks_bars_path = os.path.join(settings.BARS_DIRECTORY, f'{ticks_consolidator.id}.h5')
     percent_bars_path = os.path.join(settings.BARS_DIRECTORY, f'{percent_consolidator.id}.h5')
-
-
 
     initial = 500
     from_, to = initial + 1, initial + 20
