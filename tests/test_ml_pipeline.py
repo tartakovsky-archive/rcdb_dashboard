@@ -15,9 +15,9 @@ from django.core.files import File
 from django.core.management import call_command
 from rcdb_libs.bars import percent
 from rcdb_libs.job_manager import JobManager
-from rcdb_research.simulation import KellySizing
 
 from core.models import *
+from core.libs.helpers.sizing import KellySizing
 from .utils import assert_dfs
 
 AMOUNT = 0.03
