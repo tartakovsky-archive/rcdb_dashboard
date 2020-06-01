@@ -3,6 +3,7 @@ import copy
 import json
 import shutil
 from importlib import resources
+from types import SimpleNamespace
 from dataclasses import dataclass, field
 
 import pytest
@@ -14,6 +15,7 @@ from django.core.files import File
 from django.core.management import call_command
 from rcdb_libs.bars import percent
 from rcdb_libs.job_manager import JobManager
+from rcdb_research.simulation import KellySizing
 
 from core.models import *
 from .utils import assert_dfs
@@ -21,6 +23,7 @@ from .utils import assert_dfs
 AMOUNT = 0.03
 BASE_CURRENCY = 'ETH'
 QUOTE_CURRENCY = 'USDT'
+BALANCE = 10000
 
 BAR_SIZE = 0.0005
 
@@ -47,7 +50,7 @@ class MockedCcxtApi:
     def fetch_balance(self):
         return {
             'info': [
-                {'type': 'trading', 'currency': 'USDT', 'amount': 100, 'available': 100}
+                {'type': 'trading', 'currency': QUOTE_CURRENCY, 'amount': BALANCE, 'available': BALANCE}
             ]
         }
 
@@ -57,6 +60,10 @@ class MockedCcxtApi:
 
     @staticmethod
     def load_markets():
+        pass
+
+    @staticmethod
+    def fetch_ticker():
         pass
 
 
@@ -105,10 +112,17 @@ def init_db(tmp_path, monkeypatch, mocker):
     percent_consolidator.save()
 
     bot_sizing = BotSizing(
-        name=f'Fixed {AMOUNT} for testing',
-        type="FIXED",
-        kwargs=json.dumps(dict(amount=AMOUNT, multiply_by_signal=False)),
-        is_short_allowed=True,
+        name='Kelly',
+        type="KELLY",
+        kwargs=json.dumps(
+            dict(
+                win_size=0.014,
+                loss_size=0.022,
+                divider=10,
+                direction='both'
+            )
+        ),
+        is_short_allowed=False,
         is_long_allowed=True
     )
     bot_sizing.save()
@@ -128,13 +142,11 @@ def init_db(tmp_path, monkeypatch, mocker):
     )
     credentials.save()
 
-
     with resources.open_binary('tests.dataset', 'model.joblib') as model_f,\
             resources.open_text('tests.dataset', 'fn_tasks.json') as f:
         ml_config = BotMlConfig(name='Model', description='', fn_tasks=f.read())
         ml_config.file.save('model', File(model_f))
         ml_config.save()
-
 
     bot = Bot(
         name="Bot 1 // 0.05%",
@@ -150,14 +162,7 @@ def init_db(tmp_path, monkeypatch, mocker):
         ml_config=ml_config
     )
     bot.save()
-
-
-    # with resources.path('tests.dataset', 'bars.hdf') as path:
-        # shutil.copyfile(path, os.path.join(settings.BARS_DIRECTORY, f'{ticks_consolidator.id}.h5'))
-        # shutil.copyfile(path, os.path.join(settings.BARS_DIRECTORY, f'{percent_consolidator.id}.h5'))
-
     yield
-
 
 
 @dataclass
@@ -166,8 +171,12 @@ class MLPipeline:
     fn_tasks: list
     threshold: float
     initial_bars: pd.DataFrame
-    latest_bars: pd.DataFrame = None
+    sizing: KellySizing
+    ticker: object = None
+    ticker_value: float = None
     probas: list = field(default_factory=list)
+    sizes: list = field(default_factory=list)
+    latest_bars: pd.DataFrame = None
 
     def on_bar(self, bar: pd.Series):
         self.initial_bars = self.initial_bars.append(bar)
@@ -179,6 +188,9 @@ class MLPipeline:
 
         proba = self.predict_proba(X)
         self.probas.append(proba)
+        self.sizes.append(
+            self.get_size(proba)
+        )
 
     def prepare_bars_for_predict(self, bars):
         bars['timestamp'] = bars.index / 1000
@@ -204,6 +216,14 @@ class MLPipeline:
 
         return has_new
 
+    def get_ticker_value(self):
+        return self.ticker_value
+
+    def get_size(self, signal):
+        ticker_price = self.ticker.bid if signal > 0.5 else self.ticker.ask
+        self.ticker_value = ticker_price
+        return BALANCE * self.sizing.size(signal) / ticker_price
+
 
 @pytest.fixture
 def minutes():
@@ -216,7 +236,7 @@ def minutes():
 
 
 @use_db
-def test_compare_consolidation(init_db, minutes):
+def test(init_db, minutes):
     df = minutes
     ticks_consolidator = Consolidator.objects.get(parent__isnull=True)
     percent_consolidator = Consolidator.objects.get(parent__isnull=False)
@@ -230,14 +250,26 @@ def test_compare_consolidation(init_db, minutes):
     bot: Bot = Bot.objects.first()
 
     ml_pipeline = MLPipeline(
+        sizing=KellySizing(**json.loads(bot.sizing.kwargs)),
         model=bot.ml_config.get_model(),
         fn_tasks=bot.ml_config.get_fn_tasks(),
-        threshold=0.0005,
+        threshold=BAR_SIZE,
         initial_bars=df[:initial]
     )
 
+    ticker = df.close.values[from_]
     for i in range(from_, to):
-        ml_pipeline.on_bar(df.iloc[i, :])
+        minute_bar = df.iloc[i, :]
+
+        MockedCcxtApi.fetch_ticker = lambda *args: dict(
+            timestamp=int(df.index.values[i]),
+            ask=ticker,
+            bid=ticker,
+            average=minute_bar.close
+        )
+        ml_pipeline.ticker = SimpleNamespace(ask=ticker, bid=ticker)
+
+        ml_pipeline.on_bar(minute_bar)
 
         if os.path.exists(ticks_bars_path):
             os.remove(ticks_bars_path)
@@ -245,12 +277,15 @@ def test_compare_consolidation(init_db, minutes):
         df[:i + 1].to_hdf(ticks_bars_path, key='table')
 
         ticks_consolidator.latest_bar_data = json.dumps(
-            {'timestamp': int(df.index.values[i]), **df.iloc[i, :].to_dict()})
+            {'timestamp': int(df.index.values[i]), **minute_bar.to_dict()})
         ticks_consolidator.update_timestamp = df.index.values[i]
         ticks_consolidator.save()
 
         call_command('consolidate_custom', '--one-step')
         call_command('run_bot', '--one-step')
 
-
     assert ml_pipeline.probas and tuple(ml_pipeline.probas) == tuple(BotSignal.objects.values_list('signal', flat=True))
+    print(ml_pipeline.sizes)
+    print(BotTargetState.objects.values_list('instrument_target_size', flat=True))
+    assert ml_pipeline.sizes and tuple(map(lambda v: round(v, 9), ml_pipeline.sizes)) == tuple(
+        BotTargetState.objects.values_list('instrument_target_size', flat=True))
