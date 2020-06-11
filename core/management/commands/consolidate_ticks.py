@@ -93,7 +93,7 @@ class Command(BaseCommand):
                             # for each job response handle new bar only
                             c = Consolidator.objects.get(id=feed_resp['feed_id'])
                             c.new_bars_event(feed_resp['latest_bar_data'])
-
-                time.sleep(2)
             except Exception as ex:
                 logging.exception("Tick consolidation unhandled exception")
+               
+            time.sleep(1)
