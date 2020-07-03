@@ -312,4 +312,3 @@ def test(init_db, minutes):
     print(MockedCcxtApi._orders)
 
     print(BotOrderLog.objects.count())
-    assert False, 'Done'
