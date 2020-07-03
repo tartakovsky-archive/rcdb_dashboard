@@ -67,6 +67,7 @@ class CcxtBotExecutor:
 
                 # calculate order size
                 order_size = round(bot_target.instrument_target_size - bot_position.size, bot.instrument.size_round_precision)
+                print(bot_target.id, 'order_size', order_size)
                 if abs(order_size) > bot.max_trade_amount:
                     # limit order size to bot max allowed trade size
                     order_size = math.copysign(bot.max_trade_amount, order_size)

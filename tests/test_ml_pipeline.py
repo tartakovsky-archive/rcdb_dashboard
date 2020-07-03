@@ -1,4 +1,6 @@
 import os
+import time
+import uuid
 import copy
 import json
 import shutil
@@ -24,7 +26,6 @@ AMOUNT = 0.03
 BASE_CURRENCY = 'ETH'
 QUOTE_CURRENCY = 'USDT'
 BALANCE = 10000
-
 BAR_SIZE = 0.0005
 
 use_db = pytest.mark.django_db
@@ -43,6 +44,7 @@ def market_cache_dir(tmp_path, monkeypatch):
 class MockedCcxtApi:
     created = False
     markets = {}
+    _orders = {}
 
     def __init__(self, *args, **kwargs):
         MockedCcxtApi.created = True
@@ -65,6 +67,23 @@ class MockedCcxtApi:
     @staticmethod
     def fetch_ticker():
         pass
+
+    @classmethod
+    def create_order(cls, side, amount, *args, **kwargs):
+        id = uuid.uuid4().hex
+        t = time.time()
+        cls._orders[id] = dict(side=side, amount=amount, timestamp=t)
+        return dict(info=dict(id=id))
+
+    @classmethod
+    def private_post_order_status(cls, params):
+        order = cls._orders[params['order_id']]
+        return dict(
+            timestamp=order['timestamp'],
+            executed_amount=order['amount'],
+            side=order['side'],
+            avg_execution_price=order['amount']
+        )
 
 
 @pytest.fixture
@@ -283,9 +302,14 @@ def test(init_db, minutes):
 
         call_command('consolidate_custom', '--one-step')
         call_command('run_bot', '--one-step')
+        call_command('execute_target', '--one-step')
 
     assert ml_pipeline.probas and tuple(ml_pipeline.probas) == tuple(BotSignal.objects.values_list('signal', flat=True))
     print(ml_pipeline.sizes)
     print(BotTargetState.objects.values_list('instrument_target_size', flat=True))
     assert ml_pipeline.sizes and tuple(map(lambda v: round(v, 9), ml_pipeline.sizes)) == tuple(
         BotTargetState.objects.values_list('instrument_target_size', flat=True))
+    print(MockedCcxtApi._orders)
+
+    print(BotOrderLog.objects.count())
+    assert False, 'Done'
