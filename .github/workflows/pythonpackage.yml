@@ -24,7 +24,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade "pip<20"
+        python -m pip install --upgrade pip==20.1
         pip install -r requirements.txt
         mkdir _req_install
         cp install_github.sh _req_install/
