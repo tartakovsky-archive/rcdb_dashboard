@@ -33,6 +33,7 @@ jobs:
         chmod 0755 install_github.sh
         export GITHUB_TOKEN=${{ secrets.RCDB_GITHUB_TOKEN }}
         /bin/bash install_github.sh requirements.github
+        /bin/bash install_github.sh requirements.research.github
         cd ..
     - name: Tests
       run: pytest --ignore tests/test_base_flow_unmocked.py
