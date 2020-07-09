@@ -27,6 +27,9 @@ class Command(BaseCommand):
 
             time.sleep(1)
 
+            from django.db import connection
+            connection.close_all()
+
 
 def debug():
     # bot_parent = Bot.objects.get(id=3)

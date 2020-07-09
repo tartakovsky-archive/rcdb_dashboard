@@ -27,3 +27,6 @@ class Command(BaseCommand):
                     pass
 
             time.sleep(2)
+
+            from django.db import connection
+            connection.close_all()
