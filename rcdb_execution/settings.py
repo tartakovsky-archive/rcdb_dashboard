@@ -26,7 +26,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = '7#7l88fkd4og&i^z+zk4bmqq0o5@t40vviwnax*da5-)5eixgc'
 
-if  os.environ.get('SENTRY_DSN'):
+if os.environ.get('SENTRY_DSN'):
     sentry_sdk.init(
         dsn=os.environ['SENTRY_DSN'],
         integrations=[DjangoIntegration()],
@@ -41,7 +41,7 @@ else:
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["local.execution.rcdb", 'prod.execution.rcdb']
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -71,8 +71,7 @@ ROOT_URLCONF = 'rcdb_execution.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates')]
-        ,
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -90,22 +89,14 @@ WSGI_APPLICATION = 'rcdb_execution.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
-
-logging.info(f"Database host: {os.environ.get('POSTGRES_HOST', '127.0.0.1')}")
-
 DATABASES = {
-    # 'default': {
-    #     'ENGINE': 'django.db.backends.sqlite3',
-    #     'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-    # }
-
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'postgres',
-        'USER': 'postgres',
-        'PASSWORD': '',
-        'HOST': os.environ.get('POSTGRES_HOST', '127.0.0.1'),
-        'PORT': '5432',
+        'NAME': os.environ.get('POSTGRES_DB', 'db'),
+        'USER': os.environ.get('POSTGRES_USER', 'db_user'),
+        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'password'),
+        'HOST': os.environ.get('POSTGRES_HOST', 'db'),
+        'PORT': os.environ.get('POSTGRES_PORT', '5432'),
     }
 }
 
@@ -148,28 +139,8 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
-##########################
-# RCDB config
-##########################
-
-import logging
-
-LOG_LEVEL_NAME = os.environ.get('LOG_LEVEL', 'INFO')
-LOG_LEVEL = getattr(logging, LOG_LEVEL_NAME)
-
-DATA_DIRECTORY = os.path.join(BASE_DIR, os.environ.get('DATA_DIRECTORY', 'data'))
-MEDIA_ROOT = DATA_DIRECTORY
-
-BARS_DIRECTORY = os.path.join(DATA_DIRECTORY, "bars")
-MODELS_DIRECTORY = "models"
-RESULTS_DIRECTORY = os.path.join(DATA_DIRECTORY, "results")
-
-for d in [
-        DATA_DIRECTORY,
-        BARS_DIRECTORY,
-        MODELS_DIRECTORY,
-        RESULTS_DIRECTORY
-]:
-    os.makedirs(d, exist_ok=True)
-
-KAIKO_API_KEY = os.environ.get('KAIKO_API_KEY')
+#############
+# RCDB_CONFIG
+#############
+DATASTORE_URL = os.environ.get('DATASTORE_URL')
+DATASTORE_TOKEN = os.environ.get('DATASTORE_TOKEN')

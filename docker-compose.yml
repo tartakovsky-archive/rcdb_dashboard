@@ -1,0 +1,49 @@
+version: '3.7'
+
+x-env-vars: &env-vars
+  POSTGRES_HOST: ${POSTGRES_HOST:-db}
+  POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+  POSTGRES_USER: ${POSTGRES_USER:-db_user}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+  POSTGRES_DB: ${POSTGRES_DB:-db}
+  SENTRY_DSN: ${SENTRY_DSN}
+  DATASTORE_URL: ${DATASTORE_URL}
+  DATASTORE_TOKEN: ${DATASTORE_TOKEN}
+
+services:
+  web:
+    image: ${DOCKER_REGISTRY:-local}/dashboard:latest
+    build:
+      context: ./
+      dockerfile: ./.packaging/Dockerfile
+    environment:
+      <<: *env-vars
+    command: gunicorn -k uvicorn.workers.UvicornWorker --workers=3 --threads=2 --max-requests=150 --timeout=60 --enable-stdio-inheritance --access-logfile - --access-logformat "[%(t)s] [ACCESS] %(h)s - %(r)s %(s)s %(T)s" --log-level DEBUG --graceful-timeout=30 -b 0.0.0.0:8000 rcdb_execution.asgi:application
+    ports:
+      - 8000:8000
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1024m"
+        max-file: "2"
+    depends_on:
+      - db
+
+  db:
+    image: postgres:12-alpine
+    environment:
+      <<: *env-vars
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1024m"
+        max-file: "2"
+
+volumes:
+  db_data:
