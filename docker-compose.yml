@@ -6,6 +6,7 @@ x-env-vars: &env-vars
   POSTGRES_USER: ${POSTGRES_USER:-db_user}
   POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
   POSTGRES_DB: ${POSTGRES_DB:-db}
+  REDIS_PASSWORD: ${REDIS_PASSWORD:-password}
   SENTRY_DSN: ${SENTRY_DSN}
   DATASTORE_URL: ${DATASTORE_URL}
   DATASTORE_TOKEN: ${DATASTORE_TOKEN}
@@ -29,6 +30,43 @@ services:
         max-file: "2"
     depends_on:
       - db
+      - redis
+
+  celery_workers:
+    image: ${DOCKER_REGISTRY:-local}/dashboard:latest
+    build:
+      context: ./
+      dockerfile: ./.packaging/Dockerfile
+    environment:
+      <<: *env-vars
+    command: celery -A rcdb_execution.celery.celery worker -l info -c 3 -E -Q ${CELERY_QUEUE:-default}
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "512m"
+        max-file: "2"
+    depends_on:
+      - db
+      - redis
+
+  celery_beat:
+    image: ${DOCKER_REGISTRY:-local}/dashboard:latest
+    build:
+      context: ./
+      dockerfile: ./.packaging/Dockerfile
+    environment:
+      <<: *env-vars
+    command: celery -A rcdb_execution.celery.celery beat -l info
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "512m"
+        max-file: "2"
+    depends_on:
+      - db
+      - redis
 
   db:
     image: postgres:12-alpine
@@ -45,5 +83,20 @@ services:
         max-size: "1024m"
         max-file: "2"
 
+  redis:
+    image: redis:6.2-buster
+    command: redis-server --requirepass ${REDIS_PASSWORD:-password} --appendonly yes
+    volumes:
+      - redis_data:/data
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "512m"
+        max-file: "2"
+    ports:
+      - 6379:6379
+
 volumes:
   db_data:
+  redis_data:

@@ -11,10 +11,8 @@ https://docs.djangoproject.com/en/3.0/ref/settings/
 """
 
 import os
-import logging
 
-import sentry_sdk
-from sentry_sdk.integrations.django import DjangoIntegration
+from .sentry import init_sentry
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -25,18 +23,8 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = '7#7l88fkd4og&i^z+zk4bmqq0o5@t40vviwnax*da5-)5eixgc'
-
-if os.environ.get('SENTRY_DSN'):
-    sentry_sdk.init(
-        dsn=os.environ['SENTRY_DSN'],
-        integrations=[DjangoIntegration()],
-
-        # If you wish to associate users to errors (assuming you are using
-        # django.contrib.auth) you may enable sending PII data.
-        send_default_pii=True
-    )
-else:
-    logging.warning('Running without sentry. Provide SENTRY_DSN env variable to enable sentry')
+SENTRY_DSN = os.environ.get('SENTRY_DSN')
+init_sentry(SENTRY_DSN)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -139,8 +127,30 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
+REDIS_HOST = os.environ.get('REDIS_HOST', 'redis')
+REDIS_PORT = os.environ.get('REDIS_PORT', '6379')
+REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD', 'password')
+
 #############
 # RCDB_CONFIG
 #############
 DATASTORE_URL = os.environ.get('DATASTORE_URL')
 DATASTORE_TOKEN = os.environ.get('DATASTORE_TOKEN')
+UPDATE_BOT_STATISTIC_INTERVAL = int(os.environ.get('UPDATE_BOT_STATISTIC_INTERVAL', 15))
+
+###############
+# CELERY CONFIG
+###############
+CELERY_BROKER_URL = f'redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}'
+CELERY_ENABLE_UTC = True
+CELERY_TASK_ALWAYS_EAGER = False
+CELERY_TASK_DEFAULT_QUEUE = 'default'
+CELERY_TIMEZONE = 'UTC'
+CELERY_WORKER_HIJACK_ROOT_LOGGER = False
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_BEAT_SCHEDULE = {
+    'schedule-update-bot-statistic': {
+        'task': 'core.tasks.t_schedule_update_bot_statistic',
+        'schedule': 15,
+    }
+}

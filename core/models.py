@@ -1,10 +1,26 @@
+import json
+
 from django.db import models
-from django.core.validators import RegexValidator, MinValueValidator, MaxValueValidator
+from django.core.validators import RegexValidator, ValidationError
+
+
+def validate_json(value: str):
+    try:
+        json.loads(value)
+    except json.JSONDecodeError:
+        raise ValidationError('Invalid json')
+
+
+class Account(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.name
 
 
 class Exchange(models.Model):
-    name = models.TextField(max_length=100)
-    slug = models.TextField(max_length=30, default="bitfinex")
+    name = models.CharField(max_length=100)
+    slug = models.CharField(max_length=30, default="bitfinex")
     exchange_email = models.EmailField()
 
     class Meta:
@@ -15,8 +31,11 @@ class Exchange(models.Model):
 
 
 class Currency(models.Model):
-    name = models.TextField(unique=True)
-    slug = models.TextField(validators=[
+    class Meta:
+        verbose_name_plural = 'Currencies'
+
+    name = models.CharField(unique=True, max_length=16)
+    slug = models.CharField(max_length=16, validators=[
         RegexValidator('^[A-Z]*$', 'Only uppercase letters are allowed.')])
 
     def __str__(self):
@@ -42,77 +61,58 @@ class Symbol(models.Model):
 
 class Instrument(models.Model):
     TYPE_CHOICES = (
-        ("SPOT", "spot"),
-        ("MARGIN", "margin"),
-        ("FUTURE", "future"),
+        ("SPOT", "SPOT"),
+        ("MARGIN", "MARGIN"),
+        ("FUTURE", "FUTURE"),
     )
 
     exchange = models.ForeignKey(Exchange, null=False, blank=False, on_delete=models.PROTECT)
     symbol = models.ForeignKey(Symbol, on_delete=models.PROTECT)
-    kaiko_type = models.TextField(choices=TYPE_CHOICES, default="SPOT")
+    type = models.CharField(max_length=6, choices=TYPE_CHOICES, default="SPOT")
 
     size_round_precision = models.IntegerField(default=9)
 
     def __str__(self):
-        return f"{self.symbol} - {self.kaiko_type} on {self.exchange}"
+        return f"{self.symbol} - {self.type} on {self.exchange}"
 
 
 class ExchangeCredentials(models.Model):
-    """
-    plain CCXT init object in json (would be translated to dict through json.loads)
-    {
-        "apiKey": "XXX",
-        "secret": "YYY",
-        "timeout": 5000,
-        "enableRateLimit": true,
-        "options": {
-            "orderTypes": {
-              "limit": "limit",
-              "market": "market"
-            }
-        }
-    }
-    """
-    name = models.TextField(max_length=200)
+    class Meta:
+        verbose_name_plural = 'ExchangeCredentials'
+
+    name = models.CharField(max_length=200)
     exchange = models.ForeignKey(Exchange, on_delete=models.PROTECT)
-    init_kwargs = models.TextField()
+    init_kwargs = models.TextField(validators=[validate_json])
 
     def __str__(self):
         return f"{self.name} for {self.exchange}"
 
 
 class Bot(models.Model):
-    # if parent is not null, then this is DummyBot
-    # that receiving signals on parent.push_signal
-    parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.PROTECT)
-
-    name = models.TextField(max_length=200)
+    name = models.CharField(max_length=200)
+    is_active = models.BooleanField(default=False)
+    account = models.ForeignKey(Account, on_delete=models.PROTECT)
     exchange_credentials = models.ForeignKey(ExchangeCredentials, on_delete=models.PROTECT)
     instrument = models.ForeignKey(Instrument, on_delete=models.PROTECT)
 
-    predict_timestamp = models.IntegerField(default=0)
-
-    is_active = models.BooleanField(default=False)
-
-    min_trade_amount = models.FloatField(
-        default=0,
-        validators=[MinValueValidator(0)],
-        help_text="Min trade size for the instrument, e.g. bitfinex BTCUSD = 0.00082, bitmex XBTUSD - 1")
-
-    max_trade_amount = models.FloatField(
-        default=0,
-        validators=[MinValueValidator(0)],
-        help_text="Max trade size for the instrument, e.g. bitfinex BTCUSD = 0.00082, bitmex XBTUSD - 1")
-
-    slippage_pct_position_increase = models.FloatField(
-        default=0,
-        validators=[MinValueValidator(0), MaxValueValidator(0.1)],
-        help_text="Max diff between current price and target instrument execution price on position increase.")
-
-    slippage_pct_position_decrease = models.FloatField(
-        default=0,
-        validators=[MinValueValidator(0), MaxValueValidator(0.1)],
-        help_text="Max diff between current price and target instrument execution price on position decrease.")
+    config = models.TextField(validators=[validate_json])
 
     def __str__(self):
         return f"{self.name} // {self.instrument}"
+
+
+class BotStatistic(models.Model):
+    updated = models.DateTimeField()
+    bot = models.ForeignKey(Bot, on_delete=models.CASCADE)
+    equity = models.FloatField()
+    exposure = models.FloatField()
+    employed_capital = models.FloatField()
+    price_crypto = models.FloatField()
+    price_fair = models.FloatField()
+    price_forex = models.FloatField()
+    balance_base_borrowed = models.FloatField()
+    balance_quote_borrowed = models.FloatField()
+
+    @property
+    def price_change(self) -> float:
+        return round(100*(self.price_forex/self.price_fair - 1), 2)
