@@ -10,8 +10,7 @@ class Currency(Schema):
 
 
 class Symbol(Schema):
-    base: Currency
-    quote: Currency
+    pair: str
 
 
 class Instrument(Schema):

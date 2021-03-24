@@ -42,6 +42,10 @@ class Symbol(models.Model):
     base = models.ForeignKey(Currency, related_name="base", null=False, blank=False, on_delete=models.PROTECT)
     quote = models.ForeignKey(Currency, related_name="quote", null=False, blank=False, on_delete=models.PROTECT)
 
+    @property
+    def pair(self):
+        return f"{self.base.slug.upper()}/{self.quote.slug.upper()}"
+
     def to_kaiko(self):
         return f"{self.base.slug.lower()}-{self.quote.slug.lower()}"
 
