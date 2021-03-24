@@ -1,5 +1,8 @@
 import logging
+import datetime
 from typing import Optional
+
+import pytz
 
 from .models import Bot, BotStatistic
 from .helpers.data_store import DataStore, DataType
@@ -26,32 +29,37 @@ class BotStatisticUpdater:
         bot_statistic.save()
 
     def _get_bot_statistic(self, bot_id: int) -> BotStatistic:
-        bot = Bot.objects.get(bot_id)
+        bot = Bot.objects.get(pk=bot_id)
         bot_statistic: Optional[BotStatistic] = bot.botstatistic_set.first()
         if not bot_statistic:
             bot_statistic = BotStatistic(bot_id=bot_id)
         return bot_statistic
 
-    def _fetch_bot_statistic_update(self, bot_id):
+    def _fetch_bot_statistic_update(self, bot_id: int) -> Optional[dict]:
         data = self.datastore.read(DataType.bot_performance, {'bot_id': bot_id})
         if len(data) > 0:
-            return data.to_dict(orient='records')[0]
+            dt: datetime.datetime = data.index.to_pydatetime()[0].replace(tzinfo=pytz.UTC)
+            return {"timestamp": dt, **data.to_dict(orient='records')[0]}
         return None
 
     @staticmethod
     def fill_bot_statistic(bot_statistic: BotStatistic, statistic_data: dict):
-        bot_statistic.equity = statistic_data['equity']
-        bot_statistic.exposure = statistic_data['exposure']
-        bot_statistic.employed_capital = statistic_data['employed_capital']
-        bot_statistic.price_crypto = statistic_data['price_crypto']
-        bot_statistic.price_fair = statistic_data['price_fair']
-        bot_statistic.price_forex = statistic_data['price_forex']
-        bot_statistic.balance_base_borrowed = statistic_data['balance_base_borrowed']
-        bot_statistic.balance_quote_borrowed = statistic_data['balance_quote_borrowed']
+        if bot_statistic.updated != statistic_data['updated']:
+            bot_statistic.updated = statistic_data['updated']
+            bot_statistic.equity = statistic_data['equity']
+            bot_statistic.exposure = statistic_data['exposure']
+            bot_statistic.employed_capital = statistic_data['employed_capital']
+            bot_statistic.price_crypto = statistic_data['price_crypto']
+            bot_statistic.price_fair = statistic_data['price_fair']
+            bot_statistic.price_forex = statistic_data['price_forex']
+            bot_statistic.balance_base_borrowed = statistic_data['balance_base_borrowed']
+            bot_statistic.balance_quote_borrowed = statistic_data['balance_quote_borrowed']
+        else:
+            logging.info(f'{bot_statistic} has not updates')
 
     @staticmethod
     def calculate_bot_statistic_from_update(update: dict, symbol: str) -> dict:
-        price = round(update['price'], 4)
+        price = round(update['price_crypto'], 4)
         price_forex = round(update['price_forex'], 4)
         price_fair = round(update['price_fair'], 4)
 
@@ -84,6 +92,7 @@ class BotStatisticUpdater:
         capital_employed = 100 * (quote_employed - base_employed)
 
         return {
+            'updated': update['timestamp'],
             'equity': equity,
             'exposure': exposure,
             'employed_capital': capital_employed,

@@ -34,22 +34,20 @@
                     </tr>
                     {% for bot in account.bot_set.all %}
                         {% with bot_statistic=bot.botstatistic_set.first %}
-                            {% if bot_statistic %}
-                                {% if 'active_bots' not in request.GET or bot.is_active %}
-                                    <tr>
-                                        <td class="{% if bot.is_active %}text-success{% endif %}">{{ bot.name }}</td>
-                                        <td>{{ bot_statistic.equity }}</td>
-                                        <td>{{ bot_statistic.exposure }}</td>
-                                        <td>{{ bot_statistic.employed_capital }}</td>
-                                        <td>{{ bot_statistic.price_crypto }} ({{ bot_statistic.price_change }}%)</td>
-                                        <td>{{ bot_statistic.price_fair }}</td>
-                                        <td>{{ bot_statistic.price_forex }}</td>
-                                        <td>{{ bot_statistic.balance_base_borrowed }}</td>
-                                        <td>{{ bot_statistic.balance_quote_borrowed }}</td>
-                                        <td>{{ bot_statistic.updated|date:"d/m/Y H:i:s" }}</td>
-                                        <td><a href="{% url 'admin:core_bot_change' bot.pk %}">Edit</a></td>
-                                    </tr>
-                                {% endif %}
+                            {% if 'active_bots' not in request.GET or bot.is_active %}
+                                <tr>
+                                    <td class="{% if bot.is_active %}text-success{% endif %}">{{ bot.bot_name }}</td>
+                                    <td>{{ bot_statistic.equity }}</td>
+                                    <td>{{ bot_statistic.exposure }}</td>
+                                    <td>{{ bot_statistic.employed_capital }}</td>
+                                    <td>{{ bot_statistic.price_crypto }} ({{ bot_statistic.price_change }}%)</td>
+                                    <td>{{ bot_statistic.price_fair }}</td>
+                                    <td>{{ bot_statistic.price_forex }}</td>
+                                    <td>{{ bot_statistic.balance_base_borrowed }}</td>
+                                    <td>{{ bot_statistic.balance_quote_borrowed }}</td>
+                                    <td>{{ bot_statistic.updated|date:"d/m/Y H:i:s" }}</td>
+                                    <td><a href="{% url 'admin:core_bot_change' bot.pk %}">Edit</a></td>
+                                </tr>
                             {% endif %}
                         {% endwith %}
                     {% endfor %}

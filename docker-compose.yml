@@ -19,9 +19,9 @@ services:
       dockerfile: ./.packaging/Dockerfile
     environment:
       <<: *env-vars
-    command: gunicorn -k uvicorn.workers.UvicornWorker --workers=3 --threads=2 --max-requests=150 --timeout=60 --enable-stdio-inheritance --access-logfile - --access-logformat "[%(t)s] [ACCESS] %(h)s - %(r)s %(s)s %(T)s" --log-level DEBUG --graceful-timeout=30 -b 0.0.0.0:8000 rcdb_execution.asgi:application
+    command: gunicorn -k uvicorn.workers.UvicornWorker --workers=3 --threads=2 --max-requests=150 --timeout=60 --enable-stdio-inheritance --access-logfile - --access-logformat "[%(t)s] [ACCESS] %(h)s - %(r)s %(s)s %(T)s" --log-level DEBUG --graceful-timeout=30 -b 0.0.0.0:8080 rcdb_execution.asgi:application
     ports:
-      - 8000:8000
+      - 8080:8080
     restart: always
     logging:
       driver: "json-file"
@@ -75,7 +75,7 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
     ports:
-      - 5432:5432
+      - 5433:5432
     restart: always
     logging:
       driver: "json-file"

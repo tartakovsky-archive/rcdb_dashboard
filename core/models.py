@@ -19,15 +19,11 @@ class Account(models.Model):
 
 
 class Exchange(models.Model):
-    name = models.CharField(max_length=100)
-    slug = models.CharField(max_length=30, default="bitfinex")
-    exchange_email = models.EmailField()
-
-    class Meta:
-        unique_together = ('slug', 'exchange_email')
+    name = models.CharField(max_length=100, unique=True)
+    slug = models.CharField(max_length=30, default="binance", unique=True)
 
     def __str__(self):
-        return f"{self.name} ({self.exchange_email})"
+        return f"{self.name}"
 
 
 class Currency(models.Model):
@@ -82,7 +78,7 @@ class ExchangeCredentials(models.Model):
 
     name = models.CharField(max_length=200)
     exchange = models.ForeignKey(Exchange, on_delete=models.PROTECT)
-    init_kwargs = models.TextField(validators=[validate_json])
+    parameters = models.JSONField(default=dict)
 
     def __str__(self):
         return f"{self.name} for {self.exchange}"
@@ -95,10 +91,18 @@ class Bot(models.Model):
     exchange_credentials = models.ForeignKey(ExchangeCredentials, on_delete=models.PROTECT)
     instrument = models.ForeignKey(Instrument, on_delete=models.PROTECT)
 
-    config = models.TextField(validators=[validate_json])
+    config = models.JSONField(default=dict)
+
+    def clean(self):
+        if self.exchange_credentials.exchange != self.instrument.exchange:
+            raise ValidationError('Exchange of the instrument and credentials should be the same')
 
     def __str__(self):
         return f"{self.name} // {self.instrument}"
+
+    @property
+    def bot_name(self):
+        return str(self)
 
 
 class BotStatistic(models.Model):
@@ -115,4 +119,4 @@ class BotStatistic(models.Model):
 
     @property
     def price_change(self) -> float:
-        return round(100*(self.price_forex/self.price_fair - 1), 2)
+        return round(100 * (self.price_forex / self.price_fair - 1), 2)

@@ -15,10 +15,11 @@ Including another URLconf
 """
 from django.urls import path
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
-from core import views
+from core import views, api
 from django.contrib import admin
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/', api.api.urls),
     path('', views.AccountBotStatisticListView.as_view())
 ] + staticfiles_urlpatterns()
