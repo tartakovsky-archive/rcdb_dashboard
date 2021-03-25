@@ -1,0 +1,29 @@
+version: '3.7'
+
+services:
+  web:
+    logging:
+      driver: "awslogs"
+      options:
+        awslogs-region: ${AWS_DEFAULT_REGION:-ap-northeast-1}
+        awslogs-group: "dashboard"
+        awslogs-stream: "web"
+        awslogs-create-group: "true"
+
+  celery_workers:
+    logging:
+      driver: "awslogs"
+      options:
+        awslogs-region: ${AWS_DEFAULT_REGION:-ap-northeast-1}
+        awslogs-group: "dashboard"
+        awslogs-stream: "celery_workers"
+        awslogs-create-group: "true"
+
+  celery_beat:
+    logging:
+      driver: "awslogs"
+      options:
+        awslogs-region: ${AWS_DEFAULT_REGION:-ap-northeast-1}
+        awslogs-group: "dashboard"
+        awslogs-stream: "celery_beat"
+        awslogs-create-group: "true"

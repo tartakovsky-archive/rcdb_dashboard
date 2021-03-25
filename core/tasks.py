@@ -1,5 +1,6 @@
 import logging
 
+import requests
 from celery import shared_task
 from django.conf import settings
 
@@ -25,6 +26,9 @@ def t_update_bot_statistic(bot_id: int):
 
     except Bot.DoesNotExist:
         logging.warning(f'<t_update_bot_statistic>: instance with id: {bot_id} does not exist')
+
+    except requests.exceptions.RequestException as e:
+        logging.warning(f'<t_update_bot_statistic>: request error {e}')
 
     except Exception:
         logging.exception(f'<t_update_bot_statistic>: unexpected error for {bot_id}')

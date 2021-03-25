@@ -1,7 +1,6 @@
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 from sentry_sdk.integrations.celery import CeleryIntegration
-from sentry_sdk.integrations.redis import RedisIntegration
 
 
 def init_sentry(dsn):
@@ -10,7 +9,6 @@ def init_sentry(dsn):
             dsn=dsn,
             integrations=[
                 DjangoIntegration(),
-                RedisIntegration(),
                 CeleryIntegration()
             ],
             traces_sample_rate=0.
