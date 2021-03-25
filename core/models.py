@@ -72,7 +72,7 @@ class ExchangeCredentials(models.Model):
         verbose_name_plural = 'ExchangeCredentials'
 
     name = models.CharField(max_length=200)
-    owner = models.ForeignKey(Owner, on_delete=models.PROTECT, blank=True, null=True)
+    owner = models.ForeignKey(Owner, on_delete=models.PROTECT)
     exchange = models.ForeignKey(Exchange, on_delete=models.PROTECT)
     parameters = models.JSONField(default=dict)
 
