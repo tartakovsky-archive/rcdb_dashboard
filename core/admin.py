@@ -1,6 +1,14 @@
 from django.contrib import admin
+from django.db.models import JSONField
+from django_json_widget.widgets import JSONEditorWidget
 
 from core import models
+
+
+class JsonWidgetMixin:
+    formfield_overrides = {
+        JSONField: {'widget': JSONEditorWidget},
+    }
 
 
 @admin.register(models.Exchange)
@@ -24,12 +32,8 @@ class InstrumentAdmin(admin.ModelAdmin):
 
 
 @admin.register(models.ExchangeCredentials)
-class ExchangeCredentialsAdmin(admin.ModelAdmin):
+class ExchangeCredentialsAdmin(JsonWidgetMixin, admin.ModelAdmin):
     pass
-
-
-class BotStatisticInline(admin.TabularInline):
-    model = models.BotStatistic
 
 
 @admin.register(models.Account)
@@ -43,7 +47,7 @@ class BotStatisticAdmin(admin.ModelAdmin):
 
 
 @admin.register(models.Bot)
-class BotAdmin(admin.ModelAdmin):
+class BotAdmin(JsonWidgetMixin, admin.ModelAdmin):
     list_display = ('name', 'is_active')
 
     def name(self, obj):
