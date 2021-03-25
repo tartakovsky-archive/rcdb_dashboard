@@ -102,7 +102,12 @@ class Command(BaseCommand):
             except Exception as ex:
                 logging.exception("Tick consolidation unhandled exception")
 
+
             if kwargs['one_step']:
                 return
 
             time.sleep(2)
+
+            from django.db import connection
+            connection.close_all()
+

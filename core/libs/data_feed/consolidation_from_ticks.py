@@ -34,12 +34,8 @@ class BackfillProxyApi:
             import traceback
             err = traceback.format_exc()
 
-        if err:
-            raise Exception(err)
-
         # "is live" means "first tick timestamp is less then 10 min delay from time.time()"
-        is_live_data = time.time() - ticks[1].timestamp < 60 * 10
-        if is_live_data:
+        if len(ticks) > 1 and time.time() - ticks[1].timestamp < 60 * 10:
             is_until_timestamp_reached = False
             for t in ticks:
                 if until_timestamp < t.timestamp:
