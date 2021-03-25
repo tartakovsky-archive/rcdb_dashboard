@@ -32,3 +32,8 @@ class Bot(Schema):
     exchange_credentials: ExchangeCredentials
     instrument: Instrument
     config: dict
+
+
+class CredentialData(Schema):
+    access_token: str
+    token_type: str = 'bearer'

@@ -97,9 +97,14 @@ class Bot(models.Model):
 
     config = models.JSONField(default=dict)
 
-    def clean(self):
+    def clean(self, *args, **kwargs):
         if self.exchange_credentials.exchange != self.instrument.exchange:
             raise ValidationError('Exchange of the instrument and credentials should be the same')
+        super().clean(*args, **kwargs)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.name} // {self.instrument}"
