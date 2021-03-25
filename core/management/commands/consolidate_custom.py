@@ -168,6 +168,9 @@ class Command(BaseCommand):
 
             time.sleep(1)
 
+            from django.db import connection
+            connection.close_all()
+
 ##############################
 # DEBUG
 ##############################

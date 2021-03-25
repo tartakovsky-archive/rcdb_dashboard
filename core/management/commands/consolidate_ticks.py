@@ -97,3 +97,6 @@ class Command(BaseCommand):
                 logging.exception("Tick consolidation unhandled exception")
                
             time.sleep(1)
+
+            from django.db import connection
+            connection.close_all()
