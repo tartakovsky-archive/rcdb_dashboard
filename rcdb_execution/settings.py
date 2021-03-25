@@ -11,10 +11,8 @@ https://docs.djangoproject.com/en/3.0/ref/settings/
 """
 
 import os
-import logging
 
-import sentry_sdk
-from sentry_sdk.integrations.django import DjangoIntegration
+from .sentry import init_sentry
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -25,23 +23,13 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = '7#7l88fkd4og&i^z+zk4bmqq0o5@t40vviwnax*da5-)5eixgc'
-
-if  os.environ.get('SENTRY_DSN'):
-    sentry_sdk.init(
-        dsn=os.environ['SENTRY_DSN'],
-        integrations=[DjangoIntegration()],
-
-        # If you wish to associate users to errors (assuming you are using
-        # django.contrib.auth) you may enable sending PII data.
-        send_default_pii=True
-    )
-else:
-    logging.warning('Running without sentry. Provide SENTRY_DSN env variable to enable sentry')
+SENTRY_DSN = os.environ.get('SENTRY_DSN')
+init_sentry(SENTRY_DSN)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["local.execution.rcdb", 'prod.execution.rcdb']
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -71,8 +59,7 @@ ROOT_URLCONF = 'rcdb_execution.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates')]
-        ,
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -90,25 +77,16 @@ WSGI_APPLICATION = 'rcdb_execution.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
-
-logging.info(f"Database host: {os.environ.get('POSTGRES_HOST', '127.0.0.1')}")
-
 DATABASES = {
-    # 'default': {
-    #     'ENGINE': 'django.db.backends.sqlite3',
-    #     'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-    # }
-
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'postgres',
-        'USER': 'postgres',
-        'PASSWORD': '',
-        'HOST': os.environ.get('POSTGRES_HOST', '127.0.0.1'),
-        'PORT': '5432',
+        'NAME': os.environ.get('POSTGRES_DB', 'db'),
+        'USER': os.environ.get('POSTGRES_USER', 'db_user'),
+        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'password'),
+        'HOST': os.environ.get('POSTGRES_HOST', 'db'),
+        'PORT': os.environ.get('POSTGRES_PORT', '5432'),
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/3.0/ref/settings/#auth-password-validators
@@ -148,28 +126,30 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
-##########################
-# RCDB config
-##########################
+REDIS_HOST = os.environ.get('REDIS_HOST', 'redis')
+REDIS_PORT = os.environ.get('REDIS_PORT', '6379')
+REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD', 'password')
 
-import logging
+#############
+# RCDB_CONFIG
+#############
+DATASTORE_URL = os.environ.get('DATASTORE_URL')
+DATASTORE_TOKEN = os.environ.get('DATASTORE_TOKEN')
+UPDATE_BOT_STATISTIC_INTERVAL = int(os.environ.get('UPDATE_BOT_STATISTIC_INTERVAL', 15))
 
-LOG_LEVEL_NAME = os.environ.get('LOG_LEVEL', 'INFO')
-LOG_LEVEL = getattr(logging, LOG_LEVEL_NAME)
-
-DATA_DIRECTORY = os.path.join(BASE_DIR, os.environ.get('DATA_DIRECTORY', 'data'))
-MEDIA_ROOT = DATA_DIRECTORY
-
-BARS_DIRECTORY = os.path.join(DATA_DIRECTORY, "bars")
-MODELS_DIRECTORY = "models"
-RESULTS_DIRECTORY = os.path.join(DATA_DIRECTORY, "results")
-
-for d in [
-        DATA_DIRECTORY,
-        BARS_DIRECTORY,
-        MODELS_DIRECTORY,
-        RESULTS_DIRECTORY
-]:
-    os.makedirs(d, exist_ok=True)
-
-KAIKO_API_KEY = os.environ.get('KAIKO_API_KEY')
+###############
+# CELERY CONFIG
+###############
+CELERY_BROKER_URL = f'redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}'
+CELERY_ENABLE_UTC = True
+CELERY_TASK_ALWAYS_EAGER = False
+CELERY_TASK_DEFAULT_QUEUE = 'default'
+CELERY_TIMEZONE = 'UTC'
+CELERY_WORKER_HIJACK_ROOT_LOGGER = False
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_BEAT_SCHEDULE = {
+    'schedule-update-bot-statistic': {
+        'task': 'core.tasks.t_schedule_update_bot_statistic',
+        'schedule': 15,
+    }
+}

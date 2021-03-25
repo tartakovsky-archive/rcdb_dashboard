@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Statistic</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-BmbxuPwQa2lc/FVzBcNJ7UAyJxM6wuqIj61tLrc4wSX0szH/Ev+nYRRuWlolflfl" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta2/dist/js/bootstrap.bundle.min.js" integrity="sha384-b5kHyXgcpbZJO/tY9Ul7kGkf1S0CWuKcCD38l8YkeH8z8QjE0GmW1gYU5S9FOnJ0" crossorigin="anonymous"></script>
+</head>
+<body>
+    <div class="container">
+        <h5 class="mt-4"><a href="{% url 'admin:index' %}">Admin</a></h5>
+        <div class="form-check form-switch mt-4 mb-4">
+            <form action="" method="GET">
+                <input class="form-check-input" name="active_bots" type="checkbox" id="onlyActiveBots">
+                <label class="form-check-label" for="onlyActiveBots">Only active bots</label>
+                <input type="submit" value="Refresh">
+            </form>
+        </div>
+        {% for account in accounts %}
+            <p><b>{{ account.name }}</b></p>
+            {% if account.bot_set.count > 0 %}
+                <table class="table table-bordered">
+                    <tr>
+                        <th>Bot name</th>
+                        <th>Equity</th>
+                        <th>Exposure, %</th>
+                        <th>Employed Cap, %</th>
+                        <th>Price Crypto</th>
+                        <th>Price Fair</th>
+                        <th>Price Forex</th>
+                        <th>Base (brw)</th>
+                        <th>Quote (brw)</th>
+                        <th>Last update</th>
+                    </tr>
+                    {% for bot in account.bot_set.all %}
+                        {% with bot_statistic=bot.botstatistic_set.first %}
+                            {% if 'active_bots' not in request.GET or bot.is_active %}
+                                <tr>
+                                    <td class="{% if bot.is_active %}text-success{% endif %}">{{ bot.bot_name }}</td>
+                                    <td>{{ bot_statistic.equity }}</td>
+                                    <td>{{ bot_statistic.exposure }}</td>
+                                    <td>{{ bot_statistic.employed_capital }}</td>
+                                    <td>{{ bot_statistic.price_crypto }} ({{ bot_statistic.price_change }}%)</td>
+                                    <td>{{ bot_statistic.price_fair }}</td>
+                                    <td>{{ bot_statistic.price_forex }}</td>
+                                    <td>{{ bot_statistic.balance_base_borrowed }}</td>
+                                    <td>{{ bot_statistic.balance_quote_borrowed }}</td>
+                                    <td>{{ bot_statistic.updated|date:"d/m/Y H:i:s" }}</td>
+                                    <td><a href="{% url 'admin:core_bot_change' bot.pk %}">Edit</a></td>
+                                </tr>
+                            {% endif %}
+                        {% endwith %}
+                    {% endfor %}
+                </table>
+                <p><b>Total equity:</b> {{ account.total_equity }}</p>
+                <hr>
+            {% endif %}
+        {% endfor %}
+    </div>
+</body>
+<script type="application/javascript">
+    document.addEventListener("DOMContentLoaded", function(event) {
+        const urlParams = new URLSearchParams(window.location.search);
+        document.getElementById('onlyActiveBots').checked = urlParams.has('active_bots');
+    });
+</script>
+</html>
