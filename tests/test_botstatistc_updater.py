@@ -30,12 +30,13 @@ TEST_DATA = {
 def bot():
     exchange = models.Exchange(name='test', slug='test')
     exchange.save()
-    account = models.Account(name='Test account')
-    account.save()
+    owner = models.Owner(name='Test account')
+    owner.save()
 
     exchange_credentials = models.ExchangeCredentials(
         name='Creds',
         exchange=exchange,
+        owner=owner,
         parameters={'some': 1}
     )
     exchange_credentials.save()
@@ -55,7 +56,6 @@ def bot():
     b = models.Bot(
         name='test bot',
         is_active=True,
-        account=account,
         exchange_credentials=exchange_credentials,
         instrument=instrument,
         config={'b': 1}

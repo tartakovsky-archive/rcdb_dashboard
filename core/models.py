@@ -1,17 +1,8 @@
-import json
-
 from django.db import models
 from django.core.validators import RegexValidator, ValidationError
 
 
-def validate_json(value: str):
-    try:
-        json.loads(value)
-    except json.JSONDecodeError:
-        raise ValidationError('Invalid json')
-
-
-class Account(models.Model):
+class Owner(models.Model):
     name = models.CharField(max_length=100, unique=True)
 
     def __str__(self):
@@ -81,6 +72,7 @@ class ExchangeCredentials(models.Model):
         verbose_name_plural = 'ExchangeCredentials'
 
     name = models.CharField(max_length=200)
+    owner = models.ForeignKey(Owner, on_delete=models.PROTECT, blank=True, null=True)
     exchange = models.ForeignKey(Exchange, on_delete=models.PROTECT)
     parameters = models.JSONField(default=dict)
 
@@ -91,7 +83,6 @@ class ExchangeCredentials(models.Model):
 class Bot(models.Model):
     name = models.CharField(max_length=200)
     is_active = models.BooleanField(default=False)
-    account = models.ForeignKey(Account, on_delete=models.PROTECT)
     exchange_credentials = models.ForeignKey(ExchangeCredentials, on_delete=models.PROTECT)
     instrument = models.ForeignKey(Instrument, on_delete=models.PROTECT)
 

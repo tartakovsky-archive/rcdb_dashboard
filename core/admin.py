@@ -36,8 +36,8 @@ class ExchangeCredentialsAdmin(JsonWidgetMixin, admin.ModelAdmin):
     pass
 
 
-@admin.register(models.Account)
-class AccountAdmin(admin.ModelAdmin):
+@admin.register(models.Owner)
+class OwnerAdmin(admin.ModelAdmin):
     pass
 
 

@@ -21,5 +21,5 @@ from django.contrib import admin
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', api.api.urls),
-    path('', views.AccountBotStatisticListView.as_view())
+    path('', views.BotStatisticListView.as_view())
 ] + staticfiles_urlpatterns()

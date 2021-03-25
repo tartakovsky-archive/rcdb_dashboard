@@ -16,9 +16,9 @@
                 <input type="submit" value="Refresh">
             </form>
         </div>
-        {% for account in accounts %}
-            <p><b>{{ account.name }}</b></p>
-            {% if account.bot_set.count > 0 %}
+        {% for owner in owners %}
+            <p><b>{{ owner.name }}</b></p>
+            {% if owner.bots_count > 0 %}
                 <table class="table table-bordered">
                     <tr>
                         <th>Bot name</th>
@@ -32,27 +32,29 @@
                         <th>Quote (brw)</th>
                         <th>Last update</th>
                     </tr>
-                    {% for bot in account.bot_set.all %}
-                        {% with bot_statistic=bot.botstatistic_set.first %}
-                            {% if 'active_bots' not in request.GET or bot.is_active %}
-                                <tr>
-                                    <td class="{% if bot.is_active %}text-success{% endif %}">{{ bot.bot_name }}</td>
-                                    <td>{{ bot_statistic.equity }}</td>
-                                    <td>{{ bot_statistic.exposure }}</td>
-                                    <td>{{ bot_statistic.employed_capital }}</td>
-                                    <td>{{ bot_statistic.price_crypto }} ({{ bot_statistic.price_change }}%)</td>
-                                    <td>{{ bot_statistic.price_fair }}</td>
-                                    <td>{{ bot_statistic.price_forex }}</td>
-                                    <td>{{ bot_statistic.balance_base_borrowed }}</td>
-                                    <td>{{ bot_statistic.balance_quote_borrowed }}</td>
-                                    <td>{{ bot_statistic.updated|date:"d/m/Y H:i:s" }}</td>
-                                    <td><a href="{% url 'admin:core_bot_change' bot.pk %}">Edit</a></td>
-                                </tr>
-                            {% endif %}
-                        {% endwith %}
+                    {% for exchnage_cred in owner.exchangecredentials_set.all %}
+                        {% for bot in exchnage_cred.bot_set.all %}
+                            {% with bot_statistic=bot.botstatistic_set.first %}
+                                {% if 'active_bots' not in request.GET or bot.is_active %}
+                                    <tr>
+                                        <td class="{% if bot.is_active %}text-success{% endif %}">{{ bot.bot_name }}</td>
+                                        <td>{{ bot_statistic.equity }}</td>
+                                        <td>{{ bot_statistic.exposure }}</td>
+                                        <td>{{ bot_statistic.employed_capital }}</td>
+                                        <td>{{ bot_statistic.price_crypto }} ({{ bot_statistic.price_change }}%)</td>
+                                        <td>{{ bot_statistic.price_fair }}</td>
+                                        <td>{{ bot_statistic.price_forex }}</td>
+                                        <td>{{ bot_statistic.balance_base_borrowed }}</td>
+                                        <td>{{ bot_statistic.balance_quote_borrowed }}</td>
+                                        <td>{{ bot_statistic.updated|date:"d/m/Y H:i:s" }}</td>
+                                        <td><a href="{% url 'admin:core_bot_change' bot.pk %}">Edit</a></td>
+                                    </tr>
+                                {% endif %}
+                            {% endwith %}
+                        {% endfor %}
                     {% endfor %}
                 </table>
-                <p><b>Total equity:</b> {{ account.total_equity }}</p>
+                <p><b>Total equity:</b> {{ owner.total_equity }}</p>
                 <hr>
             {% endif %}
         {% endfor %}

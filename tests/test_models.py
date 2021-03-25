@@ -14,11 +14,12 @@ def test_create_bot_with_different_exchange():
     exchange2 = models.Exchange(name='test2', slug='test2')
     exchange2.save()
 
-    account = models.Account(name='Test account')
-    account.save()
+    owner = models.Owner(name='Test account')
+    owner.save()
 
     exchange_credentials = models.ExchangeCredentials(
         name='Creds',
+        owner=owner,
         exchange=exchange2,
         parameters={'some': 1}
     )
@@ -39,7 +40,6 @@ def test_create_bot_with_different_exchange():
     b = models.Bot(
         name='test bot',
         is_active=True,
-        account=account,
         exchange_credentials=exchange_credentials,
         instrument=instrument,
         config={'b': 1}
