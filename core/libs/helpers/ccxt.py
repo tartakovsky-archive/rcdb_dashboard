@@ -1,11 +1,14 @@
+import os
 import time
 import json
-import ccxt
 import math
+import logging
+
+import ccxt
 import requests
 
 from core.libs.helpers.data_classes import *
-import logging
+
 logging.basicConfig()
 
 
@@ -19,12 +22,14 @@ class CcxtBotExecutor:
             exchange_name = self.bot.exchange_credentials.exchange.slug
             exchange_creds = json.loads(self.bot.exchange_credentials.init_kwargs)
             exchange_api = getattr(ccxt, exchange_name)({**exchange_creds, "verbose": 1})
+            cache_dir = os.environ.get('MARKET_CACHE_DIR', 'cache')
+            cache_path = os.path.join(cache_dir, f'{exchange_name}.json')
             try:
-                markets_cache = json.load(open(f"cache/{exchange_name}.json", "r"))
+                markets_cache = json.load(open(cache_path, "r"))
                 exchange_api.markets = markets_cache
             except FileNotFoundError:
                 exchange_api.load_markets()
-                json.dump(exchange_api.markets, open(f"cache/{exchange_name}.json", "w"))
+                json.dump(exchange_api.markets, open(cache_path, "w"))
 
             self.exchange_api = exchange_api
         return self.exchange_api
@@ -62,6 +67,7 @@ class CcxtBotExecutor:
 
                 # calculate order size
                 order_size = round(bot_target.instrument_target_size - bot_position.size, bot.instrument.size_round_precision)
+                print(bot_target.id, 'order_size', order_size)
                 if abs(order_size) > bot.max_trade_amount:
                     # limit order size to bot max allowed trade size
                     order_size = math.copysign(bot.max_trade_amount, order_size)

@@ -11,3 +11,8 @@ psycopg2-binary==2.8.5
 django==2.2.10
 sentry-sdk==0.14.2
 lightgbm==2.2.3
+
+pytest
+pytest-mock
+pytest-django
+requests-mock

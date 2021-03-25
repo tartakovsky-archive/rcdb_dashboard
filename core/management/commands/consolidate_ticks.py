@@ -61,6 +61,12 @@ def consolidate(
 class Command(BaseCommand):
     help = 'Consolidate TickToTimeFrame consolidators'
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--one-step',
+            action='store_true',
+        )
+
     def handle(self, *args, **kwargs):
         while True:
             try:
@@ -95,8 +101,13 @@ class Command(BaseCommand):
                             c.new_bars_event(feed_resp['latest_bar_data'])
             except Exception as ex:
                 logging.exception("Tick consolidation unhandled exception")
-               
-            time.sleep(1)
+
+
+            if kwargs['one_step']:
+                return
+
+            time.sleep(2)
 
             from django.db import connection
             connection.close_all()
+

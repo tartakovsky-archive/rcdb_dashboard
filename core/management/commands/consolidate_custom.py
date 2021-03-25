@@ -122,6 +122,12 @@ def consolidate(
 class Command(BaseCommand):
     help = 'Consolidate Custom consolidators'
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--one-step',
+            action='store_true',
+        )
+
     def handle(self, *args, **kwargs):
         # return debug()
 
@@ -165,6 +171,9 @@ class Command(BaseCommand):
                         # for each job response handle new bar only
                         c = Consolidator.objects.get(id=feed_resp['feed_id'])
                         c.new_bars_event(feed_resp['latest_bar_data'])
+
+            if kwargs['one_step']:
+                return
 
             time.sleep(1)
 
