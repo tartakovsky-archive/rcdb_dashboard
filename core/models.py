@@ -33,6 +33,9 @@ class Symbol(models.Model):
     base = models.ForeignKey(Currency, related_name="base", null=False, blank=False, on_delete=models.PROTECT)
     quote = models.ForeignKey(Currency, related_name="quote", null=False, blank=False, on_delete=models.PROTECT)
 
+    price_precision = models.IntegerField(null=True, blank=True)
+    amount_precision = models.IntegerField(null=True, blank=True)
+
     @property
     def pair(self):
         return f"{self.base.slug.upper()}/{self.quote.slug.upper()}"

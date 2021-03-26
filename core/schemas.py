@@ -1,3 +1,5 @@
+from typing import Optional
+
 from ninja import Schema
 
 
@@ -11,6 +13,8 @@ class Currency(Schema):
 
 class Symbol(Schema):
     pair: str
+    price_precision: Optional[int]
+    amount_precision: Optional[int]
 
 
 class Instrument(Schema):
