@@ -89,6 +89,8 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
     restart: always
+    ports:
+    - 5433:5432
     logging:
       driver: "json-file"
       options:
