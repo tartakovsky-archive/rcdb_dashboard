@@ -1,0 +1,3 @@
+[submodule "rcdb_commons"]
+	path = rcdb_commons
+	url = https://github.com/hcmc-project/rcdb_commons

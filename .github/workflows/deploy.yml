@@ -13,6 +13,13 @@ jobs:
         path: ~/.cache/pip
         key: ${{ hashFiles('requirements.txt') }}
 
+    - name: Add rcdb_commons
+      uses: actions/checkout@v2
+      with:
+        ssh-key: ${{ secrets.RCDB_COMMONS_SSH_KEY }}
+        repository: hcmc-project/rcdb_commons
+        path: rcdb_commons
+
     - name: Install dependencies
       run: |
         pip3 install awscli docker-compose

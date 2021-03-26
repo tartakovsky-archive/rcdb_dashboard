@@ -3,9 +3,9 @@ import logging
 import requests
 from celery import shared_task
 from django.conf import settings
+from rcdb_commons.data_store import DataStore
 
 from .models import Bot
-from .helpers.data_store import DataStore
 from .services import BotStatisticUpdater
 
 

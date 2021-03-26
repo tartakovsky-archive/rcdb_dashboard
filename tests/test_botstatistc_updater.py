@@ -4,9 +4,9 @@ import pytz
 import pytest
 import pandas as pd
 from dateutil.parser import parse as dt_parse
+from rcdb_commons.data_store import DataStore, DataType
 
 from core import models
-from core.helpers.data_store import DataStore, DataType
 from core.services import BotStatisticUpdater
 
 use_db = pytest.mark.django_db

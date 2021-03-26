@@ -3,9 +3,9 @@ import datetime
 from typing import Optional
 
 import pytz
+from rcdb_commons.data_store import DataStore, DataType
 
 from .models import Bot, BotStatistic
-from .helpers.data_store import DataStore, DataType
 
 
 class BotStatisticUpdater:
