@@ -7,18 +7,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@master
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+          submodules: true
+
     - uses: actions/cache@v2
       with:
         path: ~/.cache/pip
         key: ${{ hashFiles('requirements.txt') }}
-
-    - name: Add rcdb_commons
-      uses: actions/checkout@v2
-      with:
-        ssh-key: ${{ secrets.RCDB_COMMONS_SSH_KEY }}
-        repository: hcmc-project/rcdb_commons
-        path: rcdb_commons
 
     - name: Install dependencies
       run: |
