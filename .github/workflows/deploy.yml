@@ -20,6 +20,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip3 install awscli docker-compose
+
       - name: Build & push images
         env:
           DOCKER_REGISTRY: ${{ secrets.DOCKER_REGISTRY }}
@@ -29,6 +30,10 @@ jobs:
           aws configure set aws_secret_access_key "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
           aws ecr get-login-password --region ${{ secrets.AWS_DEFAULT_REGION }}  | docker login --username AWS --password-stdin ${{ secrets.DOCKER_REGISTRY }}
           docker-compose push web nginx
+
+      - name: Remove rcdb_commons/.git
+        run: rm - rf rcdb_commons/.git
+
       - name: Copy files via SCP
         uses: appleboy/scp-action@master
         env:
