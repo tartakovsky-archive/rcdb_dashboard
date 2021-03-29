@@ -25,33 +25,33 @@ jobs:
           - 5432:5432
 
     steps:
-    - uses: actions/checkout@master
-      with:
-        token: ${{ secrets.GH_TOKEN }}
-        submodules: true
+      - uses: actions/checkout@master
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+          submodules: true
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.python-version }}
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
 
-    - uses: actions/cache@v2
-      with:
-        path: ~/.cache/pip
-        key: ${{ hashFiles('requirements.txt') }}
+      - uses: actions/cache@v2
+        with:
+          path: ~/.cache/pip
+          key: ${{ hashFiles('requirements.txt') }}
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt -r rcdb_commons/requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r rcdb_commons/requirements.txt
 
-    - name: flake8 checks
-      run: flake8
+      - name: flake8 checks
+        run: flake8
 
-    - name: Test
-      run: pytest
-      env:
-        POSTGRES_HOST: localhost
-        POSTGRES_USER: postgres
-        POSTGRES_PASSWORD: password
-        POSTGRES_DB: db
+      - name: Test
+        run: pytest
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: db
