@@ -1,5 +1,7 @@
+import pydantic
 from django.db import models
 from django.core.validators import RegexValidator, ValidationError
+from rcdb_commons.schemas import bot as bot_schemas
 
 
 class Owner(models.Model):
@@ -63,8 +65,8 @@ class Instrument(models.Model):
     exchange = models.ForeignKey(Exchange, null=False, blank=False, on_delete=models.PROTECT)
     symbol = models.ForeignKey(Symbol, on_delete=models.PROTECT)
     type = models.CharField(max_length=6, choices=TYPE_CHOICES, default="SPOT")
-
-    size_round_precision = models.IntegerField(default=9)
+    order_amount_max = models.FloatField(default=100_000)
+    order_amount_min = models.FloatField(default=10)
 
     def __str__(self):
         return f"{self.symbol} - {self.type} on {self.exchange}"
@@ -92,12 +94,18 @@ class Bot(models.Model):
     config = models.JSONField(default=dict)
 
     def clean(self, *args, **kwargs):
+        try:
+            bot_schemas.AdminConfigInput(**self.config)
+        except pydantic.error_wrappers.ValidationError as ex:
+            raise ValidationError(f'Config: {ex}')
+
         if self.exchange_credentials.exchange != self.instrument.exchange:
             raise ValidationError('Exchange of the instrument and credentials should be the same')
         super().clean(*args, **kwargs)
 
     def save(self, *args, **kwargs):
         self.full_clean()
+        self.config = bot_schemas.AdminConfigInput(**self.config).dict()
         super().save(*args, **kwargs)
 
     def __str__(self):

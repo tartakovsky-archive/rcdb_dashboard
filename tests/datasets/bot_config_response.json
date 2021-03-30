@@ -1,0 +1,84 @@
+{
+    "bot_id": 1,
+    "bot_config": {
+        "config_type": "OwnLongBotConfig",
+        "piranha": {
+            "order_limit": null,
+            "wall_distance": null
+        },
+        "order_config": {
+            "min_fill_to_replace_pct": 0.9,
+            "price_merge_step_pct": 0.0005,
+            "price_replace_tolerance_pct": 0.0001
+        },
+        "quote_own": {
+            "entry_start": 0.0,
+            "entry_end": 0.0,
+            "entry_levels": 0,
+            "exit_start": 0.0,
+            "exit_end": 0.0,
+            "exit_levels": 0,
+            "is_std_channels_enabled": false,
+            "std_channels_mult_min": null,
+            "std_channels_mult_max": null
+        },
+        "base_brw": {
+            "entry_start": 0.0,
+            "entry_end": 0.0,
+            "entry_levels": 0,
+            "exit_start": 0.0,
+            "exit_end": 0.0,
+            "exit_levels": 0,
+            "is_std_channels_enabled": false,
+            "std_channels_mult_min": null,
+            "std_channels_mult_max": null
+        },
+        "quote_brw": {
+            "entry_start": 0.0,
+            "entry_end": 0.0,
+            "entry_levels": 0,
+            "exit_start": 0.0,
+            "exit_end": 0.0,
+            "exit_levels": 0,
+            "is_std_channels_enabled": false,
+            "std_channels_mult_min": null,
+            "std_channels_mult_max": null
+        }
+    },
+    "debug": false,
+    "frequency_seconds": 2,
+    "is_margin": false,
+    "borrowing": {
+        "is_base_borrow_enabled": false,
+        "base_amount_max": 0.0,
+        "base_borrow_level_pct": 0.0,
+        "base_repay_level_pct": 0.0,
+        "is_quote_borrow_enabled": false,
+        "quote_amount_max": 0.0,
+        "quote_borrow_level_pct": 0.0,
+        "quote_repay_level_pct": 0.0,
+        "margin_level_max": 1.5
+    },
+
+    "exchange_credentials": {
+        "exchange": "binance",
+        "credentials": {
+            "some": 1
+        }
+    },
+    "instrument": {
+        "symbol": {
+            "base": "EUR",
+            "quote": "USDT"
+        },
+        "exchange": "binance",
+        "amount_precision": 10.0,
+        "price_precision": 10.0,
+        "order_amount_max": 100000.0,
+        "order_amount_min": 10.0
+    },
+    "datastore": {
+        "api_url": "http://localhost:8000",
+        "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6MX0.oTuWecQ8x2dVtfNAr9ERPHhPa5aaHj0HuTsR_hm0ERc"
+    }
+}

@@ -8,6 +8,7 @@ from ninja.security import HttpBearer, django_auth
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import models as auth_models
+from rcdb_commons.schemas import bot as bot_schemas
 
 from . import models, schemas
 
@@ -43,9 +44,34 @@ class AuthBearer(HttpBearer):
 api = NinjaAPI(auth=django_auth, csrf=True, docs_url=None, openapi_url=None)
 
 
-@api.get('/bot/{id}', auth=AuthBearer(), response=schemas.Bot, description='Returns bot config by id')
+@api.get('/bot/{id}', auth=AuthBearer(), response=bot_schemas.BotConfigResponse, description='Returns bot config by id')
 def get_bot_config(request, id: int):
-    return get_object_or_404(models.Bot, pk=id)
+    bot = get_object_or_404(models.Bot, pk=id)
+    instrument = bot.instrument
+    exchange = bot_schemas.Exchange[instrument.exchange.slug]
+    return bot_schemas.BotConfigResponse(
+        bot_id=bot.id,
+        bot_config=bot_schemas.AdminConfigInput(**bot.config),
+        exchange_credentials=bot_schemas.ExchangeCredentials(
+            exchange=exchange,
+            credentials=bot.exchange_credentials.parameters
+        ),
+        instrument=bot_schemas.Instrument(
+            symbol=bot_schemas.Symbol(
+                base=instrument.symbol.base.slug,
+                quote=instrument.symbol.quote.slug
+            ),
+            exchange=exchange,
+            amount_precision=instrument.symbol.amount_precision,
+            price_precision=instrument.symbol.price_precision,
+            order_amount_max=instrument.order_amount_max,
+            order_amount_min=instrument.order_amount_min
+        ),
+        datastore=bot_schemas.DatastoreConfig(
+            api_url=settings.DATASTORE_URL,
+            token=settings.DATASTORE_TOKEN
+        )
+    )
 
 
 @api.get('/auth-token', response=schemas.CredentialData, description='Returns auth token for API')

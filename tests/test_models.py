@@ -1,5 +1,6 @@
 import pytest
 from django.core.validators import ValidationError
+from rcdb_commons.schemas import bot as bot_schemas
 
 from core import models
 
@@ -42,10 +43,28 @@ def test_create_bot_with_different_exchange():
         is_active=True,
         exchange_credentials=exchange_credentials,
         instrument=instrument,
-        config={'b': 1}
+        config={'config_type': 'OwnLongBotConfig'}
     )
 
     with pytest.raises(ValidationError) as exc:
         b.save()
 
     assert exc.match('Exchange of the instrument and credentials should be the same')
+
+
+@pytest.mark.parametrize(
+    'config_data',
+    [
+        ('OwnLongBotConfig', bot_schemas.OwnLongBotConfig),
+        ('OwnShortBotConfig', bot_schemas.OwnShortBotConfig)
+    ]
+)
+@use_db
+def test_empty_config(bot: models.Bot, config_data):
+    config_type, config_class = config_data
+    bot.config = {'config_type': config_type}
+    bot.save()
+
+    _bot = models.Bot.objects.get(id=bot.id)
+    assert _bot.config['data'] == config_class().dict()
+    _bot.save()
