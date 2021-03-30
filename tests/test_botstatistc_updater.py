@@ -27,44 +27,6 @@ TEST_DATA = {
 
 
 @pytest.fixture
-def bot():
-    exchange = models.Exchange(name='test', slug='test')
-    exchange.save()
-    owner = models.Owner(name='Test account')
-    owner.save()
-
-    exchange_credentials = models.ExchangeCredentials(
-        name='Creds',
-        exchange=exchange,
-        owner=owner,
-        parameters={'some': 1}
-    )
-    exchange_credentials.save()
-
-    base = models.Currency(name='EUR', slug='EUR')
-    base.save()
-
-    quote = models.Currency(name='USDT', slug='USDT')
-    quote.save()
-
-    symbol = models.Symbol(base=base, quote=quote)
-    symbol.save()
-
-    instrument = models.Instrument(exchange=exchange, symbol=symbol)
-    instrument.save()
-
-    b = models.Bot(
-        name='test bot',
-        is_active=True,
-        exchange_credentials=exchange_credentials,
-        instrument=instrument,
-        config={'b': 1}
-    )
-    b.save()
-    return b
-
-
-@pytest.fixture
 def mocked_datastore_run_updater(mocker):
     datastore = DataStore(None, None)
 
