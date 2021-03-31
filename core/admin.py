@@ -1,13 +1,37 @@
 from django.contrib import admin
 from django.db.models import JSONField
 from django_json_widget.widgets import JSONEditorWidget
+from rcdb_commons.schemas import bot as bot_schemas
 
 from core import models
 
 
+class CustomJSONEditorWidget(JSONEditorWidget):
+    template_name = 'json_widget.html'
+
+    def get_context(self, name, value, attrs):
+        context = super().get_context(name, value, attrs)
+        context['config_templates'] = [
+            bot_schemas.AdminConfigInput(
+                **{'config_type': bot_schemas.OwnLongBotConfig().config_type}
+            ).dict(),
+            bot_schemas.AdminConfigInput(
+                **{'config_type': bot_schemas.OwnShortBotConfig().config_type}
+            ).dict()
+        ]
+        return context
+
+
 class JsonWidgetMixin:
     formfield_overrides = {
-        JSONField: {'widget': JSONEditorWidget},
+        JSONField: {
+            'widget': CustomJSONEditorWidget(
+                mode='form',
+                options={
+                    'maxVisibleChilds': 100000
+                }
+            )
+        }
     }
 
 

@@ -1,0 +1,37 @@
+<div {% if not widget.attrs.style %}style="height:{{widget.height|default:'500px'}};width:{{widget.width|default:'90%'}};display:inline-block;"{% endif %}{% include "django/forms/widgets/attrs.html" %}></div>
+<br>
+{% for template in config_templates %}
+    <input id="to-{{ template.config_type }}" class="template_button" type="button" value="{{ template.config_type }}">
+    {{ template|json_script:template.config_type }}
+{% endfor %}
+
+<textarea id="{{widget.attrs.id}}_textarea" name="{{ widget.name }}" required="" style="display: none">{{ widget.value }}</textarea>
+
+<script>
+    (function() {
+        var container = document.getElementById("{{ widget.attrs.id }}");
+        var textarea = document.getElementById("{{widget.attrs.id}}_textarea");
+
+        var options = {{ widget.options|safe }};
+        options.onChange = function () {
+            var json = editor.get();
+            textarea.value = JSON.stringify(json);
+        }
+
+        var editor = new JSONEditor(container, options);
+        var json = {{ widget.value|safe }};
+        editor.set(json);
+        editor.expandAll();
+
+        let templateButtons = document.getElementsByClassName('template_button');
+        for (let i = 0; i < templateButtons.length; i++) {
+            let element = templateButtons[i];
+            element.onclick = function() {
+                let jsonData = JSON.parse(document.getElementById(element.id.replace('to-', '')).textContent);
+                editor.set(jsonData);
+                editor.expandAll();
+                textarea.value = JSON.stringify(jsonData);
+            }
+        }
+    })();
+</script>
