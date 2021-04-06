@@ -29,6 +29,7 @@
                         <th>Price Crypto</th>
                         <th>Price Fair</th>
                         <th>Price Forex</th>
+                        <th>Price Deviation</th>
                         <th>Base (brw)</th>
                         <th>Quote (brw)</th>
                         <th>Last update</th>
@@ -45,6 +46,7 @@
                                         <td>{% if symbol.price_precision %}{{ bot_statistic.price_crypto|truncate:symbol.price_precision }}{% else %}{{ bot_statistic.price_crypto }}{% endif %} ({{ bot_statistic.price_change }}%)</td>
                                         <td>{% if symbol.price_precision %}{{ bot_statistic.price_fair|truncate:symbol.price_precision }}{% else %}{{ bot_statistic.price_fair }}{% endif %}</td>
                                         <td>{% if symbol.price_precision %}{{ bot_statistic.price_forex|truncate:symbol.price_precision }}{% else %}{{ bot_statistic.price_forex }}{% endif %}</td>
+                                        <td>{{ bot_statistic.price_deviation|floatformat:2 }}</td>
                                         <td>{{ bot_statistic.balance_base_borrowed|floatformat:1 }}</td>
                                         <td>{{ bot_statistic.balance_quote_borrowed|floatformat:1 }}</td>
                                         <td>{{ bot_statistic.updated|date:"d/m/Y H:i:s" }}</td>

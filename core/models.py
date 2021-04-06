@@ -1,3 +1,5 @@
+from typing import Optional
+
 import pydantic
 from django.db import models
 from django.core.validators import RegexValidator, ValidationError
@@ -131,3 +133,12 @@ class BotStatistic(models.Model):
     @property
     def price_change(self) -> float:
         return round(100 * (self.price_forex / self.price_fair - 1), 2)
+
+    @property
+    def price_deviation(self) -> Optional[float]:
+        try:
+            upside_dev = max(self.price_crypto / max(self.price_fair, self.price_forex) - 1, 0)
+            downside_dev = min(self.price_crypto / min(self.price_fair, self.price_forex - 1), 0)
+            return upside_dev if upside_dev > 0 else downside_dev
+        except ZeroDivisionError:
+            return None
