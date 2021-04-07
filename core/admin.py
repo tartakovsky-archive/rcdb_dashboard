@@ -69,7 +69,7 @@ class InstrumentAdmin(admin.ModelAdmin):
 
 
 @admin.register(models.ExchangeCredentials)
-class ExchangeCredentialsAdmin(JsonWidgetMixin, admin.ModelAdmin):
+class ExchangeCredentialsAdmin(admin.ModelAdmin):
     exclude = ('balance_snapshot', 'balance_snapshot_created')
 
 
