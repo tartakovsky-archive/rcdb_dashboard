@@ -44,7 +44,10 @@ def test_get_bot_config_not_found(auth_client_token):
 @use_db
 def test_get_bot_config(auth_client_token, bot: models.Bot):
     response = auth_client_token.get(f'/api/bot/{bot.id}')
-    assert response.json() == json.load(resources.open_text('tests.datasets', 'bot_config_response.json'))
+    assert response.json() == {
+        **json.load(resources.open_text('tests.datasets', 'bot_config_response.json')),
+        'bot_id': bot.id
+    }
 
 
 @use_db

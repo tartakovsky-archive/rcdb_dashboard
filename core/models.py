@@ -81,7 +81,10 @@ class ExchangeCredentials(models.Model):
     name = models.CharField(max_length=200)
     owner = models.ForeignKey(Owner, on_delete=models.PROTECT)
     exchange = models.ForeignKey(Exchange, on_delete=models.PROTECT)
-    parameters = models.JSONField(default=dict)
+    parameters = models.JSONField(default=dict, null=True, blank=True)
+
+    balance_snapshot = models.JSONField(null=True, blank=True)
+    balance_snapshot_created = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.name} for {self.exchange}"

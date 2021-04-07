@@ -22,10 +22,23 @@ class CustomJSONEditorWidget(JSONEditorWidget):
         return context
 
 
-class JsonWidgetMixin:
+class CustomJsonWidgetMixin:
     formfield_overrides = {
         JSONField: {
             'widget': CustomJSONEditorWidget(
+                mode='form',
+                options={
+                    'maxVisibleChilds': 100000
+                }
+            )
+        }
+    }
+
+
+class JsonWidgetMixin:
+    formfield_overrides = {
+        JSONField: {
+            'widget': JSONEditorWidget(
                 mode='form',
                 options={
                     'maxVisibleChilds': 100000
@@ -57,7 +70,7 @@ class InstrumentAdmin(admin.ModelAdmin):
 
 @admin.register(models.ExchangeCredentials)
 class ExchangeCredentialsAdmin(JsonWidgetMixin, admin.ModelAdmin):
-    pass
+    exclude = ('balance_snapshot', 'balance_snapshot_created')
 
 
 @admin.register(models.Owner)
@@ -71,7 +84,7 @@ class BotStatisticAdmin(admin.ModelAdmin):
 
 
 @admin.register(models.Bot)
-class BotAdmin(JsonWidgetMixin, admin.ModelAdmin):
+class BotAdmin(CustomJsonWidgetMixin, admin.ModelAdmin):
     list_display = ('name', 'is_active')
 
     def name(self, obj):

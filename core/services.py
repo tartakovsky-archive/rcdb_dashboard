@@ -1,11 +1,13 @@
 import logging
 import datetime
-from typing import Optional
+from typing import Optional, Dict, List
 
 import pytz
+import ccxt
+from django.utils import timezone
 from rcdb_commons.data_store import DataStore, DataType
 
-from .models import Bot, BotStatistic
+from .models import Bot, BotStatistic, ExchangeCredentials
 
 
 class BotStatisticUpdater:
@@ -102,3 +104,81 @@ class BotStatisticUpdater:
             'balance_base_borrowed': update['balance_base_borrowed'],
             'balance_quote_borrowed': update['balance_quote_borrowed']
         }
+
+
+class BinanceAccountConnector:
+    def __init__(self, credentials: dict):
+        self.api = ccxt.binance(credentials)
+        self._usd_price_cache = {'USDT': 1}
+
+    def update_amount_usd(self, data: dict) -> dict:
+        return {**data, 'amount_usd': data['amount'] * self.usd_price(data['symbol'])}
+
+    def usd_price(self, symbol: str) -> float:
+        if symbol not in self._usd_price_cache:
+            try:
+                self._usd_price_cache[symbol] = self.api.fetch_ticker(f'{symbol}/USDT')['bid']
+            except ccxt.errors.BadSymbol:
+                self._usd_price_cache[symbol] = 1 / self.api.fetch_ticker(f'USDT/{symbol}')['ask']
+
+        return self._usd_price_cache[symbol]
+
+    @staticmethod
+    def _sort_balances(balances: List[dict]) -> List[dict]:
+        return sorted(balances, key=lambda x: x['amount_usd'], reverse=True)
+
+    def get_balance_data(self) -> Dict[str, List[dict]]:
+        result = {
+            'spot': self._sort_balances(
+                [
+                    self.update_amount_usd(
+                        {
+                            'symbol': symbol,
+                            'amount': amount,
+                        }
+                    )
+                    for symbol, amount in self.api.fetch_balance()['total'].items()
+                    if amount
+                ]
+            ),
+
+            'margin': self._sort_balances(
+                [
+                    self.update_amount_usd(
+                        {
+                            'symbol': b['asset'],
+                            'amount': float(b['netAsset']),
+                        }
+                    )
+                    for b in self.api.sapi_get_margin_account()['userAssets']
+                    if b['netAsset'] != '0'
+                ]
+            )
+        }
+        result['total_usd'] = sum(
+            map(
+                lambda x: x['amount_usd'],
+                result['margin'] + result['spot']
+            )
+        )
+        return result
+
+
+EXCHANGE_ACCOUNT_CONNECTOR_MAP = {
+    'binance': BinanceAccountConnector
+}
+
+
+def snapshot_account_balances(exchange_credentials: ExchangeCredentials):
+    account_connector_class = EXCHANGE_ACCOUNT_CONNECTOR_MAP.get(exchange_credentials.exchange.slug)
+    if not account_connector_class:
+        logging.error(f'AccountConnector for {exchange_credentials.exchange.slug} is not implemented')
+        return
+
+    try:
+        account_connector = account_connector_class(exchange_credentials.parameters)
+        exchange_credentials.balance_snapshot = account_connector.get_balance_data()
+        exchange_credentials.balance_snapshot_created = timezone.now()
+        exchange_credentials.save()
+    except ccxt.errors.AuthenticationError as e:
+        logging.error(f"Can't auth to exchange {exchange_credentials}: {e}'")

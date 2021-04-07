@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Balances{% endblock %}
+
+{% block body %}
+    <div class="container mt-4">
+    {% for owner in owners %}
+        <h3>{{ owner.name }} <b>USD: {{ owner.total_usd|floatformat:3 }}</b></h3>
+        {% for creds in owner.exchangecredentials_set.all %}
+            {% if creds.balance_snapshot %}
+                <h5>{{ creds }} ({{ creds.balance_snapshot_created|date:"d/m/Y H:i:s" }})</h5>
+                {% if creds.balance_snapshot.spot %}
+                    {% include 'bot_balance/includes/balance_table.html' with type='spot' balances=creds.balance_snapshot.spot %}
+                {% endif %}
+
+                {% if creds.balance_snapshot.margin %}
+                    {% include 'bot_balance/includes/balance_table.html' with type='margin' balances=creds.balance_snapshot.margin %}
+                {% endif %}
+            {% endif %}
+        {% endfor %}
+    {% endfor %}
+    </div>
+{% endblock %}

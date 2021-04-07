@@ -1,6 +1,8 @@
 from django.views.generic import ListView
-from django.db.models import Count, Sum, Q
+from django.db.models import Count, Sum, Q, FloatField
+from django.db.models.functions import Cast
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.postgres.fields.jsonb import KeyTextTransform
 from django.urls import reverse_lazy
 
 from .models import Owner
@@ -27,6 +29,27 @@ class BotStatisticListView(LoginRequiredMixin, ListView):
                 bots_count=Count(
                     'exchangecredentials__bot',
                     **is_active_condition
+                )
+            )
+        )
+
+
+class ExchangeBalances(BotStatisticListView):
+    template_name = 'bot_balance/list.html'
+
+    def get_queryset(self):
+        return (
+            Owner
+            .objects
+            .filter(
+                exchangecredentials__balance_snapshot_created__isnull=False
+            )
+            .annotate(
+                total_usd=Sum(
+                    Cast(
+                        KeyTextTransform('total_usd', 'exchangecredentials__balance_snapshot'),
+                        FloatField()
+                    )
                 )
             )
         )

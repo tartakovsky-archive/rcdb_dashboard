@@ -152,5 +152,9 @@ CELERY_BEAT_SCHEDULE = {
     'schedule-update-bot-statistic': {
         'task': 'core.tasks.t_schedule_update_bot_statistic',
         'schedule': 15,
-    }
+    },
+    'schedule-snapshot-balances': {
+        'task': 'core.tasks.t_schedule_snapshot_balances',
+        'schedule': 15,
+    },
 }
