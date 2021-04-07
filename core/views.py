@@ -1,4 +1,4 @@
-from django.views.generic import ListView
+from django.views.generic import ListView, DetailView
 from django.db.models import Count, Sum, Q, FloatField
 from django.db.models.functions import Cast
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -34,22 +34,40 @@ class BotStatisticListView(LoginRequiredMixin, ListView):
         )
 
 
-class ExchangeBalances(BotStatisticListView):
+class TotalUsdAnnotateMixin:
+    def annotate(self, queryset):
+        return queryset.annotate(
+            total_usd=Sum(
+                Cast(
+                    KeyTextTransform('total_usd', 'exchangecredentials__balance_snapshot'),
+                    FloatField()
+                )
+            )
+        )
+
+
+class ExchangeBalancesListView(TotalUsdAnnotateMixin, LoginRequiredMixin, ListView):
+    model = Owner
+    login_url = reverse_lazy('admin:index')
     template_name = 'bot_balance/list.html'
+    context_object_name = 'owners'
 
     def get_queryset(self):
-        return (
+        return self.annotate(
             Owner
             .objects
             .filter(
                 exchangecredentials__balance_snapshot_created__isnull=False
             )
-            .annotate(
-                total_usd=Sum(
-                    Cast(
-                        KeyTextTransform('total_usd', 'exchangecredentials__balance_snapshot'),
-                        FloatField()
-                    )
-                )
-            )
+
         )
+
+
+class ExchangeBalancesDetailView(TotalUsdAnnotateMixin, LoginRequiredMixin, DetailView):
+    model = Owner
+    login_url = reverse_lazy('admin:index')
+    template_name = 'bot_balance/detail.html'
+    context_object_name = 'owner'
+
+    def get_queryset(self):
+        return self.annotate(super().get_queryset())

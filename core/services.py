@@ -129,38 +129,45 @@ class BinanceAccountConnector:
 
     def get_balance_data(self) -> Dict[str, List[dict]]:
         result = {
-            'spot': self._sort_balances(
-                [
-                    self.update_amount_usd(
-                        {
-                            'symbol': symbol,
-                            'amount': amount,
-                        }
+            'spot': list(
+                filter(
+                    lambda x: x['amount_usd'] >= 1.,
+                    self._sort_balances(
+                        [
+                            self.update_amount_usd(
+                                {
+                                    'symbol': symbol,
+                                    'amount': amount,
+                                }
+                            )
+                            for symbol, amount in self.api.fetch_balance()['total'].items()
+                            if amount
+                        ]
                     )
-                    for symbol, amount in self.api.fetch_balance()['total'].items()
-                    if amount
-                ]
+                )
             ),
-
-            'margin': self._sort_balances(
-                [
-                    self.update_amount_usd(
-                        {
-                            'symbol': b['asset'],
-                            'amount': float(b['netAsset']),
-                        }
+            'margin': list(
+                filter(
+                    lambda x: x['amount_usd'] >= 1.,
+                    self._sort_balances(
+                        [
+                            self.update_amount_usd(
+                                {
+                                    'symbol': b['asset'],
+                                    'amount': float(b['netAsset']),
+                                }
+                            )
+                            for b in self.api.sapi_get_margin_account()['userAssets']
+                            if b['netAsset'] != '0'
+                        ]
                     )
-                    for b in self.api.sapi_get_margin_account()['userAssets']
-                    if b['netAsset'] != '0'
-                ]
+                )
             )
         }
-        result['total_usd'] = sum(
-            map(
-                lambda x: x['amount_usd'],
-                result['margin'] + result['spot']
-            )
-        )
+
+        result['total_usd'] = sum(map(lambda x: x['amount_usd'], result['margin'] + result['spot']))
+        result['spot_usd'] = sum(map(lambda x: x['amount_usd'], result['spot']))
+        result['margin_usd'] = sum(map(lambda x: x['amount_usd'], result['margin']))
         return result
 
 

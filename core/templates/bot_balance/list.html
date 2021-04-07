@@ -3,20 +3,32 @@
 
 {% block body %}
     <div class="container mt-4">
-    {% for owner in owners %}
-        <h3>{{ owner.name }} <b>USD: {{ owner.total_usd|floatformat:3 }}</b></h3>
-        {% for creds in owner.exchangecredentials_set.all %}
-            {% if creds.balance_snapshot %}
-                <h5>{{ creds }} ({{ creds.balance_snapshot_created|date:"d/m/Y H:i:s" }})</h5>
-                {% if creds.balance_snapshot.spot %}
-                    {% include 'bot_balance/includes/balance_table.html' with type='spot' balances=creds.balance_snapshot.spot %}
-                {% endif %}
-
-                {% if creds.balance_snapshot.margin %}
-                    {% include 'bot_balance/includes/balance_table.html' with type='margin' balances=creds.balance_snapshot.margin %}
-                {% endif %}
-            {% endif %}
+        {% for owner in owners %}
+            <table class="table table-bordered table-sm">
+                <tr>
+                    <td colspan="4"><a href="{% url 'balances_detail' owner.pk %}">{{ owner.name }}</a></td>
+                </tr>
+                <tr>
+                    <th>Label</th>
+                    <th>Spot, USDT</th>
+                    <th>Margin, USDT</th>
+                    <th>Last Update</th>
+                </tr>
+                {% for creds in owner.exchangecredentials_set.all %}
+                    {% if creds.balance_snapshot %}
+                        <tr>
+                            <td>{{ creds.name }}</td>
+                            <td>{{ creds.balance_snapshot.spot_usd|floatformat:3 }}</td>
+                            <td>{{ creds.balance_snapshot.margin_usd|floatformat:3 }}</td>
+                            <td>{{ creds.balance_snapshot_created|date:"d/m/Y H:i:s" }}</td>
+                        </tr>
+                    {% endif %}
+                {% endfor %}
+                <tr>
+                    <td colspan="3"><b>Total usd</b></td>
+                    <td><b>{{ owner.total_usd|floatformat:3 }}</b></td>
+                </tr>
+            </table>
         {% endfor %}
-    {% endfor %}
     </div>
 {% endblock %}

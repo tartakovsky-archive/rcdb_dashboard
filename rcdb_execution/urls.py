@@ -21,6 +21,7 @@ from django.contrib import admin
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', api.api.urls),
-    path('balances/', views.ExchangeBalances.as_view(), name='balances'),
+    path('balances/<int:pk>', views.ExchangeBalancesDetailView.as_view(), name='balances_detail'),
+    path('balances/', views.ExchangeBalancesListView.as_view(), name='balances'),
     path('', views.BotStatisticListView.as_view(), name='statistic')
 ] + staticfiles_urlpatterns()

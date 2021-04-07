@@ -84,5 +84,7 @@ def test_snapshot_account_balances(bot: models.Bot, mocker):
             {'symbol': 'USDT', 'amount': 11., 'amount_usd': 11.},
             {'symbol': 'BTC', 'amount': 0.5, 'amount_usd': 10.}
         ),
-        'total_usd': 71.5
+        'total_usd': 71.5,
+        'margin_usd': 41.5,
+        'spot_usd': 30.
     }
