@@ -77,14 +77,18 @@ class Instrument(models.Model):
 class ExchangeCredentials(models.Model):
     class Meta:
         verbose_name_plural = 'ExchangeCredentials'
+        ordering = ['order_id', 'name']
 
     name = models.CharField(max_length=200)
+    label = models.CharField(max_length=200, blank=True, default='')
     owner = models.ForeignKey(Owner, on_delete=models.PROTECT)
     exchange = models.ForeignKey(Exchange, on_delete=models.PROTECT)
     parameters = models.JSONField(default=dict, null=True, blank=True)
 
     balance_snapshot = models.JSONField(null=True, blank=True)
     balance_snapshot_created = models.DateTimeField(null=True, blank=True)
+
+    order_id = models.IntegerField(default=0)
 
     def __str__(self):
         return f"{self.name} for {self.exchange}"

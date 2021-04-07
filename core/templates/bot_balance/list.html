@@ -6,26 +6,30 @@
         {% for owner in owners %}
             <table class="table table-bordered table-sm">
                 <tr>
-                    <td colspan="4"><a href="{% url 'balances_detail' owner.pk %}">{{ owner.name }}</a></td>
+                    <td colspan="6"><a href="{% url 'balances_detail' owner.pk %}">{{ owner.name }}</a></td>
                 </tr>
                 <tr>
+                    <th>id</th>
+                    <th>Account</th>
                     <th>Label</th>
-                    <th>Spot, USDT</th>
-                    <th>Margin, USDT</th>
+                    <th>Spot balance, $</th>
+                    <th>Margin balance, $</th>
                     <th>Last Update</th>
                 </tr>
                 {% for creds in owner.exchangecredentials_set.all %}
                     {% if creds.balance_snapshot %}
                         <tr>
+                            <td><a href="{% url 'admin:core_exchangecredentials_change' creds.pk %}">{{ creds.order_id }}</a></td>
                             <td>{{ creds.name }}</td>
-                            <td>{{ creds.balance_snapshot.spot_usd|floatformat:3 }}</td>
-                            <td>{{ creds.balance_snapshot.margin_usd|floatformat:3 }}</td>
+                            <td>{{ creds.label }}</td>
+                            <td>{{ creds.balance_snapshot.spot_usd|floatformat:0 }}</td>
+                            <td>{{ creds.balance_snapshot.margin_usd|floatformat:0 }}</td>
                             <td>{{ creds.balance_snapshot_created|date:"d/m/Y H:i:s" }}</td>
                         </tr>
                     {% endif %}
                 {% endfor %}
                 <tr>
-                    <td colspan="3"><b>Total usd</b></td>
+                    <td colspan="5"><b>Total usd</b></td>
                     <td><b>{{ owner.total_usd|floatformat:3 }}</b></td>
                 </tr>
             </table>
