@@ -1,4 +1,5 @@
 import os
+from typing import List
 
 import jwt
 from ninja import NinjaAPI
@@ -81,6 +82,16 @@ def get_auth_token(request):
             access_token=AuthBearer.encode_token(request.user)
         )
     raise HttpError(401, 'Bad request')
+
+
+@api.get(
+    '/exchange-credentials',
+    auth=AuthBearer(),
+    response=List[schemas.ExchangeCredentials],
+    description='Returns exchange credentials'
+)
+def get_exchange_credentials(request):
+    return models.ExchangeCredentials.objects.filter(parameters__isnull=False)
 
 
 @api.get('', tags=['Documentation'])

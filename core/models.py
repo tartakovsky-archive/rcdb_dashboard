@@ -79,7 +79,7 @@ class ExchangeCredentials(models.Model):
         verbose_name_plural = 'ExchangeCredentials'
         ordering = ['order_id', 'name']
 
-    name = models.CharField(max_length=200)
+    name = models.CharField(max_length=200, unique=True)
     label = models.CharField(max_length=200, blank=True, default='')
     owner = models.ForeignKey(Owner, on_delete=models.PROTECT)
     exchange = models.ForeignKey(Exchange, on_delete=models.PROTECT)

@@ -51,6 +51,22 @@ def test_get_bot_config(auth_client_token, bot: models.Bot):
 
 
 @use_db
-def test_auth_unauth_user(auth_client):
-    response = auth_client.get('/api/bot/1')
+@pytest.mark.parametrize('url', ['/api/bot/1', '/api/exchange-credentials'])
+def test_auth_unauth_user(auth_client, url):
+    response = auth_client.get(url)
     assert response.status_code == 401
+
+
+@use_db
+def test_get_exchange_credentials(auth_client_token, bot: models.Bot):
+    models.ExchangeCredentials(
+        owner=bot.exchange_credentials.owner,
+        exchange=bot.instrument.exchange,
+        name='Empty parameters',
+        parameters=None
+    ).save()
+    response = auth_client_token.get('/api/exchange-credentials')
+    assert models.ExchangeCredentials.objects.count() == 2
+    assert tuple(response.json()) == (
+        {'exchange': {'name': 'binance', 'slug': 'binance'}, 'name': 'Creds', 'label': '', 'parameters': {'some': 1}},
+    )
