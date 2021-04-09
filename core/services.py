@@ -119,7 +119,11 @@ class BinanceAccountConnector:
             try:
                 self._usd_price_cache[symbol] = self.api.fetch_ticker(f'{symbol}/USDT')['bid']
             except ccxt.errors.BadSymbol:
-                self._usd_price_cache[symbol] = 1 / self.api.fetch_ticker(f'USDT/{symbol}')['ask']
+                try:
+                    self._usd_price_cache[symbol] = 1 / self.api.fetch_ticker(f'USDT/{symbol}')['ask']
+                except ccxt.errors.BadSymbol:
+                    logging.warning(f"Can't find price for {symbol}. Set to 0")
+                    self._usd_price_cache[symbol] = 0
 
         return self._usd_price_cache[symbol]
 
