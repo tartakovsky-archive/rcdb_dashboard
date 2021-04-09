@@ -1,5 +1,6 @@
 import logging
 
+import ccxt
 import requests
 from celery import shared_task
 from django.conf import settings
@@ -56,7 +57,10 @@ def t_snapshot_exchange_credentials_balances(exchange_credentials_id: int):
         logging.warning(
             f'<t_snapshot_exchange_credentials_balances>: instance with id: {exchange_credentials_id} does not exist'
         )
-
+    except ccxt.errors.NetworkError as e:
+        logging.warning(
+            f'<t_snapshot_exchange_credentials_balances>: instance with id: {exchange_credentials_id} NetworkError {e}'
+        )
     except Exception:
         logging.exception(f'<t_snapshot_exchange_credentials_balances>: unexpected error for {exchange_credentials_id}')
 

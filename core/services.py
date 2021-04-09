@@ -109,7 +109,7 @@ class BotStatisticUpdater:
 class BinanceAccountConnector:
     def __init__(self, credentials: dict):
         self.api = ccxt.binance(credentials)
-        self._usd_price_cache = {'USDT': 1}
+        self._usd_price_cache = {'USDT': 1, 'ETF': 1}
 
     def update_amount_usd(self, data: dict) -> dict:
         return {**data, 'amount_usd': data['amount'] * self.usd_price(data['symbol'])}
