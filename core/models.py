@@ -84,6 +84,7 @@ class ExchangeCredentials(models.Model):
     owner = models.ForeignKey(Owner, on_delete=models.PROTECT)
     exchange = models.ForeignKey(Exchange, on_delete=models.PROTECT)
     parameters = models.JSONField(default=dict, null=True, blank=True)
+    meta = models.JSONField(default=dict, null=True, blank=True)
 
     balance_snapshot = models.JSONField(null=True, blank=True)
     balance_snapshot_created = models.DateTimeField(null=True, blank=True)

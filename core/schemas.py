@@ -1,3 +1,5 @@
+from typing import Optional
+
 from ninja import Schema
 
 
@@ -16,3 +18,4 @@ class ExchangeCredentials(Schema):
     name: str
     label: str
     parameters: dict
+    meta: Optional[dict]
