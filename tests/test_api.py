@@ -68,5 +68,11 @@ def test_get_exchange_credentials(auth_client_token, bot: models.Bot):
     response = auth_client_token.get('/api/exchange-credentials')
     assert models.ExchangeCredentials.objects.count() == 2
     assert tuple(response.json()) == (
-        {'exchange': {'name': 'binance', 'slug': 'binance'}, 'name': 'Creds', 'label': '', 'parameters': {'some': 1}},
+        {
+            'exchange': {'name': 'binance', 'slug': 'binance'},
+            'name': 'Creds',
+            'label': '',
+            'parameters': {'some': 1},
+            'meta': {}
+        },
     )
