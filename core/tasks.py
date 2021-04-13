@@ -7,7 +7,7 @@ from django.conf import settings
 from rcdb_commons.data_store import DataStore
 
 from .models import Bot, ExchangeCredentials
-from .services import BotStatisticUpdater, snapshot_account_balances
+from .services import BotStatisticUpdater, snapshot_account_balances, update_account_statistics
 
 
 @shared_task
@@ -65,3 +65,36 @@ def t_snapshot_exchange_credentials_balances(exchange_credentials_id: int):
         logging.exception(f'<t_snapshot_exchange_credentials_balances>: unexpected error for {exchange_credentials_id}')
 
     logging.info(f'ended task: <t_snapshot_exchange_credentials_balances> for {exchange_credentials_id}')
+
+
+@shared_task
+def t_schedule_update_account_statistics():
+    logging.info('started task: <t_schedule_update_account_statistics>')
+    for exchange_credentials in ExchangeCredentials.objects.all():
+        if exchange_credentials.meta:
+            t_update_account_statistics.delay(exchange_credentials.id)
+    logging.info('ended task: <t_schedule_update_account_statistics>')
+
+
+@shared_task
+def t_update_account_statistics(exchange_credentials_id: int):
+    logging.info(f'started task: <t_update_account_statistics> for {exchange_credentials_id}')
+    try:
+        update_account_statistics(
+            DataStore(settings.DATASTORE_URL, settings.DATASTORE_TOKEN),
+            ExchangeCredentials.objects.get(pk=exchange_credentials_id)
+        )
+    except ExchangeCredentials.DoesNotExist:
+        logging.warning(
+            f'<t_update_account_statistics>: instance with id: {exchange_credentials_id} does not exist'
+        )
+    except ccxt.errors.NetworkError as e:
+        logging.warning(
+            f'<t_update_account_statistics>: instance with id: {exchange_credentials_id} NetworkError {e}'
+        )
+    except requests.exceptions.RequestException as e:
+        logging.warning(f'<t_update_account_statistics>: request error {e}')
+    except Exception:
+        logging.exception(f'<t_update_account_statistics>: unexpected error for {exchange_credentials_id}')
+
+    logging.info(f'ended task: <t_update_account_statistics> for {exchange_credentials_id}')

@@ -70,7 +70,7 @@ class InstrumentAdmin(admin.ModelAdmin):
 
 @admin.register(models.ExchangeCredentials)
 class ExchangeCredentialsAdmin(admin.ModelAdmin):
-    exclude = ('balance_snapshot', 'balance_snapshot_created')
+    exclude = ('balance_snapshot', 'balance_snapshot_created', 'statistics')
 
 
 @admin.register(models.Owner)

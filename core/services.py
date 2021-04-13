@@ -1,7 +1,8 @@
 import logging
 import datetime
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Union
 
+import pandas as pd
 import pytz
 import ccxt
 from django.utils import timezone
@@ -131,11 +132,11 @@ class BinanceAccountConnector:
     def _sort_balances(balances: List[dict]) -> List[dict]:
         return sorted(balances, key=lambda x: x['amount_usd'], reverse=True)
 
-    def get_balance_data(self) -> Dict[str, List[dict]]:
+    def get_balance_data(self) -> Dict[str, Union[List[dict], float]]:
         result = {
             'spot': list(
                 filter(
-                    lambda x: x['amount_usd'] >= 1.,
+                    lambda x: abs(x['amount_usd']) >= 1.,
                     self._sort_balances(
                         [
                             self.update_amount_usd(
@@ -152,7 +153,7 @@ class BinanceAccountConnector:
             ),
             'margin': list(
                 filter(
-                    lambda x: x['amount_usd'] >= 1.,
+                    lambda x: abs(x['amount_usd']) >= 1.,
                     self._sort_balances(
                         [
                             self.update_amount_usd(
@@ -193,3 +194,53 @@ def snapshot_account_balances(exchange_credentials: ExchangeCredentials):
         exchange_credentials.save()
     except ccxt.errors.AuthenticationError as e:
         logging.error(f"Can't auth to exchange {exchange_credentials}: {e}'")
+
+
+def update_account_statistics(datastore: DataStore, exchange_credentials: ExchangeCredentials):
+    try:
+        df = pd.concat(
+            [
+                datastore.read(
+                    DataType.account_trades,
+                    query_params=dict(
+                        name=exchange_credentials.name,
+                        symbol=market,
+                        tail=1500
+                    )
+                )
+                for market in exchange_credentials.meta.get('markets', [])
+            ]
+        )
+    except ValueError:
+        df = pd.DataFrame([])
+
+    exchange_credentials.statistics = {
+        'h24_usd_volume': None,
+        'h24_trades_count': None,
+        'updated': timezone.now().strftime('%d/%m/%Y %H:%M:%S')
+    }
+
+    if 'timestamp' in df.columns:
+        df = df[df.timestamp >= datetime.datetime.utcnow() - datetime.timedelta(days=1)]
+
+    if len(df):
+        exchange_credentials.statistics['h24_trades_count'] = int((df.trades_count_buy + df.trades_count_sell).sum())
+        account_connector_class = EXCHANGE_ACCOUNT_CONNECTOR_MAP.get(exchange_credentials.exchange.slug)
+        if not account_connector_class:
+            logging.error(f'AccountConnector for {exchange_credentials.exchange.slug} is not implemented')
+        else:
+            connector = BinanceAccountConnector({})
+            df['volume_usd'] = 0.
+            for symbol in df.symbol.unique():
+                sym_mask = df.symbol == symbol
+                if symbol.endswith('/USDT'):
+                    price_mult = 1.
+                else:
+                    price_mult = connector.usd_price(symbol.split('/')[1])
+
+                volume_buy_usd = df.loc[sym_mask, 'volume_buy'] * (df.loc[sym_mask, 'price_avg_buy'] * price_mult)
+                volume_sell_usd = df.loc[sym_mask, 'volume_sell'] * (df.loc[sym_mask, 'price_avg_sell'] * price_mult)
+                df.loc[sym_mask, 'volume_usd'] = volume_buy_usd + volume_sell_usd
+
+            exchange_credentials.statistics['h24_usd_volume'] = float(df.volume_usd.sum())
+    exchange_credentials.save()

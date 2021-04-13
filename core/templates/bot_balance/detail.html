@@ -14,6 +14,24 @@
                 {% if creds.balance_snapshot.margin %}
                     {% include 'bot_balance/includes/balance_table.html' with type='margin' balances=creds.balance_snapshot.margin %}
                 {% endif %}
+                {% if creds.statistics.h24_trades_count >= 0 or creds.statistics.h24_usd_volume >= 0 %}
+                    <table class="table table-bordered">
+                        <tr><th colspan="2">24h Statistics</th></tr>
+                        {% if creds.statistics.h24_usd_volume >= 0 %}
+                             <tr>
+                                <td>Volume, $</td>
+                                <td>{{ creds.statistics.h24_usd_volume|floatformat:0 }}</td>
+                             </tr>
+                        {% endif %}
+
+                        {% if creds.statistics.h24_trades_count >= 0 %}
+                             <tr>
+                                <td>Trades</td>
+                                <td>{{ creds.statistics.h24_trades_count }}</td>
+                             </tr>
+                        {% endif %}
+                    </table>
+                {% endif %}
             {% endif %}
         {% endfor %}
     </div>

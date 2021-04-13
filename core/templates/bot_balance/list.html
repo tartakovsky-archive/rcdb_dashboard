@@ -30,8 +30,21 @@
                 {% endfor %}
                 <tr>
                     <td colspan="5"><b>Total usd</b></td>
-                    <td><b>{{ owner.total_usd|floatformat:3 }}</b></td>
+                    <td><b>{{ owner.total_usd|floatformat:0 }}</b></td>
                 </tr>
+
+                {% if owner.h24_usd_volume >= 0 %}
+                    <tr>
+                        <td colspan="5"><b>24h Volume, $</b></td>
+                        <td><b>{{ owner.h24_usd_volume|floatformat:0 }}</b></td>
+                    </tr>
+                {% endif %}
+                {% if owner.h24_trades_count >= 0 %}
+                    <tr>
+                        <td colspan="5"><b>24h Trades</b></td>
+                        <td><b>{{ owner.h24_trades_count }}</b></td>
+                    </tr>
+                {% endif %}
             </table>
         {% endfor %}
     </div>

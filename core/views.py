@@ -1,5 +1,5 @@
 from django.views.generic import ListView, DetailView
-from django.db.models import Count, Sum, Q, FloatField
+from django.db.models import Count, Sum, Q, FloatField, IntegerField
 from django.db.models.functions import Cast
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.postgres.fields.jsonb import KeyTextTransform
@@ -42,7 +42,19 @@ class TotalUsdAnnotateMixin:
                     KeyTextTransform('total_usd', 'exchangecredentials__balance_snapshot'),
                     FloatField()
                 )
-            )
+            ),
+            h24_usd_volume=Sum(
+                Cast(
+                    KeyTextTransform('h24_usd_volume', 'exchangecredentials__statistics'),
+                    FloatField()
+                )
+            ),
+            h24_trades_count=Sum(
+                Cast(
+                    KeyTextTransform('h24_trades_count', 'exchangecredentials__statistics'),
+                    IntegerField()
+                )
+            ),
         )
 
 

@@ -89,6 +89,8 @@ class ExchangeCredentials(models.Model):
     balance_snapshot = models.JSONField(null=True, blank=True)
     balance_snapshot_created = models.DateTimeField(null=True, blank=True)
 
+    statistics = models.JSONField(null=True, blank=True)
+
     order_id = models.IntegerField(default=0)
 
     def __str__(self):
