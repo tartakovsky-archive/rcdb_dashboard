@@ -25,7 +25,8 @@ def test_snapshot_account_balances_unsupported_exchange(bot: models.Bot):
 
 
 @use_db
-def test_snapshot_account_balances(bot: models.Bot, mocker):
+@pytest.mark.parametrize('ignore_spot_balance', [True, False])
+def test_snapshot_account_balances(bot: models.Bot, mocker, ignore_spot_balance):
     class MockBinance:
         def __init__(self, *args, **kwargs):
             pass
@@ -67,6 +68,10 @@ def test_snapshot_account_balances(bot: models.Bot, mocker):
 
     mocker.patch('core.services.ccxt.binance', MockBinance)
 
+    bot.exchange_credentials.ignore_spot_balance = ignore_spot_balance
+    bot.exchange_credentials.save()
+    print(bot.exchange_credentials.ignore_spot_balance)
+
     snapshot_account_balances(bot.exchange_credentials)
 
     snapshot = bot.exchange_credentials.balance_snapshot
@@ -74,8 +79,10 @@ def test_snapshot_account_balances(bot: models.Bot, mocker):
     snapshot['margin'] = tuple(snapshot['margin'])
 
     assert timezone.now() - bot.exchange_credentials.balance_snapshot_created <= timedelta(minutes=1)
+
+    print(bot.exchange_credentials.balance_snapshot)
     assert bot.exchange_credentials.balance_snapshot == {
-        'spot': (
+        'spot': tuple() if ignore_spot_balance else (
             {'symbol': 'USDT', 'amount': 20, 'amount_usd': 20},
             {'symbol': 'BTC', 'amount': 0.5, 'amount_usd': 10.}
         ),
@@ -84,7 +91,7 @@ def test_snapshot_account_balances(bot: models.Bot, mocker):
             {'symbol': 'USDT', 'amount': 11., 'amount_usd': 11.},
             {'symbol': 'BTC', 'amount': 0.5, 'amount_usd': 10.}
         ),
-        'total_usd': 71.5,
+        'total_usd': 41.5 if ignore_spot_balance else 71.5,
         'margin_usd': 41.5,
-        'spot_usd': 30.
+        'spot_usd': 0 if ignore_spot_balance else 30.
     }

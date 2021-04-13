@@ -7,7 +7,11 @@ from rcdb_commons.schemas import bot as bot_schemas
 
 
 class Owner(models.Model):
+    class Meta:
+        ordering = ['order_id', 'name']
+
     name = models.CharField(max_length=100, unique=True)
+    order_id = models.IntegerField(default=0)
 
     def __str__(self):
         return self.name
@@ -91,6 +95,7 @@ class ExchangeCredentials(models.Model):
 
     statistics = models.JSONField(null=True, blank=True)
 
+    ignore_spot_balance = models.BooleanField(default=False)
     order_id = models.IntegerField(default=0)
 
     def __str__(self):

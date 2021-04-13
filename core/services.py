@@ -1,4 +1,5 @@
 import logging
+import operator
 import datetime
 from typing import Optional, Dict, List, Union
 
@@ -132,9 +133,9 @@ class BinanceAccountConnector:
     def _sort_balances(balances: List[dict]) -> List[dict]:
         return sorted(balances, key=lambda x: x['amount_usd'], reverse=True)
 
-    def get_balance_data(self) -> Dict[str, Union[List[dict], float]]:
+    def get_balance_data(self, ignore_spot_balance: bool = False) -> Dict[str, Union[List[dict], float]]:
         result = {
-            'spot': list(
+            'spot': [] if ignore_spot_balance else list(
                 filter(
                     lambda x: abs(x['amount_usd']) >= 1.,
                     self._sort_balances(
@@ -169,10 +170,11 @@ class BinanceAccountConnector:
                 )
             )
         }
-
-        result['total_usd'] = sum(map(lambda x: x['amount_usd'], result['margin'] + result['spot']))
-        result['spot_usd'] = sum(map(lambda x: x['amount_usd'], result['spot']))
-        result['margin_usd'] = sum(map(lambda x: x['amount_usd'], result['margin']))
+        print(result)
+        amount_usd_getter = operator.itemgetter('amount_usd')
+        result['total_usd'] = sum(map(amount_usd_getter, result['margin'] + result['spot']))
+        result['spot_usd'] = sum(map(amount_usd_getter, result['spot']))
+        result['margin_usd'] = sum(map(amount_usd_getter, result['margin']))
         return result
 
 
@@ -189,7 +191,9 @@ def snapshot_account_balances(exchange_credentials: ExchangeCredentials):
 
     try:
         account_connector = account_connector_class(exchange_credentials.parameters)
-        exchange_credentials.balance_snapshot = account_connector.get_balance_data()
+        exchange_credentials.balance_snapshot = account_connector.get_balance_data(
+            ignore_spot_balance=exchange_credentials.ignore_spot_balance
+        )
         exchange_credentials.balance_snapshot_created = timezone.now()
         exchange_credentials.save()
     except ccxt.errors.AuthenticationError as e:
