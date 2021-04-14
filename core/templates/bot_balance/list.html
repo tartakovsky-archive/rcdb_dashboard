@@ -17,16 +17,14 @@
                     <th>Last Update</th>
                 </tr>
                 {% for creds in owner.exchangecredentials_set.all %}
-                    {% if creds.balance_snapshot %}
-                        <tr>
-                            <td><a href="{% url 'admin:core_exchangecredentials_change' creds.pk %}">{{ creds.order_id }}</a></td>
-                            <td>{{ creds.name }}</td>
-                            <td>{{ creds.label }}</td>
-                            <td>{{ creds.balance_snapshot.spot_usd|floatformat:0 }}</td>
-                            <td>{{ creds.balance_snapshot.margin_usd|floatformat:0 }}</td>
-                            <td>{{ creds.balance_snapshot_created|date:"d/m/Y H:i:s" }}</td>
-                        </tr>
-                    {% endif %}
+                    <tr>
+                        <td><a href="{% url 'admin:core_exchangecredentials_change' creds.pk %}">{{ creds.order_id }}</a></td>
+                        <td>{{ creds.name }}</td>
+                        <td>{{ creds.label }}</td>
+                        <td>{{ creds.balance_snapshot.spot_usd|floatformat:0 }}</td>
+                        <td>{{ creds.balance_snapshot.margin_usd|floatformat:0 }}</td>
+                        <td>{{ creds.balance_snapshot_created|date:"d/m/Y H:i:s" }}</td>
+                    </tr>
                 {% endfor %}
                 <tr>
                     <td colspan="5"><b>Total usd</b></td>
