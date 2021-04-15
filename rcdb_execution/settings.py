@@ -152,10 +152,10 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_BEAT_SCHEDULE = {
     'schedule-update-bot-statistic': {
         'task': 'core.tasks.t_schedule_update_bot_statistic',
-        'schedule': 15,
+        'schedule': 25,
     },
     'schedule-snapshot-balances': {
         'task': 'core.tasks.t_schedule_snapshot_balances',
-        'schedule': 15,
+        'schedule': 25,
     },
 }
