@@ -17,9 +17,15 @@ class Owner(models.Model):
     order_id = models.IntegerField(default=0)
 
     def get_exchange_credentials_balances(self):
-        return self.exchangecredentials_set.filter(visible=True).annotate(
-            balance_base_borrowed=models.Sum('bot__botstatistic__balance_base_borrowed'),
-            balance_quote_borrowed=models.Sum('bot__botstatistic__balance_quote_borrowed')
+        return (
+            self
+            .exchangecredentials_set
+            .filter(visible=True)
+            .order_by('order_id', 'name')
+            .annotate(
+                balance_base_borrowed=models.Sum('bot__botstatistic__balance_base_borrowed'),
+                balance_quote_borrowed=models.Sum('bot__botstatistic__balance_quote_borrowed')
+            )
         )
 
     def has_visible_exchange_credentials(self) -> bool:
