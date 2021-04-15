@@ -1,49 +1,129 @@
 {% extends 'base.html' %}
+{% load humanize %}
 {% block title %}Balances{% endblock %}
 
 {% block body %}
-    <div class="container mt-4">
+    <div class="m-4 mt-8">
         {% for owner in owners %}
-            <table class="table table-bordered table-sm">
-                <tr>
-                    <td colspan="6"><a href="{% url 'balances_detail' owner.pk %}">{{ owner.name }}</a></td>
-                </tr>
-                <tr>
-                    <th>id</th>
-                    <th>Account</th>
-                    <th>Label</th>
-                    <th>Spot balance, $</th>
-                    <th>Margin balance, $</th>
-                    <th>Last Update</th>
-                </tr>
-                {% for creds in owner.exchangecredentials_set.all %}
-                    <tr>
-                        <td><a href="{% url 'admin:core_exchangecredentials_change' creds.pk %}">{{ creds.order_id }}</a></td>
-                        <td>{{ creds.name }}</td>
-                        <td>{{ creds.label }}</td>
-                        <td>{{ creds.balance_snapshot.spot_usd|floatformat:0 }}</td>
-                        <td>{{ creds.balance_snapshot.margin_usd|floatformat:0 }}</td>
-                        <td>{{ creds.balance_snapshot_created|date:"d/m/Y H:i:s" }}</td>
-                    </tr>
-                {% endfor %}
-                <tr>
-                    <td colspan="5"><b>Total usd</b></td>
-                    <td><b>{{ owner.total_usd|floatformat:0 }}</b></td>
-                </tr>
+            <h3 class="text-lg leading-6 font-medium text-gray-900"><a href="{% url 'balances_detail' owner.pk %}">{{ owner.name }}</a></h3>
+            <!-- table -->
+            <div class="mt-5 mb-10">
+                <div class="flex flex-col">
+                    <div class="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+                        <div class="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">
+                            <div class="shadow overflow-hidden border-b border-gray-200 sm:rounded-lg">
+                                <table class="min-w-full">
+                                    <thead class="bg-indigo-100">
+                                    <tr>
+                                        <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
+                                            Account
+                                        </th>
+                                        <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
+                                            Type
+                                        </th>
+                                        <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
+                                            Label
+                                        </th>
+                                        <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
+                                            Balance
+                                        </th>
+                                        <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
+                                            Base (brw)
+                                        </th>
+                                        <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
+                                            Quote (brw)
+                                        </th>
+                                        <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
+                                            Trades (24h)
+                                        </th>
+                                        <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
+                                            Volume (24h)
+                                        </th>
+                                        <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
+                                            Volume (This Week)
+                                        </th>
+                                        <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
+                                            Last Timestamp
+                                        </th>
 
-                {% if owner.h24_usd_volume >= 0 %}
-                    <tr>
-                        <td colspan="5"><b>24h Volume, $</b></td>
-                        <td><b>{{ owner.h24_usd_volume|floatformat:0 }}</b></td>
-                    </tr>
-                {% endif %}
-                {% if owner.h24_trades_count >= 0 %}
-                    <tr>
-                        <td colspan="5"><b>24h Trades</b></td>
-                        <td><b>{{ owner.h24_trades_count }}</b></td>
-                    </tr>
-                {% endif %}
-            </table>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    <!-- Odd row -->
+                                    {% for creds in owner.get_exchange_credentials_balances %}
+                                        <tr class="{% if forloop.counter|divisibleby:2 %}bg-gray-50{% else %}bg-white{% endif %} divide-x">
+                                            <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
+                                                <a href="{% url 'admin:core_exchangecredentials_change' creds.pk %}">{{ creds.name }}</a>
+                                            </td>
+                                            <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+                                                {{ creds.account_type_label }}
+                                            </td>
+                                            <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+                                                {{ creds.label }}
+                                            </td>
+                                            <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+                                                {% if not creds.ignore_balance %}{{ creds.balance_snapshot.total_usd|floatformat:0|intcomma }}{% else %}-{% endif %}
+                                            </td>
+                                            <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+                                                {{ creds.balance_base_borrowed|default_if_none:''|intcomma }}
+                                            </td>
+                                            <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+                                                {{ creds.balance_quote_borrowed|default_if_none:''|intcomma }}
+                                            </td>
+                                            <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+
+                                            </td>
+                                            <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+
+                                            </td>
+                                            <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+
+                                            </td>
+                                            <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+                                                {{ creds.balance_snapshot_created|date:"d/m/Y H:i:s" }}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                    <!-- Total row -->
+                                    <tr class="bg-gray-100">
+                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
+
+                                        </td>
+                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
+
+                                        </td>
+                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+
+                                        </td>
+                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
+                                            {{ owner.total_balance|floatformat:0|intcomma }}
+                                        </td>
+                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
+                                            {{ owner.balance_base_borrowed|default_if_none:'-'|intcomma }}
+                                        </td>
+                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
+                                            {{ owner.balance_quote_borrowed|default_if_none:'-'|intcomma }}
+                                        </td>
+                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
+
+                                        </td>
+                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
+
+                                        </td>
+                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
+
+                                        </td>
+                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
+
+                                        </td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         {% endfor %}
     </div>
 {% endblock %}

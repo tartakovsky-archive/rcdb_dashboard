@@ -1,7 +1,7 @@
 import logging
 import operator
 import datetime
-from typing import Optional, Dict, List, Union
+from typing import Generator, Optional, Dict, List, Union, Iterable
 
 import pandas as pd
 import pytz
@@ -109,12 +109,23 @@ class BotStatisticUpdater:
 
 
 class BinanceAccountConnector:
+    class Exceptions:
+        class UnsupportedMarketType(Exception):
+            pass
+
     def __init__(self, credentials: dict):
         self.api = ccxt.binance(credentials)
-        self._usd_price_cache = {'USDT': 1, 'ETF': 1}
+        self._usd_price_cache = {'USDT': 1, 'ETF': 1, 'BUSD': 1}
 
     def update_amount_usd(self, data: dict) -> dict:
-        return {**data, 'amount_usd': data['amount'] * self.usd_price(data['symbol'])}
+        result = data.copy()
+
+        if 'amount_btc' in data:
+            result['amount_usd'] = data['amount_btc'] * self.usd_price('BTC')
+        else:
+            result['amount_usd'] = data['amount'] * self.usd_price(data['symbol'])
+
+        return result
 
     def usd_price(self, symbol: str) -> float:
         if symbol not in self._usd_price_cache:
@@ -130,51 +141,57 @@ class BinanceAccountConnector:
         return self._usd_price_cache[symbol]
 
     @staticmethod
-    def _sort_balances(balances: List[dict]) -> List[dict]:
+    def _sort_balances(balances: Iterable[dict]) -> List[dict]:
         return sorted(balances, key=lambda x: x['amount_usd'], reverse=True)
 
-    def get_balance_data(self, ignore_spot_balance: bool = False) -> Dict[str, Union[List[dict], float]]:
+    def _get_spot_balances(self):
+        return (
+            {'symbol': symbol, 'amount': amount}
+            for symbol, amount in self.api.fetch_balance()['total'].items()
+            if amount
+        )
+
+    def _get_cross_margin_balances(self) -> Generator[dict, None, None]:
+        return (
+            {'symbol': b['asset'], 'amount': float(b['netAsset'])}
+            for b in self.api.sapi_get_margin_account()['userAssets']
+            if b['netAsset'] != '0'
+        )
+
+    def _get_isolated_margin_balances(self) -> Generator[dict, None, None]:
+        asset_getter = operator.itemgetter('baseAsset', 'quoteAsset')
+        return (
+            {
+                'pair_symbol': pair_asset['symbol'],
+                'symbol': asset['asset'],
+                'amount': float(asset['netAsset']),
+                **({} if asset['asset'] in {'USDT', 'BUSD'} else {'amount_btc': float(asset['netAssetOfBtc'])})
+            }
+            for pair_asset in self.api.sapi_get_margin_isolated_account()['assets']
+            for asset in asset_getter(pair_asset) if asset['netAsset'] != '0'
+        )
+
+    def get_balance_data(self, type: str) -> Dict[str, Union[List[dict], float]]:
+        market_type_method = {
+            ExchangeCredentials.AccountChoices.SPOT.value: self._get_spot_balances,
+            ExchangeCredentials.AccountChoices.CROSS_MARGIN.value: self._get_cross_margin_balances,
+            ExchangeCredentials.AccountChoices.ISOLATED_MARGIN.value: self._get_isolated_margin_balances,
+        }
+        if type not in market_type_method:
+            raise self.Exceptions.UnsupportedMarketType(type)
+
         result = {
-            'spot': [] if ignore_spot_balance else list(
+            'balances': list(
                 filter(
                     lambda x: abs(x['amount_usd']) >= 1.,
                     self._sort_balances(
-                        [
-                            self.update_amount_usd(
-                                {
-                                    'symbol': symbol,
-                                    'amount': amount,
-                                }
-                            )
-                            for symbol, amount in self.api.fetch_balance()['total'].items()
-                            if amount
-                        ]
-                    )
-                )
-            ),
-            'margin': list(
-                filter(
-                    lambda x: abs(x['amount_usd']) >= 1.,
-                    self._sort_balances(
-                        [
-                            self.update_amount_usd(
-                                {
-                                    'symbol': b['asset'],
-                                    'amount': float(b['netAsset']),
-                                }
-                            )
-                            for b in self.api.sapi_get_margin_account()['userAssets']
-                            if b['netAsset'] != '0'
-                        ]
+                        self.update_amount_usd(data)
+                        for data in market_type_method[type]()
                     )
                 )
             )
         }
-        print(result)
-        amount_usd_getter = operator.itemgetter('amount_usd')
-        result['total_usd'] = sum(map(amount_usd_getter, result['margin'] + result['spot']))
-        result['spot_usd'] = sum(map(amount_usd_getter, result['spot']))
-        result['margin_usd'] = sum(map(amount_usd_getter, result['margin']))
+        result['total_usd'] = sum(map(operator.itemgetter('amount_usd'), result['balances']))
         return result
 
 
@@ -189,13 +206,18 @@ def snapshot_account_balances(exchange_credentials: ExchangeCredentials):
         logging.error(f'AccountConnector for {exchange_credentials.exchange.slug} is not implemented')
         return
 
+    if exchange_credentials.ignore_balance:
+        logging.debug(f'Ignore balance for {exchange_credentials}')
+        exchange_credentials.set_balance_snapshot({})
+        return
+
     try:
         account_connector = account_connector_class(exchange_credentials.parameters)
-        exchange_credentials.balance_snapshot = account_connector.get_balance_data(
-            ignore_spot_balance=exchange_credentials.ignore_spot_balance
+        exchange_credentials.set_balance_snapshot(
+            account_connector.get_balance_data(exchange_credentials.account_type)
         )
-        exchange_credentials.balance_snapshot_created = timezone.now()
-        exchange_credentials.save()
+    except BinanceAccountConnector.Exceptions.UnsupportedMarketType as e:
+        logging.error(f"Unsupported market type: {e}")
     except ccxt.errors.AuthenticationError as e:
         logging.error(f"Can't auth to exchange {exchange_credentials}: {e}'")
 

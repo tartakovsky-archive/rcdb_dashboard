@@ -21,6 +21,7 @@ def test_update_account_statistics_no_markets(bot: Bot):
 
 
 @use_db
+@pytest.mark.skip
 def test_update_account_statistics(bot: Bot, mocker):
     class MockBinance:
         def __init__(self, *args, **kwargs):

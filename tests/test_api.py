@@ -70,6 +70,7 @@ def test_get_exchange_credentials(auth_client_token, bot: models.Bot):
     assert tuple(response.json()) == (
         {
             'exchange': {'name': 'binance', 'slug': 'binance'},
+            'account_type': 'CROSS_MARGIN',
             'name': 'Creds',
             'label': '',
             'parameters': {'some': 1},

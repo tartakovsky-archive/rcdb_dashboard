@@ -17,5 +17,6 @@ class ExchangeCredentials(Schema):
     exchange: Exchange
     name: str
     label: str
+    account_type: str
     parameters: dict
     meta: Optional[dict]

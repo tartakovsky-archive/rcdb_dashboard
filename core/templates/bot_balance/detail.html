@@ -1,37 +1,54 @@
 {% extends 'base.html' %}
+{% load humanize %}
 {% block title %}Balances of {{ owner.name }}{% endblock %}
 
 {% block body %}
-    <div class="container mt-4">
-        <h3>{{ owner.name }} <b>USD: {{ owner.total_usd|floatformat:3 }}</b></h3>
-        {% for creds in owner.exchangecredentials_set.all %}
+    <div class="m-4 mt-8">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">{{ owner.name }} <b>USD: {{ owner.total_balance|floatformat:3 }}</b></h3>
+        <!-- table -->
+        {% for creds in owner.get_exchange_credentials_balances %}
             {% if creds.balance_snapshot %}
-                <h5>{{ creds }} ({{ creds.balance_snapshot_created|date:"d/m/Y H:i:s" }})</h5>
-                {% if creds.balance_snapshot.spot %}
-                    {% include 'bot_balance/includes/balance_table.html' with type='spot' balances=creds.balance_snapshot.spot %}
-                {% endif %}
-
-                {% if creds.balance_snapshot.margin %}
-                    {% include 'bot_balance/includes/balance_table.html' with type='margin' balances=creds.balance_snapshot.margin %}
-                {% endif %}
-                {% if creds.statistics.h24_trades_count >= 0 or creds.statistics.h24_usd_volume >= 0 %}
-                    <table class="table table-bordered">
-                        <tr><th colspan="2">24h Statistics</th></tr>
-                        {% if creds.statistics.h24_usd_volume >= 0 %}
-                             <tr>
-                                <td>Volume, $</td>
-                                <td>{{ creds.statistics.h24_usd_volume|floatformat:0 }}</td>
-                             </tr>
-                        {% endif %}
-
-                        {% if creds.statistics.h24_trades_count >= 0 %}
-                             <tr>
-                                <td>Trades</td>
-                                <td>{{ creds.statistics.h24_trades_count }}</td>
-                             </tr>
-                        {% endif %}
-                    </table>
-                {% endif %}
+                <div class="mt-5 mb-10">
+                    <p>{{ creds.name }} {{ creds.label }} {{ creds.account_type_label }} ({{ creds.balance_snapshot_created|date:"d/m/Y H:i:s" }})</p>
+                    <div class="flex flex-col">
+                        <div class="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+                            <div class="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">
+                                <div class="shadow overflow-hidden border-b border-gray-200 sm:rounded-lg">
+                                    <table class="min-w-full">
+                                        <thead class="bg-indigo-100">
+                                        <tr>
+                                            <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
+                                                Symbol
+                                            </th>
+                                            <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
+                                                Amount
+                                            </th>
+                                            <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
+                                                Amount, $
+                                            </th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for balance in creds.balance_snapshot.balances %}
+                                                <tr class="{% if forloop.counter|divisibleby:2 %}bg-gray-50{% else %}bg-white{% endif %} divide-x">
+                                                    <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
+                                                        {{ balance.symbol }}{% if balance.pair_symbol %} ({{ balance.pair_symbol }}){% endif %}
+                                                    </td>
+                                                    <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+                                                        {{ balance.amount|intcomma }}
+                                                    </td>
+                                                    <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+                                                        {{ balance.amount_usd|intcomma }}
+                                                    </td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             {% endif %}
         {% endfor %}
     </div>

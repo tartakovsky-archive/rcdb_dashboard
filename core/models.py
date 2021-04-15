@@ -2,6 +2,9 @@ from typing import Optional
 
 import pydantic
 from django.db import models
+from django.utils import timezone
+from django.db.models.functions import Cast
+from django.contrib.postgres.fields.jsonb import KeyTextTransform
 from django.core.validators import RegexValidator, ValidationError
 from rcdb_commons.schemas import bot as bot_schemas
 
@@ -12,6 +15,35 @@ class Owner(models.Model):
 
     name = models.CharField(max_length=100, unique=True)
     order_id = models.IntegerField(default=0)
+
+    def get_exchange_credentials_balances(self):
+        return self.exchangecredentials_set.filter(visible=True).annotate(
+            balance_base_borrowed=models.Sum('bot__botstatistic__balance_base_borrowed'),
+            balance_quote_borrowed=models.Sum('bot__botstatistic__balance_quote_borrowed')
+        )
+
+    def has_visible_exchange_credentials(self) -> bool:
+        return self.exchangecredentials_set.filter(visible=True).exists()
+
+    @property
+    def total_balance(self):
+        return (
+            self
+            .exchangecredentials_set
+            .filter(
+                visible=True,
+                ignore_balance=False
+            )
+            .aggregate(
+                amount_usd=models.Sum(
+                    Cast(
+                        KeyTextTransform('total_usd', 'balance_snapshot'),
+                        models.FloatField()
+                    )
+                )
+            )
+            .get('amount_usd')
+        )
 
     def __str__(self):
         return self.name
@@ -83,9 +115,17 @@ class ExchangeCredentials(models.Model):
         verbose_name_plural = 'ExchangeCredentials'
         ordering = ['order_id', 'name']
 
-    name = models.CharField(max_length=200, unique=True)
+    class AccountChoices(models.TextChoices):
+        SPOT = 'SPOT', 'Spot'
+        CROSS_MARGIN = 'CROSS_MARGIN', 'Cross Margin'
+        ISOLATED_MARGIN = 'ISOLATED_MARGIN', 'Isolated Margin'
+        USDT_M_FUTURES = 'USDT_M_FUTURES', 'USDT-M Futures'
+        COIN_M_FUTURES = 'COIN_M_FUTURES', 'COIN-M Futures'
+
+    name = models.CharField(max_length=200)
     label = models.CharField(max_length=200, blank=True, default='')
     owner = models.ForeignKey(Owner, on_delete=models.PROTECT)
+    account_type = models.CharField(max_length=15, choices=AccountChoices.choices, default=AccountChoices.CROSS_MARGIN)
     exchange = models.ForeignKey(Exchange, on_delete=models.PROTECT)
     parameters = models.JSONField(default=dict, null=True, blank=True)
     meta = models.JSONField(default=dict, null=True, blank=True)
@@ -95,8 +135,20 @@ class ExchangeCredentials(models.Model):
 
     statistics = models.JSONField(null=True, blank=True)
 
-    ignore_spot_balance = models.BooleanField(default=False)
+    visible = models.BooleanField(default=True)
+    ignore_balance = models.BooleanField(default=False)
     order_id = models.IntegerField(default=0)
+
+    def set_balance_snapshot(self, snapshot: dict):
+        self.balance_snapshot = snapshot
+        self.balance_snapshot_created = timezone.now()
+        self.save()
+
+    @property
+    def account_type_label(self) -> Optional[str]:
+        if not self.account_type:
+            return
+        return self.AccountChoices[self.account_type].label
 
     def __str__(self):
         return f"{self.name} for {self.exchange}"

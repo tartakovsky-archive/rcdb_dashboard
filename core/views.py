@@ -1,8 +1,6 @@
 from django.views.generic import ListView, DetailView
-from django.db.models import Count, Sum, Q, FloatField, IntegerField
-from django.db.models.functions import Cast
+from django.db.models import Count, Sum, Q
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.contrib.postgres.fields.jsonb import KeyTextTransform
 from django.urls import reverse_lazy
 
 from .models import Owner
@@ -31,30 +29,23 @@ class BotStatisticListView(LoginRequiredMixin, ListView):
                     **is_active_condition
                 )
             )
+            .filter(bots_count__gte=1)
         )
 
 
 class TotalUsdAnnotateMixin:
+
+    def get_queryset(self):
+        return self.annotate(super().get_queryset())
+
     def annotate(self, queryset):
         return queryset.annotate(
-            total_usd=Sum(
-                Cast(
-                    KeyTextTransform('total_usd', 'exchangecredentials__balance_snapshot'),
-                    FloatField()
-                )
+            balance_base_borrowed=Sum(
+                'exchangecredentials__bot__botstatistic__balance_base_borrowed',
             ),
-            h24_usd_volume=Sum(
-                Cast(
-                    KeyTextTransform('h24_usd_volume', 'exchangecredentials__statistics'),
-                    FloatField()
-                )
-            ),
-            h24_trades_count=Sum(
-                Cast(
-                    KeyTextTransform('h24_trades_count', 'exchangecredentials__statistics'),
-                    IntegerField()
-                )
-            ),
+            balance_quote_borrowed=Sum(
+                'exchangecredentials__bot__botstatistic__balance_quote_borrowed',
+            )
         )
 
 
@@ -68,10 +59,9 @@ class ExchangeBalancesListView(TotalUsdAnnotateMixin, LoginRequiredMixin, ListVi
         return self.annotate(
             Owner
             .objects
-            .filter(
-                exchangecredentials__balance_snapshot_created__isnull=False
-            )
-
+            .filter(exchangecredentials__visible=True)
+            .order_by('order_id', 'name')
+            .all()
         )
 
 
@@ -80,6 +70,3 @@ class ExchangeBalancesDetailView(TotalUsdAnnotateMixin, LoginRequiredMixin, Deta
     login_url = reverse_lazy('admin:index')
     template_name = 'bot_balance/detail.html'
     context_object_name = 'owner'
-
-    def get_queryset(self):
-        return self.annotate(super().get_queryset())

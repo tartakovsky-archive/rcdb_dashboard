@@ -2,16 +2,52 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>{% block title %}Title{% endblock %}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-BmbxuPwQa2lc/FVzBcNJ7UAyJxM6wuqIj61tLrc4wSX0szH/Ev+nYRRuWlolflfl" crossorigin="anonymous">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta2/dist/js/bootstrap.bundle.min.js" integrity="sha384-b5kHyXgcpbZJO/tY9Ul7kGkf1S0CWuKcCD38l8YkeH8z8QjE0GmW1gYU5S9FOnJ0" crossorigin="anonymous"></script>
+    <title>{% block title %}rcdb dashboard{% endblock %}</title>
+    <link href="https://unpkg.com/tailwindcss@^2/dist/tailwind.min.css" rel="stylesheet">
 </head>
 <body>
-<nav class="navbar navbar-expand-lg navbar-light bg-light">
-    <a class="nav-link" href="{% url 'admin:index' %}">Admin</a>
-    <a class="nav-link" href="{% url 'statistic' %}">Statistic</a>
-    <a class="nav-link" href="{% url 'balances' %}">Balances</a>
-</nav>
+<div class="m-4">
+    <div class="pb-5 border-b border-gray-200 sm:pb-0">
+        <div class="mt-3 sm:mt-4">
+            <!-- Dropdown menu on small screens -->
+            <div class="sm:hidden">
+                <label for="current-tab" class="sr-only">Select a tab</label>
+                <select id="current-tab" name="current-tab"
+                        class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-xs rounded-md">
+                    <option>Admin</option>
+
+                    <option>Stats</option>
+
+                    <option selected>Balances</option>
+                </select>
+            </div>
+            <!-- Tabs at small breakpoint and up -->
+            <div class="hidden sm:block">
+                <nav class="-mb-px flex space-x-8">
+                    <!-- Current: "border-indigo-500 text-indigo-600", Default: "border-transparent text-gray-900 hover:text-gray-700 hover:border-gray-300" -->
+
+                    <a href="{% url 'admin:index' %}"
+                       class="border-transparent text-gray-900 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-md">
+                        Admin
+                    </a>
+
+                    <a href="{% url 'statistic' %}"
+                       class="{% if '/' == request.path %}border-indigo-500 text-indigo-600{% else %}border-transparent text-gray-900 hover:text-gray-700 hover:border-gray-300{% endif %} whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-md">
+                        Stats
+                    </a>
+
+                    <a href="{% url 'balances' %}"
+                       class="{% if 'balances' in request.path %}border-indigo-500 text-indigo-600{% else %}border-transparent text-gray-900 hover:text-gray-700 hover:border-gray-300{% endif %} whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-md"
+                       aria-current="page">
+                        Balances
+                    </a>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="m-4 mt-8">
 {% block body %}{% endblock %}
+</div>
 </body>
 </html>

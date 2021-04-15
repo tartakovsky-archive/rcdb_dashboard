@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.humanize',
     'django_json_widget',
     'core',
 ]
@@ -157,8 +158,4 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'core.tasks.t_schedule_snapshot_balances',
         'schedule': 15,
     },
-    # 'schedule-update-account-statistics': {
-    #     'task': 'core.tasks.t_schedule_update_account_statistics',
-    #     'schedule': 2*60,
-    # },
 }
