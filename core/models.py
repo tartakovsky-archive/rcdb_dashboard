@@ -65,7 +65,7 @@ class Owner(models.Model):
     @property
     def borrowed_interest_sum(self) -> Optional[float]:
         borrowed = self.total_borrowed
-        interest = self.total_borrowed
+        interest = self.total_interest
         if borrowed is not None and interest is not None:
             return borrowed + interest
 
