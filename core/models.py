@@ -22,10 +22,6 @@ class Owner(models.Model):
             .exchangecredentials_set
             .filter(visible=True)
             .order_by('order_id', 'name')
-            .annotate(
-                balance_base_borrowed=models.Sum('bot__botstatistic__balance_base_borrowed'),
-                balance_quote_borrowed=models.Sum('bot__botstatistic__balance_quote_borrowed')
-            )
         )
 
     def has_visible_exchange_credentials(self) -> bool:
@@ -37,15 +33,19 @@ class Owner(models.Model):
             .exchangecredentials_set
             .filter(
                 visible=True,
-                ignore_balance=False
+                ignore_balance=False,
+            )
+            .annotate(
+                agg_value=Cast(
+                    KeyTextTransform(field, 'balance_snapshot'),
+                    models.FloatField()
+                )
+            )
+            .filter(
+                agg_value__isnull=False
             )
             .aggregate(
-                value=models.Sum(
-                    Cast(
-                        KeyTextTransform(field, 'balance_snapshot'),
-                        models.FloatField()
-                    )
-                )
+                value=models.Sum('agg_value')
             )
             .get('value')
         )
