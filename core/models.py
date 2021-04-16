@@ -62,6 +62,13 @@ class Owner(models.Model):
     def total_interest(self):
         return self._get_total_accounts_snapshot_value('interest_usd')
 
+    @property
+    def borrowed_interest_sum(self) -> Optional[float]:
+        borrowed = self.total_borrowed
+        interest = self.total_borrowed
+        if borrowed is not None and interest is not None:
+            return borrowed + interest
+
     def __str__(self):
         return self.name
 
@@ -166,6 +173,12 @@ class ExchangeCredentials(models.Model):
         if not self.account_type:
             return
         return self.AccountChoices[self.account_type].label
+
+    @property
+    def borrowed_interest_sum(self):
+        if self.is_margin and self.balance_snapshot \
+                and 'borrowed_usd' in self.balance_snapshot and 'interest_usd' in self.balance_snapshot:
+            return self.balance_snapshot['borrowed_usd'] + self.balance_snapshot['interest_usd']
 
     @property
     def is_margin(self) -> bool:

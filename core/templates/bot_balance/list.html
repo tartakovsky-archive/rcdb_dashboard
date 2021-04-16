@@ -31,9 +31,6 @@
                                             Borrowed
                                         </th>
                                         <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
-                                            Interest
-                                        </th>
-                                        <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
                                             Trades (24h)
                                         </th>
                                         <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
@@ -67,10 +64,7 @@
                                                 </a>
                                             </td>
                                             <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
-                                                {% if not creds.ignore_balance %}{{ creds.balance_snapshot.borrowed_usd|floatformat:0|intcomma }}{% else %}-{% endif %}
-                                            </td>
-                                            <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
-                                                {% if not creds.ignore_balance %}{{ creds.balance_snapshot.interest_usd|floatformat:0|intcomma }}{% else %}-{% endif %}
+                                                {% if not creds.ignore_balance %}{{ creds.borrowed_interest_sum|floatformat:0|intcomma }}{% else %}-{% endif %}
                                             </td>
                                             <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
 
@@ -101,10 +95,7 @@
                                             {{ owner.total_balance|floatformat:0|intcomma }}
                                         </td>
                                         <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
-                                            {{ owner.total_borrowed|floatformat:0|intcomma }}
-                                        </td>
-                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
-                                            {{ owner.total_interest|default_if_none:'' }}
+                                            {{ owner.borrowed_interest_sum|floatformat:0|intcomma }}
                                         </td>
                                         <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
 
