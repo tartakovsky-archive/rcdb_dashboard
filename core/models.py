@@ -4,7 +4,7 @@ import pydantic
 from django.db import models
 from django.utils import timezone
 from django.db.models.functions import Cast
-from django.contrib.postgres.fields.jsonb import KeyTextTransform
+from django.db.models.fields.json import KeyTextTransform
 from django.core.validators import RegexValidator, ValidationError
 from rcdb_commons.schemas import bot as bot_schemas
 
@@ -31,8 +31,7 @@ class Owner(models.Model):
     def has_visible_exchange_credentials(self) -> bool:
         return self.exchangecredentials_set.filter(visible=True).exists()
 
-    @property
-    def total_balance(self):
+    def _get_total_accounts_snapshot_value(self, field):
         return (
             self
             .exchangecredentials_set
@@ -41,15 +40,27 @@ class Owner(models.Model):
                 ignore_balance=False
             )
             .aggregate(
-                amount_usd=models.Sum(
+                value=models.Sum(
                     Cast(
-                        KeyTextTransform('total_usd', 'balance_snapshot'),
+                        KeyTextTransform(field, 'balance_snapshot'),
                         models.FloatField()
                     )
                 )
             )
-            .get('amount_usd')
+            .get('value')
         )
+
+    @property
+    def total_balance(self):
+        return self._get_total_accounts_snapshot_value('total_usd')
+
+    @property
+    def total_borrowed(self):
+        return self._get_total_accounts_snapshot_value('borrowed_usd')
+
+    @property
+    def total_interest(self):
+        return self._get_total_accounts_snapshot_value('interest_usd')
 
     def __str__(self):
         return self.name
@@ -155,6 +166,10 @@ class ExchangeCredentials(models.Model):
         if not self.account_type:
             return
         return self.AccountChoices[self.account_type].label
+
+    @property
+    def is_margin(self) -> bool:
+        return self.account_type in {self.AccountChoices.CROSS_MARGIN, self.AccountChoices.ISOLATED_MARGIN}
 
     def __str__(self):
         return f"{self.name} for {self.exchange}"

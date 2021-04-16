@@ -120,10 +120,17 @@ class BinanceAccountConnector:
     def update_amount_usd(self, data: dict) -> dict:
         result = data.copy()
 
-        if 'amount_btc' in data:
-            result['amount_usd'] = data['amount_btc'] * self.usd_price('BTC')
-        else:
-            result['amount_usd'] = data['amount'] * self.usd_price(data['symbol'])
+        for field in ['borrowed', 'interest', 'amount']:
+            field_btc = f'{field}_btc'
+            field_usd = f'{field}_usd'
+
+            if field_btc in data:
+                result[field_usd] = data[field_btc] * self.usd_price('BTC')
+            elif field in data:
+                if data[field] == 0:
+                    result[field_usd] = 0.
+                else:
+                    result[field_usd] = data[field] * self.usd_price(data['symbol'])
 
         return result
 
@@ -153,7 +160,12 @@ class BinanceAccountConnector:
 
     def _get_cross_margin_balances(self) -> Generator[dict, None, None]:
         return (
-            {'symbol': b['asset'], 'amount': float(b['netAsset'])}
+            {
+                'symbol': b['asset'],
+                'amount': float(b['netAsset']),
+                'interest': float(b['interest']),
+                'borrowed': float(b['borrowed'])
+            }
             for b in self.api.sapi_get_margin_account()['userAssets']
             if b['netAsset'] != '0'
         )
@@ -165,6 +177,8 @@ class BinanceAccountConnector:
                 'pair_symbol': pair_asset['symbol'],
                 'symbol': asset['asset'],
                 'amount': float(asset['netAsset']),
+                'interest': float(asset['interest']),
+                'borrowed': float(asset['borrowed']),
                 **({} if asset['asset'] in {'USDT', 'BUSD'} else {'amount_btc': float(asset['netAssetOfBtc'])})
             }
             for pair_asset in self.api.sapi_get_margin_isolated_account()['assets']
@@ -191,6 +205,13 @@ class BinanceAccountConnector:
                 )
             )
         }
+        if type in {
+            ExchangeCredentials.AccountChoices.CROSS_MARGIN.value,
+            ExchangeCredentials.AccountChoices.ISOLATED_MARGIN.value
+        }:
+            result['borrowed_usd'] = sum(map(operator.itemgetter('borrowed_usd'), result['balances']))
+            result['interest_usd'] = sum(map(operator.itemgetter('interest_usd'), result['balances']))
+
         result['total_usd'] = sum(map(operator.itemgetter('amount_usd'), result['balances']))
         return result
 

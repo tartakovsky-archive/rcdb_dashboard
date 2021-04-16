@@ -3,7 +3,7 @@ from django.db.models import Count, Sum, Q
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 
-from .models import Owner
+from .models import Owner, ExchangeCredentials
 
 
 class BotStatisticListView(LoginRequiredMixin, ListView):
@@ -33,40 +33,25 @@ class BotStatisticListView(LoginRequiredMixin, ListView):
         )
 
 
-class TotalUsdAnnotateMixin:
-
-    def get_queryset(self):
-        return self.annotate(super().get_queryset())
-
-    def annotate(self, queryset):
-        return queryset.annotate(
-            balance_base_borrowed=Sum(
-                'exchangecredentials__bot__botstatistic__balance_base_borrowed',
-            ),
-            balance_quote_borrowed=Sum(
-                'exchangecredentials__bot__botstatistic__balance_quote_borrowed',
-            )
-        )
-
-
-class ExchangeBalancesListView(TotalUsdAnnotateMixin, LoginRequiredMixin, ListView):
+class ExchangeBalancesListView(LoginRequiredMixin, ListView):
     model = Owner
     login_url = reverse_lazy('admin:index')
     template_name = 'bot_balance/list.html'
     context_object_name = 'owners'
 
     def get_queryset(self):
-        return self.annotate(
+        return (
             Owner
             .objects
             .filter(exchangecredentials__visible=True)
+            .distinct()
             .order_by('order_id', 'name')
             .all()
         )
 
 
-class ExchangeBalancesDetailView(TotalUsdAnnotateMixin, LoginRequiredMixin, DetailView):
-    model = Owner
+class ExchangeBalancesDetailView(LoginRequiredMixin, DetailView):
+    model = ExchangeCredentials
     login_url = reverse_lazy('admin:index')
     template_name = 'bot_balance/detail.html'
-    context_object_name = 'owner'
+    context_object_name = 'creds'
