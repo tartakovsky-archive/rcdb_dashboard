@@ -155,7 +155,6 @@ class BinanceAccountConnector:
         return (
             {'symbol': symbol, 'amount': amount}
             for symbol, amount in self.api.fetch_balance()['total'].items()
-            if amount
         )
 
     def _get_cross_margin_balances(self) -> Generator[dict, None, None]:
@@ -167,7 +166,6 @@ class BinanceAccountConnector:
                 'borrowed': float(b['borrowed'])
             }
             for b in self.api.sapi_get_margin_account()['userAssets']
-            if b['netAsset'] != '0'
         )
 
     def _get_isolated_margin_balances(self) -> Generator[dict, None, None]:
@@ -182,7 +180,7 @@ class BinanceAccountConnector:
                 **({} if asset['asset'] in {'USDT', 'BUSD'} else {'amount_btc': float(asset['netAssetOfBtc'])})
             }
             for pair_asset in self.api.sapi_get_margin_isolated_account()['assets']
-            for asset in asset_getter(pair_asset) if asset['netAsset'] != '0'
+            for asset in asset_getter(pair_asset)
         )
 
     def get_balance_data(self, type: str) -> Dict[str, Union[List[dict], float]]:
@@ -197,7 +195,7 @@ class BinanceAccountConnector:
         result = {
             'balances': list(
                 filter(
-                    lambda x: abs(x['amount_usd']) >= 1.,
+                    lambda x: sum(abs(x.get(k, 0.)) for k in ('amount_usd', 'borrowed_usd', 'interest_usd')) >= 1.,
                     self._sort_balances(
                         self.update_amount_usd(data)
                         for data in market_type_method[type]()
