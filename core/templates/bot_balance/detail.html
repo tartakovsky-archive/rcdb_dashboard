@@ -24,9 +24,14 @@
                                     </th>
                                     {% if creds.is_margin %}
                                         <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
+                                            Borrowed
+                                        </th>
+                                        <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
                                             Borrowed, $
                                         </th>
-
+                                        <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
+                                            Interest
+                                        </th>
                                         <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
                                             Interest, $
                                         </th>
@@ -47,10 +52,16 @@
                                             </td>
                                             {% if creds.is_margin %}
                                                 <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+                                                    {{ balance.borrowed|floatformat:0|intcomma }}
+                                                </td>
+                                                <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
                                                     {{ balance.borrowed_usd|floatformat:0|intcomma }}
                                                 </td>
                                                 <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
-                                                    {{ balance.interest_usd }}
+                                                    {{ balance.interest|intcomma }}
+                                                </td>
+                                                <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+                                                    {{ balance.interest_usd|intcomma }}
                                                 </td>
                                             {% endif %}
                                         </tr>
