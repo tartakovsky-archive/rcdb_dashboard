@@ -7,6 +7,7 @@ from django.db.models.functions import Cast
 from django.db.models.fields.json import KeyTextTransform
 from django.core.validators import RegexValidator, ValidationError
 from rcdb_commons.schemas import bot as bot_schemas
+from rcdb_commons.enums import AccountType
 
 
 class Owner(models.Model):
@@ -139,17 +140,12 @@ class ExchangeCredentials(models.Model):
         verbose_name_plural = 'ExchangeCredentials'
         ordering = ['order_id', 'name']
 
-    class AccountChoices(models.TextChoices):
-        SPOT = 'SPOT', 'Spot'
-        CROSS_MARGIN = 'CROSS_MARGIN', 'Cross Margin'
-        ISOLATED_MARGIN = 'ISOLATED_MARGIN', 'Isolated Margin'
-        USDT_M_FUTURES = 'USDT_M_FUTURES', 'USDT-M Futures'
-        COIN_M_FUTURES = 'COIN_M_FUTURES', 'COIN-M Futures'
-
     name = models.CharField(max_length=200)
     label = models.CharField(max_length=200, blank=True, default='')
     owner = models.ForeignKey(Owner, on_delete=models.PROTECT)
-    account_type = models.CharField(max_length=15, choices=AccountChoices.choices, default=AccountChoices.CROSS_MARGIN)
+    account_type = models.CharField(
+        max_length=15, choices=AccountType.choices(), default=AccountType.CROSS_MARGIN.value
+    )
     exchange = models.ForeignKey(Exchange, on_delete=models.PROTECT)
     parameters = models.JSONField(default=dict, null=True, blank=True)
     meta = models.JSONField(default=dict, null=True, blank=True)
@@ -172,7 +168,7 @@ class ExchangeCredentials(models.Model):
     def account_type_label(self) -> Optional[str]:
         if not self.account_type:
             return
-        return self.AccountChoices[self.account_type].label
+        return AccountType[self.account_type].label
 
     @property
     def borrowed_interest_sum(self):
@@ -182,7 +178,8 @@ class ExchangeCredentials(models.Model):
 
     @property
     def is_margin(self) -> bool:
-        return self.account_type in {self.AccountChoices.CROSS_MARGIN, self.AccountChoices.ISOLATED_MARGIN}
+        if self.account_type:
+            return AccountType[self.account_type] in {AccountType.CROSS_MARGIN, AccountType.ISOLATED_MARGIN}
 
     def __str__(self):
         return f"{self.name} for {self.exchange}"

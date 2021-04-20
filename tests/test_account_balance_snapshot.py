@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from core import models
 from core.services import BinanceAccountConnector, snapshot_account_balances, EXCHANGE_ACCOUNT_CONNECTOR_MAP
+from rcdb_commons.enums import AccountType
 
 use_db = pytest.mark.django_db
 
@@ -116,15 +117,15 @@ def test_snapshot_account_balances_unsupported_exchange(bot: models.Bot):
 @pytest.mark.parametrize(
     'market_type',
     [
-        models.ExchangeCredentials.AccountChoices.SPOT,
-        models.ExchangeCredentials.AccountChoices.ISOLATED_MARGIN,
-        models.ExchangeCredentials.AccountChoices.CROSS_MARGIN,
+        AccountType.SPOT,
+        AccountType.ISOLATED_MARGIN,
+        AccountType.CROSS_MARGIN,
     ]
 )
 def test_snapshot_account_balances(bot: models.Bot, mocker, market_type):
     mocker.patch('core.services.ccxt.binance', MockBinance)
 
-    bot.exchange_credentials.account_type = market_type
+    bot.exchange_credentials.account_type = market_type.value
 
     snapshot_account_balances(bot.exchange_credentials)
 
@@ -133,11 +134,11 @@ def test_snapshot_account_balances(bot: models.Bot, mocker, market_type):
     assert timezone.now() - bot.exchange_credentials.balance_snapshot_created <= timedelta(minutes=1)
 
     test_result = {
-        models.ExchangeCredentials.AccountChoices.SPOT: (
+        AccountType.SPOT: (
             {'symbol': 'USDT', 'amount': 20, 'amount_usd': 20},
             {'symbol': 'BTC', 'amount': 0.5, 'amount_usd': 10.}
         ),
-        models.ExchangeCredentials.AccountChoices.CROSS_MARGIN: (
+        AccountType.CROSS_MARGIN: (
             {
                 'symbol': 'USDC', 'amount': 20.5, 'amount_usd': 20.5,
                 'interest': 0.03, 'interest_usd': 0.03, 'borrowed': 10., 'borrowed_usd': 10.
@@ -151,7 +152,7 @@ def test_snapshot_account_balances(bot: models.Bot, mocker, market_type):
                 'interest': 0.03, 'interest_usd': 0.6, 'borrowed': 0.1, 'borrowed_usd': 2.
             }
         ),
-        models.ExchangeCredentials.AccountChoices.ISOLATED_MARGIN: (
+        AccountType.ISOLATED_MARGIN: (
             {
                 'pair_symbol': 'BTCUSDT', 'symbol': 'BTC', 'amount': 0.5, 'amount_btc': 0.5, 'amount_usd': 10.,
                 'interest': 0.05, 'interest_usd': 1., 'borrowed': 0.1, 'borrowed_usd': 2.
@@ -170,19 +171,19 @@ def test_snapshot_account_balances(bot: models.Bot, mocker, market_type):
             },
         ),
         'total_usd': {
-            models.ExchangeCredentials.AccountChoices.SPOT: 30.,
-            models.ExchangeCredentials.AccountChoices.CROSS_MARGIN: 41.5,
-            models.ExchangeCredentials.AccountChoices.ISOLATED_MARGIN: 16.
+            AccountType.SPOT: 30.,
+            AccountType.CROSS_MARGIN: 41.5,
+            AccountType.ISOLATED_MARGIN: 16.
         },
         'borrowed_usd': {
-            models.ExchangeCredentials.AccountChoices.SPOT: None,
-            models.ExchangeCredentials.AccountChoices.CROSS_MARGIN: 17.5,
-            models.ExchangeCredentials.AccountChoices.ISOLATED_MARGIN: 2.5
+            AccountType.SPOT: None,
+            AccountType.CROSS_MARGIN: 17.5,
+            AccountType.ISOLATED_MARGIN: 2.5
         },
         'interest_usd': {
-            models.ExchangeCredentials.AccountChoices.SPOT: None,
-            models.ExchangeCredentials.AccountChoices.CROSS_MARGIN: 0.73,
-            models.ExchangeCredentials.AccountChoices.ISOLATED_MARGIN: 1.33
+            AccountType.SPOT: None,
+            AccountType.CROSS_MARGIN: 0.73,
+            AccountType.ISOLATED_MARGIN: 1.33
         }
     }
 
@@ -192,7 +193,7 @@ def test_snapshot_account_balances(bot: models.Bot, mocker, market_type):
         'borrowed_usd': test_result['borrowed_usd'][market_type],
         'interest_usd': test_result['interest_usd'][market_type]
     }
-    if market_type == models.ExchangeCredentials.AccountChoices.SPOT:
+    if market_type == AccountType.SPOT:
         del test_snapshot['borrowed_usd']
         del test_snapshot['interest_usd']
         assert bot.exchange_credentials.owner.total_interest is None
@@ -208,8 +209,8 @@ def test_snapshot_account_balances(bot: models.Bot, mocker, market_type):
 @pytest.mark.parametrize(
     'market_type',
     [
-        models.ExchangeCredentials.AccountChoices.USDT_M_FUTURES,
-        models.ExchangeCredentials.AccountChoices.COIN_M_FUTURES
+        AccountType.USDT_M_FUTURES,
+        AccountType.COIN_M_FUTURES
     ]
 )
 def test_snapshot_account_balances_unsupported_market_type(mocker, market_type):

@@ -7,6 +7,7 @@ import pandas as pd
 import pytz
 import ccxt
 from django.utils import timezone
+from rcdb_commons.enums import AccountType
 from rcdb_commons.data_store import DataStore, DataType
 
 from .models import Bot, BotStatistic, ExchangeCredentials
@@ -185,9 +186,9 @@ class BinanceAccountConnector:
 
     def get_balance_data(self, type: str) -> Dict[str, Union[List[dict], float]]:
         market_type_method = {
-            ExchangeCredentials.AccountChoices.SPOT.value: self._get_spot_balances,
-            ExchangeCredentials.AccountChoices.CROSS_MARGIN.value: self._get_cross_margin_balances,
-            ExchangeCredentials.AccountChoices.ISOLATED_MARGIN.value: self._get_isolated_margin_balances,
+            AccountType.SPOT.value: self._get_spot_balances,
+            AccountType.CROSS_MARGIN.value: self._get_cross_margin_balances,
+            AccountType.ISOLATED_MARGIN.value: self._get_isolated_margin_balances,
         }
         if type not in market_type_method:
             raise self.Exceptions.UnsupportedMarketType(type)
@@ -204,8 +205,8 @@ class BinanceAccountConnector:
             )
         }
         if type in {
-            ExchangeCredentials.AccountChoices.CROSS_MARGIN.value,
-            ExchangeCredentials.AccountChoices.ISOLATED_MARGIN.value
+            AccountType.CROSS_MARGIN.value,
+            AccountType.ISOLATED_MARGIN.value
         }:
             result['borrowed_usd'] = sum(map(operator.itemgetter('borrowed_usd'), result['balances']))
             result['interest_usd'] = sum(map(operator.itemgetter('interest_usd'), result['balances']))
