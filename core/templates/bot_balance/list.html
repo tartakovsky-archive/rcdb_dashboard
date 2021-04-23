@@ -12,7 +12,7 @@
                     <div class="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
                         <div class="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">
                             <div class="shadow overflow-hidden border-b border-gray-200 sm:rounded-lg">
-                                <table class="min-w-full">
+                                <table class="min-w-full sortable">
                                     <thead class="bg-indigo-100">
                                     <tr>
                                         <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
@@ -80,36 +80,38 @@
                                             </td>
                                         </tr>
                                     {% endfor %}
-                                    <!-- Total row -->
-                                    <tr class="bg-gray-100">
-                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
+                                        <!-- Total row -->
+                                        <tfoot>
+                                            <tr class="bg-gray-100">
+                                            <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
 
-                                        </td>
-                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
+                                            </td>
+                                            <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
 
-                                        </td>
-                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+                                            </td>
+                                            <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
 
-                                        </td>
-                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
-                                            {{ owner.total_balance|floatformat:0|intcomma }}
-                                        </td>
-                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
-                                            {{ owner.borrowed_interest_sum|floatformat:0|intcomma }}
-                                        </td>
-                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
-                                            {{ owner.h24_trades_count|floatformat:0|intcomma|default_if_none:'' }}
-                                        </td>
-                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
-                                            {{ owner.h24_usd_volume|floatformat:0|intcomma|default_if_none:'' }}
-                                        </td>
-                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
-                                            {{ owner.d7_usd_volume|floatformat:0|intcomma|default_if_none:'' }}
-                                        </td>
-                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
+                                            </td>
+                                            <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
+                                                {{ owner.total_balance|floatformat:0|intcomma }}
+                                            </td>
+                                            <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
+                                                {{ owner.borrowed_interest_sum|floatformat:0|intcomma }}
+                                            </td>
+                                            <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
+                                                {{ owner.h24_trades_count|floatformat:0|intcomma|default_if_none:'' }}
+                                            </td>
+                                            <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
+                                                {{ owner.h24_usd_volume|floatformat:0|intcomma|default_if_none:'' }}
+                                            </td>
+                                            <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
+                                                {{ owner.d7_usd_volume|floatformat:0|intcomma|default_if_none:'' }}
+                                            </td>
+                                            <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
 
-                                        </td>
-                                    </tr>
+                                            </td>
+                                        </tr>
+                                        </tfoot>
                                     </tbody>
                                 </table>
                             </div>
@@ -119,4 +121,5 @@
             </div>
         {% endfor %}
     </div>
+    <script src="https://www.kryogenix.org/code/browser/sorttable/sorttable.js"></script>
 {% endblock %}
