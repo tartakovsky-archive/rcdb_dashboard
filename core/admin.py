@@ -71,6 +71,7 @@ class InstrumentAdmin(admin.ModelAdmin):
 @admin.register(models.ExchangeCredentials)
 class ExchangeCredentialsAdmin(admin.ModelAdmin):
     list_display = ('name', 'label', 'account_type', 'visible', 'ignore_balance', 'order_id')
+    list_editable = ('label', 'account_type', 'visible', 'ignore_balance', 'order_id')
     exclude = ('balance_snapshot', 'balance_snapshot_created', 'statistics')
 
 
