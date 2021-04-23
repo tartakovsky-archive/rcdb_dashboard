@@ -88,10 +88,6 @@ def t_update_account_statistics(exchange_credentials_id: int):
         logging.warning(
             f'<t_update_account_statistics>: instance with id: {exchange_credentials_id} does not exist'
         )
-    except ccxt.errors.NetworkError as e:
-        logging.warning(
-            f'<t_update_account_statistics>: instance with id: {exchange_credentials_id} NetworkError {e}'
-        )
     except requests.exceptions.RequestException as e:
         logging.warning(f'<t_update_account_statistics>: request error {e}')
     except Exception:

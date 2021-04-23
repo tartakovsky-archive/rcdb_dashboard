@@ -243,18 +243,25 @@ def snapshot_account_balances(exchange_credentials: ExchangeCredentials):
 
 
 def update_account_statistics(datastore: DataStore, exchange_credentials: ExchangeCredentials):
+    statistics = exchange_credentials.statistics or {}
+    df_local = df_from_list(statistics.get('trades', []))
+
+    markets_data = []
+    for market in exchange_credentials.meta.get('markets', []):
+        if len(df_local) and (df_local.symbol == market).any():
+            since = df_local[df_local.symbol == market].timestamp.max().to_pydatetime()
+        else:
+            since = datetime.datetime.utcnow() - datetime.timedelta(days=30)
+
+        markets_data.append(
+            get_trades_since(datastore, exchange_credentials.name, market, exchange_credentials.account_type, since)
+        )
+
     try:
         df = pd.concat(
             [
-                datastore.read(
-                    DataType.account_trades,
-                    query_params=dict(
-                        name=exchange_credentials.name,
-                        symbol=market,
-                        tail=1500
-                    )
-                )
-                for market in exchange_credentials.meta.get('markets', [])
+                df_local,
+                *markets_data
             ]
         )
     except ValueError:
@@ -263,30 +270,73 @@ def update_account_statistics(datastore: DataStore, exchange_credentials: Exchan
     exchange_credentials.statistics = {
         'h24_usd_volume': None,
         'h24_trades_count': None,
-        'updated': timezone.now().strftime('%d/%m/%Y %H:%M:%S')
+        'd7_usd_volume': None,
+        'd7_trades_count': None,
+        'updated': timezone.now().strftime('%d/%m/%Y %H:%M:%S'),
+        'trades': []
     }
 
+    if len(df):
+        now = datetime.datetime.utcnow()
+        df = df[df.timestamp >= (now - datetime.timedelta(days=30))]
+        exchange_credentials.statistics['trades'] = df_to_list(df)
+
+        for key, since in [
+            ('h24', now - datetime.timedelta(days=1)),
+            (
+                'd7',
+                (now - datetime.timedelta(days=now.isoweekday() % 7)).replace(hour=0, minute=0, second=0, microsecond=0)
+            ),
+        ]:
+            data = df[df.timestamp >= since]
+            exchange_credentials.statistics[f'{key}_usd_volume'] = (data.volume_buy_usd + data.volume_sell_usd).sum()
+            exchange_credentials.statistics[f'{key}_trades_count'] = int(
+                (data.trades_count_buy + data.trades_count_sell).sum()
+            )
+    exchange_credentials.save()
+
+
+def df_to_list(df: pd.DataFrame) -> List[dict]:
+    df = df.copy()
     if 'timestamp' in df.columns:
-        df = df[df.timestamp >= datetime.datetime.utcnow() - datetime.timedelta(days=1)]
+        df.timestamp = df.timestamp.astype(int) / 1e9
+    return df.to_dict(orient='records')
+
+
+def df_from_list(data: List[dict]) -> pd.DataFrame:
+    df = pd.DataFrame(data)
+    if 'timestamp' in df.columns:
+        df.timestamp = pd.to_datetime(df.timestamp, unit='s')
+    return df
+
+
+def get_trades_since(
+    datastore: DataStore,
+    name: str,
+    symbol: str,
+    account_type: str,
+    since: datetime.datetime
+) -> pd.DataFrame:
+    df = pd.DataFrame([])
+    while True:
+        df_batch = datastore.read(
+            DataType.account_trades,
+            query_params=dict(
+                name=name,
+                symbol=symbol,
+                account_type=account_type,
+                tail=1500,
+                **({'date_end': df.timestamp.min().isoformat()} if len(df) else {})
+            )
+        )
+        df_batch.reset_index(inplace=True)
+        if len(df_batch):
+            df = pd.concat([df, df_batch])
+
+        if not len(df_batch) or (df_batch.timestamp <= since).any():
+            break
 
     if len(df):
-        exchange_credentials.statistics['h24_trades_count'] = int((df.trades_count_buy + df.trades_count_sell).sum())
-        account_connector_class = EXCHANGE_ACCOUNT_CONNECTOR_MAP.get(exchange_credentials.exchange.slug)
-        if not account_connector_class:
-            logging.error(f'AccountConnector for {exchange_credentials.exchange.slug} is not implemented')
-        else:
-            connector = BinanceAccountConnector({})
-            df['volume_usd'] = 0.
-            for symbol in df.symbol.unique():
-                sym_mask = df.symbol == symbol
-                if symbol.endswith('/USDT'):
-                    price_mult = 1.
-                else:
-                    price_mult = connector.usd_price(symbol.split('/')[1])
+        df = df[df.timestamp > since]
 
-                volume_buy_usd = df.loc[sym_mask, 'volume_buy'] * (df.loc[sym_mask, 'price_avg_buy'] * price_mult)
-                volume_sell_usd = df.loc[sym_mask, 'volume_sell'] * (df.loc[sym_mask, 'price_avg_sell'] * price_mult)
-                df.loc[sym_mask, 'volume_usd'] = volume_buy_usd + volume_sell_usd
-
-            exchange_credentials.statistics['h24_usd_volume'] = float(df.volume_usd.sum())
-    exchange_credentials.save()
+    return df

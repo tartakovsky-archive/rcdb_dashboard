@@ -28,7 +28,7 @@ class Owner(models.Model):
     def has_visible_exchange_credentials(self) -> bool:
         return self.exchangecredentials_set.filter(visible=True).exists()
 
-    def _get_total_accounts_snapshot_value(self, field):
+    def _get_total_sum_accounts_value(self, field: str, table_field: str = 'balance_snapshot'):
         return (
             self
             .exchangecredentials_set
@@ -38,7 +38,7 @@ class Owner(models.Model):
             )
             .annotate(
                 agg_value=Cast(
-                    KeyTextTransform(field, 'balance_snapshot'),
+                    KeyTextTransform(field, table_field),
                     models.FloatField()
                 )
             )
@@ -53,15 +53,15 @@ class Owner(models.Model):
 
     @property
     def total_balance(self):
-        return self._get_total_accounts_snapshot_value('total_usd')
+        return self._get_total_sum_accounts_value('total_usd')
 
     @property
     def total_borrowed(self):
-        return self._get_total_accounts_snapshot_value('borrowed_usd')
+        return self._get_total_sum_accounts_value('borrowed_usd')
 
     @property
     def total_interest(self):
-        return self._get_total_accounts_snapshot_value('interest_usd')
+        return self._get_total_sum_accounts_value('interest_usd')
 
     @property
     def borrowed_interest_sum(self) -> Optional[float]:
@@ -69,6 +69,22 @@ class Owner(models.Model):
         interest = self.total_interest
         if borrowed is not None and interest is not None:
             return borrowed + interest
+
+    @property
+    def h24_usd_volume(self):
+        return self._get_total_sum_accounts_value('h24_usd_volume', 'statistics')
+
+    @property
+    def h24_trades_count(self):
+        return self._get_total_sum_accounts_value('h24_trades_count', 'statistics')
+
+    @property
+    def d7_usd_volume(self):
+        return self._get_total_sum_accounts_value('d7_usd_volume', 'statistics')
+
+    @property
+    def d7_trades_count(self):
+        return self._get_total_sum_accounts_value('d7_trades_count', 'statistics')
 
     def __str__(self):
         return self.name
