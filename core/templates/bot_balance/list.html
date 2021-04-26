@@ -31,9 +31,6 @@
                                             Borrowed
                                         </th>
                                         <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
-                                            Trades (24h)
-                                        </th>
-                                        <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
                                             Volume (24h)
                                         </th>
                                         <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
@@ -67,9 +64,6 @@
                                                 {% if not creds.ignore_balance %}{{ creds.borrowed_interest_sum|floatformat:0|intcomma }}{% else %}-{% endif %}
                                             </td>
                                             <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
-                                                {{ creds.statistics.h24_trades_count|intcomma|default_if_none:'' }}
-                                            </td>
-                                            <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
                                                 {{ creds.statistics.h24_usd_volume|floatformat:0|intcomma|default_if_none:'' }}
                                             </td>
                                             <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
@@ -97,9 +91,6 @@
                                             </td>
                                             <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
                                                 {{ owner.borrowed_interest_sum|floatformat:0|intcomma }}
-                                            </td>
-                                            <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
-                                                {{ owner.h24_trades_count|floatformat:0|intcomma|default_if_none:'' }}
                                             </td>
                                             <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
                                                 {{ owner.h24_usd_volume|floatformat:0|intcomma|default_if_none:'' }}
