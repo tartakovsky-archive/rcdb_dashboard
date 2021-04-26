@@ -28,7 +28,8 @@ class AuthBearer(HttpBearer):
             .objects
             .filter(
                 id=(payload or {}).get('id'),
-                is_active=True
+                is_active=True,
+                is_staff=True
             )
             .exists()
         )

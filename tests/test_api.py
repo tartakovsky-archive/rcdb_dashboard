@@ -12,7 +12,7 @@ use_db = pytest.mark.django_db
 def auth_client(client, django_user_model):
     username = "user1"
     password = "bar"
-    user = django_user_model.objects.create_user(username=username, password=password, is_active=True)
+    user = django_user_model.objects.create_user(username=username, password=password, is_active=True, is_staff=True)
     client.force_login(user)
     yield client
 

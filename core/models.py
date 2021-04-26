@@ -6,6 +6,7 @@ from django.utils import timezone
 from django.db.models.functions import Cast
 from django.db.models.fields.json import KeyTextTransform
 from django.core.validators import RegexValidator, ValidationError
+from django.contrib.auth.models import User
 from rcdb_commons.schemas import bot as bot_schemas
 from rcdb_commons.enums import AccountType
 
@@ -15,6 +16,7 @@ class Owner(models.Model):
         ordering = ['order_id', 'name']
 
     name = models.CharField(max_length=100, unique=True)
+    user = models.ForeignKey(User, verbose_name='Associated user', null=True, blank=True, on_delete=models.SET_NULL)
     order_id = models.IntegerField(default=0)
 
     def get_exchange_credentials_balances(self):

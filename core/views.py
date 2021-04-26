@@ -1,14 +1,23 @@
 from django.views.generic import ListView, DetailView
 from django.db.models import Count, Sum, Q
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.urls import reverse_lazy
 
 from .models import Owner, ExchangeCredentials
 
 
-class BotStatisticListView(LoginRequiredMixin, ListView):
+class OwnerUserPermissionFilterMixin:
+    def filter_by_user(self, queryset):
+        if not self.request.user.is_staff:
+            filters_params = {
+                Owner: {'user': self.request.user},
+                ExchangeCredentials: {'owner__user': self.request.user},
+            }
+            queryset = queryset.filter(**(filters_params[self.model]))
+        return queryset
+
+
+class BotStatisticListView(OwnerUserPermissionFilterMixin, LoginRequiredMixin, ListView):
     model = Owner
-    login_url = reverse_lazy('admin:index')
     template_name = 'bot_statistic/list.html'
     context_object_name = 'owners'
 
@@ -16,7 +25,7 @@ class BotStatisticListView(LoginRequiredMixin, ListView):
         is_active_condition = dict(
             filter=(Q(exchangecredentials__bot__is_active=True) if 'active_bots' in self.request.GET else {})
         )
-        return (
+        return self.filter_by_user(
             Owner
             .objects
             .annotate(
@@ -33,25 +42,26 @@ class BotStatisticListView(LoginRequiredMixin, ListView):
         )
 
 
-class ExchangeBalancesListView(LoginRequiredMixin, ListView):
+class ExchangeBalancesListView(OwnerUserPermissionFilterMixin, LoginRequiredMixin, ListView):
     model = Owner
-    login_url = reverse_lazy('admin:index')
     template_name = 'bot_balance/list.html'
     context_object_name = 'owners'
 
     def get_queryset(self):
-        return (
+        q = self.filter_by_user(
             Owner
             .objects
             .filter(exchangecredentials__visible=True)
             .distinct()
             .order_by('order_id', 'name')
-            .all()
         )
+        return q.all()
 
 
-class ExchangeBalancesDetailView(LoginRequiredMixin, DetailView):
+class ExchangeBalancesDetailView(OwnerUserPermissionFilterMixin, LoginRequiredMixin, DetailView):
     model = ExchangeCredentials
-    login_url = reverse_lazy('admin:index')
     template_name = 'bot_balance/detail.html'
     context_object_name = 'creds'
+
+    def get_queryset(self):
+        return self.filter_by_user(super().get_queryset())

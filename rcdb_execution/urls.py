@@ -15,6 +15,7 @@ Including another URLconf
 """
 from django.urls import path
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
+from django.contrib.auth import views as auth_views
 from core import views, api
 from django.contrib import admin
 
@@ -23,5 +24,7 @@ urlpatterns = [
     path('api/', api.api.urls),
     path('balances/<int:pk>', views.ExchangeBalancesDetailView.as_view(), name='balances_detail'),
     path('balances/', views.ExchangeBalancesListView.as_view(), name='balances'),
-    path('', views.BotStatisticListView.as_view(), name='statistic')
+    path('', views.BotStatisticListView.as_view(), name='statistic'),
+    path('auth/login', auth_views.LoginView.as_view(template_name='auth/login.html'), name='login'),
+    path('auth/logout', auth_views.LogoutView.as_view(), name='logout')
 ] + staticfiles_urlpatterns()
