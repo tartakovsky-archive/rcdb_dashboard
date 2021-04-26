@@ -25,6 +25,8 @@ services:
         max-file: "2"
     ports:
       - 80:80
+    volumes:
+      - static-content:/static
     depends_on:
       - web
 
@@ -42,6 +44,8 @@ services:
       options:
         max-size: "1024m"
         max-file: "2"
+    volumes:
+      - static-content:/app/static
     depends_on:
       - db
       - redis
@@ -53,7 +57,7 @@ services:
       dockerfile: ./.packaging/Dockerfile
     environment:
       <<: *env-vars
-    command: celery -A rcdb_execution.celery.celery worker -l info -c 5 -E -Q ${CELERY_QUEUE:-default}
+    command: celery -A rcdb_execution.celery.celery worker -l info -c 5 -E --max-tasks-per-child 5 -Q ${CELERY_QUEUE:-default}
     restart: always
     logging:
       driver: "json-file"
@@ -112,3 +116,4 @@ services:
 volumes:
   db_data:
   redis_data:
+  static-content:
