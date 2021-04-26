@@ -11,7 +11,7 @@ use_db = pytest.mark.django_db
 
 TEST_DF = pd.DataFrame([
     dict(
-        timestamp=datetime.datetime(2020, 2, 18, 12, 0),
+        timestamp=datetime.datetime(2021, 2, 18, 12, 0),
         symbol='BTC/USDT',
         volume_buy_usd=100,
         volume_sell_usd=10.5,
@@ -19,7 +19,7 @@ TEST_DF = pd.DataFrame([
         trades_count_sell=5
     ),
     dict(
-        timestamp=datetime.datetime(2020, 4, 18, 12, 0),
+        timestamp=datetime.datetime(2021, 4, 18, 12, 0),
         symbol='BTC/USDT',
         volume_buy_usd=100,
         volume_sell_usd=10.5,
@@ -27,7 +27,7 @@ TEST_DF = pd.DataFrame([
         trades_count_sell=5
     ),
     dict(
-        timestamp=datetime.datetime(2020, 4, 19, 12, 0),
+        timestamp=datetime.datetime(2021, 4, 19, 12, 0),
         symbol='BTC/USDT',
         volume_buy_usd=100,
         volume_sell_usd=10.5,
@@ -35,7 +35,7 @@ TEST_DF = pd.DataFrame([
         trades_count_sell=5
     ),
     dict(
-        timestamp=datetime.datetime(2020, 4, 23, 12, 0),
+        timestamp=datetime.datetime(2021, 4, 23, 12, 0),
         symbol='BTC/USDT',
         volume_buy_usd=101,
         volume_sell_usd=10.5,
@@ -43,7 +43,7 @@ TEST_DF = pd.DataFrame([
         trades_count_sell=5
     ),
     dict(
-        timestamp=datetime.datetime(2020, 4, 23, 12, 50),
+        timestamp=datetime.datetime(2021, 4, 23, 12, 50),
         symbol='BTC/USDT',
         volume_buy_usd=102,
         volume_sell_usd=10.5,
@@ -53,7 +53,7 @@ TEST_DF = pd.DataFrame([
 ])
 ADDITIONAL_DF = pd.DataFrame([
     dict(
-        timestamp=datetime.datetime(2020, 4, 23, 12, 59),
+        timestamp=datetime.datetime(2021, 4, 23, 12, 59),
         symbol='BTC/USDT',
         volume_buy_usd=1,
         volume_sell_usd=0,
@@ -90,7 +90,7 @@ def mocked_dt(mocker):
     class FakeDatetime(datetime.datetime):
         @classmethod
         def utcnow(cls):
-            return datetime.datetime(2020, 4, 23, 13)
+            return datetime.datetime(2021, 4, 23, 13)
 
     mocked_utc.datetime = FakeDatetime
     mocked_utc.timedelta = datetime.timedelta

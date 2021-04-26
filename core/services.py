@@ -285,7 +285,7 @@ def update_account_statistics(datastore: DataStore, exchange_credentials: Exchan
             ('h24', now - datetime.timedelta(days=1)),
             (
                 'd7',
-                (now - datetime.timedelta(days=now.isoweekday() % 7)).replace(hour=0, minute=0, second=0, microsecond=0)
+                (now - datetime.timedelta(days=now.weekday() % 7)).replace(hour=0, minute=0, second=0, microsecond=0)
             ),
         ]:
             data = df[df.timestamp >= since]
