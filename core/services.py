@@ -114,8 +114,9 @@ class BinanceAccountConnector:
         class UnsupportedMarketType(Exception):
             pass
 
-    def __init__(self, credentials: dict):
+    def __init__(self, credentials: dict, data_store: DataStore):
         self.api = ccxt.binance(credentials)
+        self.data_store = data_store
         self._usd_price_cache = {'USDT': 1, 'ETF': 1, 'BUSD': 1}
 
     def update_amount_usd(self, data: dict) -> dict:
@@ -135,16 +136,34 @@ class BinanceAccountConnector:
 
         return result
 
+    def fetch_price(self, symbol: str) -> Optional[float]:
+        df = self.data_store.read(
+            DataType.ohlcv,
+            query_params=dict(
+                exchange='BINANCE',
+                instrument='SPOT',
+                symbol=symbol
+            )
+        )
+        if len(df):
+            return df.close.values[-1]
+        return None
+
     def usd_price(self, symbol: str) -> float:
         if symbol not in self._usd_price_cache:
-            try:
-                self._usd_price_cache[symbol] = self.api.fetch_ticker(f'{symbol}/USDT')['bid']
-            except ccxt.errors.BadSymbol:
-                try:
-                    self._usd_price_cache[symbol] = 1 / self.api.fetch_ticker(f'USDT/{symbol}')['ask']
-                except ccxt.errors.BadSymbol:
-                    logging.warning(f"Can't find price for {symbol}. Set to 0")
-                    self._usd_price_cache[symbol] = 0
+            for pair, is_reversed in [
+                (f'{symbol}/USDT', False),
+                (f'USDT/{symbol}', True),
+                (f'{symbol}/BUSD', False),
+                (f'BUSD/{symbol}', True)
+            ]:
+                price = self.fetch_price(pair)
+                if price is not None:
+                    self._usd_price_cache[symbol] = (1 / price) if is_reversed else price
+                    break
+            else:
+                logging.warning(f"Can't find price for {symbol}. Set to 0")
+                self._usd_price_cache[symbol] = 0
 
         return self._usd_price_cache[symbol]
 
@@ -220,7 +239,7 @@ EXCHANGE_ACCOUNT_CONNECTOR_MAP = {
 }
 
 
-def snapshot_account_balances(exchange_credentials: ExchangeCredentials):
+def snapshot_account_balances(exchange_credentials: ExchangeCredentials, data_store: DataStore):
     account_connector_class = EXCHANGE_ACCOUNT_CONNECTOR_MAP.get(exchange_credentials.exchange.slug)
     if not account_connector_class:
         logging.error(f'AccountConnector for {exchange_credentials.exchange.slug} is not implemented')
@@ -232,7 +251,7 @@ def snapshot_account_balances(exchange_credentials: ExchangeCredentials):
         return
 
     try:
-        account_connector = account_connector_class(exchange_credentials.parameters)
+        account_connector = account_connector_class(exchange_credentials.parameters, data_store)
         exchange_credentials.set_balance_snapshot(
             account_connector.get_balance_data(exchange_credentials.account_type)
         )

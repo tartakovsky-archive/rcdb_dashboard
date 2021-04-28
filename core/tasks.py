@@ -51,14 +51,15 @@ def t_snapshot_exchange_credentials_balances(exchange_credentials_id: int):
     logging.info(f'started task: <t_snapshot_exchange_credentials_balances> for {exchange_credentials_id}')
     try:
         snapshot_account_balances(
-            ExchangeCredentials.objects.get(pk=exchange_credentials_id)
+            ExchangeCredentials.objects.get(pk=exchange_credentials_id),
+            DataStore(settings.DATASTORE_URL, settings.DATASTORE_TOKEN)
         )
     except ExchangeCredentials.DoesNotExist:
         logging.warning(
             f'<t_snapshot_exchange_credentials_balances>: instance with id: {exchange_credentials_id} does not exist'
         )
     except ccxt.errors.NetworkError as e:
-        logging.warning(
+        logging.error(
             f'<t_snapshot_exchange_credentials_balances>: instance with id: {exchange_credentials_id} NetworkError {e}'
         )
     except Exception:
