@@ -215,7 +215,9 @@ class BinanceAccountConnector:
         result = {
             'balances': list(
                 filter(
-                    lambda x: sum(abs(x.get(k, 0.)) for k in ('amount_usd', 'borrowed_usd', 'interest_usd')) >= 1.,
+                    lambda x: x.get('amount_usd', 0.) == 0. and x.get('amount', 0.) != 0 or sum(
+                        abs(x.get(k, 0.)) for k in ('amount_usd', 'borrowed_usd', 'interest_usd')
+                    ) >= 1.,
                     self._sort_balances(
                         self.update_amount_usd(data)
                         for data in market_type_method[type]()
