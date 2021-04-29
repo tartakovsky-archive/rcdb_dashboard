@@ -247,7 +247,7 @@ def snapshot_account_balances(exchange_credentials: ExchangeCredentials, data_st
         logging.error(f'AccountConnector for {exchange_credentials.exchange.slug} is not implemented')
         return
 
-    if exchange_credentials.ignore_balance:
+    if exchange_credentials.ignore_balance or not exchange_credentials.visible:
         logging.debug(f'Ignore balance for {exchange_credentials}')
         exchange_credentials.set_balance_snapshot({})
         return
