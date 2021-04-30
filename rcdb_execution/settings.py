@@ -166,6 +166,6 @@ CELERY_BEAT_SCHEDULE = {
     },
     'schedule-update-account-statistics': {
         'task': 'core.tasks.t_schedule_update_account_statistics',
-        'schedule': 5*60,
+        'schedule': 2*60,
     },
 }

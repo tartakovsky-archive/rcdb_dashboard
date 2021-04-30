@@ -289,6 +289,8 @@ def update_account_statistics(datastore: DataStore, exchange_credentials: Exchan
         df = pd.DataFrame([])
 
     exchange_credentials.statistics = {
+        'h1_usd_volume': None,
+        'h1_trades_count': None,
         'h24_usd_volume': None,
         'h24_trades_count': None,
         'd7_usd_volume': None,
@@ -303,6 +305,7 @@ def update_account_statistics(datastore: DataStore, exchange_credentials: Exchan
         exchange_credentials.statistics['trades'] = df_to_list(df)
 
         for key, since in [
+            ('h1', ((now - datetime.timedelta(hours=1)) if now.minute < 30 else now).replace(minute=30)),
             ('h24', now - datetime.timedelta(days=1)),
             (
                 'd7',

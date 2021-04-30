@@ -76,6 +76,8 @@ def test_update_account_statistics_no_markets(bot: Bot):
 
     update_account_statistics(None, bot.exchange_credentials)
     assert bot.exchange_credentials.statistics['updated']
+    assert bot.exchange_credentials.statistics['h1_usd_volume'] is None
+    assert bot.exchange_credentials.statistics['h1_trades_count'] is None
     assert bot.exchange_credentials.statistics['h24_usd_volume'] is None
     assert bot.exchange_credentials.statistics['h24_trades_count'] is None
     assert bot.exchange_credentials.statistics['d7_usd_volume'] is None
@@ -103,6 +105,8 @@ def mocked_dt(mocker):
     [
         (
             {
+                'h1_usd_volume': 112.5,
+                'h1_trades_count': 16,
                 'h24_usd_volume': 224,
                 'h24_trades_count': 33,
                 'd7_usd_volume': 334.5,
@@ -114,6 +118,8 @@ def mocked_dt(mocker):
         ),
         (
             {
+                'h1_usd_volume': 113.5,
+                'h1_trades_count': 17,
                 'h24_usd_volume': 225,
                 'h24_trades_count': 34,
                 'd7_usd_volume': 335.5,
@@ -136,11 +142,15 @@ def test_update_account_statistics(bot: Bot, mocker, mocked_dt, results, df, ini
     update_account_statistics(None, bot.exchange_credentials)
 
     assert bot.exchange_credentials.statistics['updated']
+    assert bot.exchange_credentials.statistics['h1_usd_volume'] == results['h1_usd_volume']
+    assert bot.exchange_credentials.statistics['h1_trades_count'] == results['h1_trades_count']
     assert bot.exchange_credentials.statistics['h24_usd_volume'] == results['h24_usd_volume']
     assert bot.exchange_credentials.statistics['h24_trades_count'] == results['h24_trades_count']
     assert bot.exchange_credentials.statistics['d7_usd_volume'] == results['d7_usd_volume']
     assert bot.exchange_credentials.statistics['d7_trades_count'] == results['d7_trades_count']
 
+    assert bot.exchange_credentials.owner.h1_usd_volume == results['h1_usd_volume']
+    assert bot.exchange_credentials.owner.h1_trades_count == results['h1_trades_count']
     assert bot.exchange_credentials.owner.h24_usd_volume == results['h24_usd_volume']
     assert bot.exchange_credentials.owner.h24_trades_count == results['h24_trades_count']
     assert bot.exchange_credentials.owner.d7_usd_volume == results['d7_usd_volume']

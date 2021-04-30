@@ -73,6 +73,14 @@ class Owner(models.Model):
             return borrowed + interest
 
     @property
+    def h1_usd_volume(self):
+        return self._get_total_sum_accounts_value('h1_usd_volume', 'statistics')
+
+    @property
+    def h1_trades_count(self):
+        return self._get_total_sum_accounts_value('h1_trades_count', 'statistics')
+
+    @property
     def h24_usd_volume(self):
         return self._get_total_sum_accounts_value('h24_usd_volume', 'statistics')
 
