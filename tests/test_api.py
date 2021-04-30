@@ -44,6 +44,7 @@ def test_get_bot_config_not_found(auth_client_token):
 @use_db
 def test_get_bot_config(auth_client_token, bot: models.Bot):
     response = auth_client_token.get(f'/api/bot/{bot.id}')
+    json.dump(response.json(), open('bot_config_response.json', 'w'), indent=4)
     assert response.json() == {
         **json.load(resources.open_text('tests.datasets', 'bot_config_response.json')),
         'bot_id': bot.id
@@ -59,9 +60,11 @@ def test_auth_unauth_user(auth_client, url):
 
 @use_db
 def test_get_exchange_credentials(auth_client_token, bot: models.Bot):
+    exchange_credentials = models.ExchangeCredentials.objects.first()
+    instrument = models.Instrument.objects.first()
     models.ExchangeCredentials(
-        owner=bot.exchange_credentials.owner,
-        exchange=bot.instrument.exchange,
+        owner=exchange_credentials.owner,
+        exchange=instrument.exchange,
         name='Empty parameters',
         parameters=None
     ).save()

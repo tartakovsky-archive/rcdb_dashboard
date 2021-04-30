@@ -7,7 +7,7 @@ import pandas as pd
 import pytz
 import ccxt
 from django.utils import timezone
-from rcdb_commons.enums import AccountType
+from rcdb_commons.schemas.exchange import AccountType, SymbolEmpty
 from rcdb_commons.data_store import DataStore, DataType
 
 from .models import Bot, BotStatistic, ExchangeCredentials
@@ -24,11 +24,14 @@ class BotStatisticUpdater:
             logging.warning(f'statistic update not found for bot: {bot_id}')
             return
 
+        if isinstance(bot_statistic.bot.read_config().data.symbol, SymbolEmpty):
+            raise Exception(f'Config of Bot({bot_statistic.bot}, id:{bot_id}) has SymbolEmpty symbol')
+
         self.fill_bot_statistic(
             bot_statistic,
             self.calculate_bot_statistic_from_update(
                 statistic_update,
-                bot_statistic.bot.instrument.symbol.to_ccxt()
+                bot_statistic.bot.read_config().data.symbol.to_ccxt()
             )
         )
         bot_statistic.save()

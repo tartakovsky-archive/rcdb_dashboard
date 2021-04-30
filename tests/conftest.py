@@ -32,10 +32,9 @@ def bot():
 
     b = models.Bot(
         name='test bot',
+        owner=owner,
         is_active=True,
-        exchange_credentials=exchange_credentials,
-        instrument=instrument,
-        config={'config_type': 'OwnLongBotConfig'}
+        config={'config_type': 'OwnLongBotConfig', 'data': {'symbol': {'base': 'EUR', 'quote': 'USDT'}}}
     )
     b.save()
     return b

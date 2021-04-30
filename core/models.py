@@ -5,10 +5,11 @@ from django.db import models
 from django.utils import timezone
 from django.db.models.functions import Cast
 from django.db.models.fields.json import KeyTextTransform
+from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import RegexValidator, ValidationError
 from django.contrib.auth.models import User
-from rcdb_commons.schemas import bot as bot_schemas
-from rcdb_commons.enums import AccountType
+from rcdb_commons.schemas import strategy_configs
+from rcdb_commons.schemas.exchange import AccountType
 
 
 class Owner(models.Model):
@@ -213,29 +214,29 @@ class ExchangeCredentials(models.Model):
 
 class Bot(models.Model):
     name = models.CharField(max_length=200)
+    owner = models.ForeignKey(Owner, on_delete=models.SET_NULL, blank=True, null=True)
     is_active = models.BooleanField(default=False)
-    exchange_credentials = models.ForeignKey(ExchangeCredentials, on_delete=models.PROTECT)
-    instrument = models.ForeignKey(Instrument, on_delete=models.PROTECT)
 
-    config = models.JSONField(default=dict)
+    config = models.JSONField(default=dict, encoder=DjangoJSONEncoder)
 
     def clean(self, *args, **kwargs):
         try:
-            bot_schemas.AdminConfigInput(**self.config)
+            strategy_configs.AdminConfigInput(**self.config)
         except pydantic.error_wrappers.ValidationError as ex:
             raise ValidationError(f'Config: {ex}')
 
-        if self.exchange_credentials.exchange != self.instrument.exchange:
-            raise ValidationError('Exchange of the instrument and credentials should be the same')
         super().clean(*args, **kwargs)
+
+    def read_config(self) -> strategy_configs.AdminConfigInput:
+        return strategy_configs.AdminConfigInput(**self.config)
 
     def save(self, *args, **kwargs):
         self.full_clean()
-        self.config = bot_schemas.AdminConfigInput(**self.config).dict()
+        self.config = strategy_configs.AdminConfigInput(**self.config).dict()
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.name} // {self.instrument}"
+        return self.name
 
     @property
     def bot_name(self):

@@ -60,48 +60,46 @@
                                     </thead>
                                     <tbody>
                                     <!-- Odd row -->
-                                    {% for exchnage_cred in owner.exchangecredentials_set.all %}
-                                        {% for bot in exchnage_cred.bot_set.all %}
-                                            {% if 'active_bots' not in request.GET or bot.is_active %}
-                                                {% with bot_statistic=bot.botstatistic_set.first symbol=bot.instrument.symbol %}
-                                                    <tr class="bg-white divide-x">
-                                                        <td class="{% if bot.is_active %} text-green-400 {% else %} text-gray-900 {% endif %} px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium">
-                                                            <a href="{% url 'admin:core_bot_change' bot.pk %}">{{ bot.bot_name }}</a>
-                                                        </td>
-                                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
-                                                            {{ bot_statistic.equity|floatformat:0|intcomma }}
-                                                        </td>
-                                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
-                                                            {{ bot_statistic.exposure|floatformat:0|intcomma }}
-                                                        </td>
-                                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
-                                                            {{ bot_statistic.employed_capital|floatformat:0|intcomma }}
-                                                        </td>
-                                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
-                                                            {% if symbol.price_precision %}{{ bot_statistic.price_crypto|truncate:symbol.price_precision|intcomma }}{% else %}{{ bot_statistic.price_crypto|intcomma }}{% endif %} ({{ bot_statistic.price_change }}%)
-                                                        </td>
-                                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
-                                                            {% if symbol.price_precision %}{{ bot_statistic.price_fair|truncate:symbol.price_precision|intcomma }}{% else %}{{ bot_statistic.price_fair|intcomma }}{% endif %}
-                                                        </td>
-                                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
-                                                            {% if symbol.price_precision %}{{ bot_statistic.price_forex|truncate:symbol.price_precision|intcomma }}{% else %}{{ bot_statistic.price_forex|intcomma }}{% endif %}
-                                                        </td>
-                                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
-                                                            {{ bot_statistic.price_deviation|floatformat:2 }}
-                                                        </td>
-                                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
-                                                            {{ bot_statistic.balance_base_borrowed|floatformat:1|intcomma }}
-                                                        </td>
-                                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
-                                                            {{ bot_statistic.balance_quote_borrowed|floatformat:1|intcomma }}
-                                                        </td>
-                                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
-                                                            {{ bot_statistic.updated|date:"d/m/Y H:i:s" }}
-                                                        </td>
-                                                    </tr>
-                                                {% endwith %}
-                                            {% endif %}
-                                        {% endfor %}
+                                    {% for bot in owner.bot_set.all %}
+                                        {% if 'active_bots' not in request.GET or bot.is_active %}
+                                            {% with bot_statistic=bot.botstatistic_set.first %}
+                                                <tr class="bg-white divide-x">
+                                                    <td class="{% if bot.is_active %} text-green-400 {% else %} text-gray-900 {% endif %} px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium">
+                                                        <a href="{% url 'admin:core_bot_change' bot.pk %}">{{ bot.bot_name }}</a>
+                                                    </td>
+                                                    <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+                                                        {{ bot_statistic.equity|floatformat:0|intcomma }}
+                                                    </td>
+                                                    <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+                                                        {{ bot_statistic.exposure|floatformat:0|intcomma }}
+                                                    </td>
+                                                    <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+                                                        {{ bot_statistic.employed_capital|floatformat:0|intcomma }}
+                                                    </td>
+                                                    <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+                                                        {{ bot_statistic.price_crypto|intcomma }} ({{ bot_statistic.price_change }}%)
+                                                    </td>
+                                                    <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+                                                        {{ bot_statistic.price_fair|intcomma }}
+                                                    </td>
+                                                    <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+                                                        {{ bot_statistic.price_forex|intcomma }}
+                                                    </td>
+                                                    <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+                                                        {{ bot_statistic.price_deviation|floatformat:2 }}
+                                                    </td>
+                                                    <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+                                                        {{ bot_statistic.balance_base_borrowed|floatformat:1|intcomma }}
+                                                    </td>
+                                                    <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+                                                        {{ bot_statistic.balance_quote_borrowed|floatformat:1|intcomma }}
+                                                    </td>
+                                                    <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+                                                        {{ bot_statistic.updated|date:"d/m/Y H:i:s" }}
+                                                    </td>
+                                                </tr>
+                                            {% endwith %}
+                                        {% endif %}
                                     {% endfor %}
                                     <!-- Total row -->
                                     <tr class="bg-gray-100">

@@ -6,7 +6,7 @@ from django.utils import timezone
 
 from core import models
 from core.services import BinanceAccountConnector, snapshot_account_balances, EXCHANGE_ACCOUNT_CONNECTOR_MAP
-from rcdb_commons.enums import AccountType
+from rcdb_commons.schemas.exchange import AccountType
 
 use_db = pytest.mark.django_db
 
@@ -112,7 +112,7 @@ def test_binnace_account_connector():
 
 @use_db
 def test_snapshot_account_balances_unsupported_exchange(bot: models.Bot):
-    exchange_credentials = bot.exchange_credentials
+    exchange_credentials = models.ExchangeCredentials.objects.first()
     exchange_credentials.exchange.slug = 'some'
     exchange_credentials.save()
     snapshot_account_balances(exchange_credentials, DummyDataStore())
@@ -133,13 +133,14 @@ def test_snapshot_account_balances_unsupported_exchange(bot: models.Bot):
 def test_snapshot_account_balances(bot: models.Bot, mocker, market_type):
     mocker.patch('core.services.ccxt.binance', MockBinance)
 
-    bot.exchange_credentials.account_type = market_type.value
+    exchange_credentials = models.ExchangeCredentials.objects.first()
+    exchange_credentials.account_type = market_type.value
 
-    snapshot_account_balances(bot.exchange_credentials, DummyDataStore())
+    snapshot_account_balances(exchange_credentials, DummyDataStore())
 
-    snapshot = bot.exchange_credentials.balance_snapshot
+    snapshot = exchange_credentials.balance_snapshot
     snapshot['balances'] = tuple(snapshot['balances'])
-    assert timezone.now() - bot.exchange_credentials.balance_snapshot_created <= timedelta(minutes=1)
+    assert timezone.now() - exchange_credentials.balance_snapshot_created <= timedelta(minutes=1)
 
     test_result = {
         AccountType.SPOT: (
@@ -204,13 +205,13 @@ def test_snapshot_account_balances(bot: models.Bot, mocker, market_type):
     if market_type == AccountType.SPOT:
         del test_snapshot['borrowed_usd']
         del test_snapshot['interest_usd']
-        assert bot.exchange_credentials.owner.total_interest is None
-        assert bot.exchange_credentials.owner.total_borrowed is None
+        assert exchange_credentials.owner.total_interest is None
+        assert exchange_credentials.owner.total_borrowed is None
     else:
-        assert bot.exchange_credentials.owner.total_interest == test_snapshot['interest_usd']
-        assert bot.exchange_credentials.owner.total_borrowed == test_snapshot['borrowed_usd']
+        assert exchange_credentials.owner.total_interest == test_snapshot['interest_usd']
+        assert exchange_credentials.owner.total_borrowed == test_snapshot['borrowed_usd']
 
-    assert bot.exchange_credentials.owner.total_balance == test_snapshot['total_usd']
+    assert exchange_credentials.owner.total_balance == test_snapshot['total_usd']
     assert snapshot == test_snapshot
 
 

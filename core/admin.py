@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.db.models import JSONField
 from django_json_widget.widgets import JSONEditorWidget
-from rcdb_commons.schemas import bot as bot_schemas
+from rcdb_commons.schemas import strategy_configs
 
 from core import models
 
@@ -12,12 +12,8 @@ class CustomJSONEditorWidget(JSONEditorWidget):
     def get_context(self, name, value, attrs):
         context = super().get_context(name, value, attrs)
         context['config_templates'] = [
-            bot_schemas.AdminConfigInput(
-                **{'config_type': bot_schemas.OwnLongBotConfig().config_type}
-            ).dict(),
-            bot_schemas.AdminConfigInput(
-                **{'config_type': bot_schemas.OwnShortBotConfig().config_type}
-            ).dict()
+            strategy_configs.AdminConfigInput(config_type=cls().config_type).dict()
+            for cls in strategy_configs.STRATEGY_CONFIG_CLASS_MAP.values()
         ]
         return context
 

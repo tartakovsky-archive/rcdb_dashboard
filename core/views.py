@@ -23,18 +23,18 @@ class BotStatisticListView(OwnerUserPermissionFilterMixin, LoginRequiredMixin, L
 
     def get_queryset(self):
         is_active_condition = dict(
-            filter=(Q(exchangecredentials__bot__is_active=True) if 'active_bots' in self.request.GET else {})
+            filter=(Q(bot__is_active=True) if 'active_bots' in self.request.GET else {})
         )
         return self.filter_by_user(
             Owner
             .objects
             .annotate(
                 total_equity=Sum(
-                    'exchangecredentials__bot__botstatistic__equity',
+                    'bot__botstatistic__equity',
                     **is_active_condition
                 ),
                 bots_count=Count(
-                    'exchangecredentials__bot',
+                    'bot',
                     **is_active_condition
                 )
             )
