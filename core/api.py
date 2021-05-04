@@ -80,7 +80,7 @@ def get_auth_token(request):
     description='Returns exchange credentials'
 )
 def get_exchange_credentials(request):
-    return models.ExchangeCredentials.objects.filter(parameters__isnull=False)
+    return models.ExchangeCredentials.objects.all()
 
 
 @api.get('', tags=['Documentation'])

@@ -174,7 +174,6 @@ class ExchangeCredentials(models.Model):
         max_length=15, choices=AccountType.choices(), default=AccountType.CROSS_MARGIN.value
     )
     exchange = models.ForeignKey(Exchange, on_delete=models.PROTECT)
-    parameters = models.JSONField(default=dict, null=True, blank=True)
     meta = models.JSONField(default=dict, null=True, blank=True)
 
     balance_snapshot = models.JSONField(null=True, blank=True)

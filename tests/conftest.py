@@ -14,7 +14,6 @@ def bot():
         name='Creds',
         exchange=exchange,
         owner=owner,
-        parameters={'some': 1}
     )
     exchange_credentials.save()
 

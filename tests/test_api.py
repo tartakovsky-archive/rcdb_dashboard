@@ -60,23 +60,14 @@ def test_auth_unauth_user(auth_client, url):
 
 @use_db
 def test_get_exchange_credentials(auth_client_token, bot: models.Bot):
-    exchange_credentials = models.ExchangeCredentials.objects.first()
-    instrument = models.Instrument.objects.first()
-    models.ExchangeCredentials(
-        owner=exchange_credentials.owner,
-        exchange=instrument.exchange,
-        name='Empty parameters',
-        parameters=None
-    ).save()
     response = auth_client_token.get('/api/exchange-credentials')
-    assert models.ExchangeCredentials.objects.count() == 2
+    assert models.ExchangeCredentials.objects.count() == 1
     assert tuple(response.json()) == (
         {
             'exchange': {'name': 'binance', 'slug': 'binance'},
             'account_type': 'CROSS_MARGIN',
             'name': 'Creds',
             'label': '',
-            'parameters': {'some': 1},
             'meta': {}
         },
     )
