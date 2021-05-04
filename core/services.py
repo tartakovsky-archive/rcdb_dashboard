@@ -3,12 +3,12 @@ import operator
 import datetime
 from typing import Generator, Optional, Dict, List, Union, Iterable
 
-import pandas as pd
 import pytz
 import ccxt
+import pandas as pd
 from django.utils import timezone
-from rcdb_commons.schemas.exchange import AccountType, SymbolEmpty
-from rcdb_commons.data_store import DataStore, DataType
+from rcdb_commons.lib.schemas.exchange import AccountType, SymbolEmpty
+from rcdb_commons.lib.stores import CredentialsStore, DataStore, DataType
 
 from .models import Bot, BotStatistic, ExchangeCredentials
 
@@ -244,7 +244,11 @@ EXCHANGE_ACCOUNT_CONNECTOR_MAP = {
 }
 
 
-def snapshot_account_balances(exchange_credentials: ExchangeCredentials, data_store: DataStore):
+def snapshot_account_balances(
+    exchange_credentials: ExchangeCredentials,
+    data_store: DataStore,
+    credentials_store: CredentialsStore
+):
     account_connector_class = EXCHANGE_ACCOUNT_CONNECTOR_MAP.get(exchange_credentials.exchange.slug)
     if not account_connector_class:
         logging.error(f'AccountConnector for {exchange_credentials.exchange.slug} is not implemented')
@@ -256,7 +260,8 @@ def snapshot_account_balances(exchange_credentials: ExchangeCredentials, data_st
         return
 
     try:
-        account_connector = account_connector_class(exchange_credentials.parameters, data_store)
+        credentials = credentials_store.get_secret(exchange_credentials.name)
+        account_connector = account_connector_class(credentials, data_store)
         exchange_credentials.set_balance_snapshot(
             account_connector.get_balance_data(exchange_credentials.account_type)
         )

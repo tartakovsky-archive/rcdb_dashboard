@@ -9,12 +9,15 @@ POSTGRES_USER=user
 POSTGRES_PASSWORD=password
 DATASTORE_URL=http://localhost:8000
 DATASTORE_TOKEN=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6MX0.oTuWecQ8x2dVtfNAr9ERPHhPa5aaHj0HuTsR_hm0ERc
+CREDENTIALSTORE_URL=http://localhost:8085
+CREDENTIALSTORE_TOKEN=eyJhbGciOiJFUzI1NiIsImtpZCI6ImpteHpudmY2ZjZ6NXZsdWY2c3hmYW1ydHdxIiwidHlwIjoiSldUIn0
+CREDENTIALSTORE_VAULT=dev-secrets
 EOT
 docker run -d --rm --name test-db -p 5434:5432 --env-file .env.test postgres:12-alpine
 docker exec test-db bash -c 'until pg_isready; do sleep 1; done'
 sleep 3
 source .env.test
-pytest
+python -m pytest
 status=$?
 docker stop test-db
 set +a

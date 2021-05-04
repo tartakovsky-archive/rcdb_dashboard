@@ -1,5 +1,5 @@
 import pytest
-from rcdb_commons.schemas import strategy_configs
+from rcdb_commons.lib.schemas import strategy_configs
 
 from core import models
 

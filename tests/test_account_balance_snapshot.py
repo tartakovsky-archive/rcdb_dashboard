@@ -6,7 +6,7 @@ from django.utils import timezone
 
 from core import models
 from core.services import BinanceAccountConnector, snapshot_account_balances, EXCHANGE_ACCOUNT_CONNECTOR_MAP
-from rcdb_commons.schemas.exchange import AccountType
+from rcdb_commons.lib.schemas.exchange import AccountType
 
 use_db = pytest.mark.django_db
 
@@ -16,6 +16,12 @@ class DummyDataStore:
     @classmethod
     def read(cls, data_type, query_params):
         return pd.DataFrame([{'close': 20. if 'BTC' in query_params['symbol'] else 1.}])
+
+
+class DummyCredentialsStore:
+    @classmethod
+    def get_secret(cls, name):
+        return {'secret': '0000'}
 
 
 class MockBinance:
@@ -115,7 +121,7 @@ def test_snapshot_account_balances_unsupported_exchange(bot: models.Bot):
     exchange_credentials = models.ExchangeCredentials.objects.first()
     exchange_credentials.exchange.slug = 'some'
     exchange_credentials.save()
-    snapshot_account_balances(exchange_credentials, DummyDataStore())
+    snapshot_account_balances(exchange_credentials, DummyDataStore(), DummyCredentialsStore())
 
     assert exchange_credentials.balance_snapshot is None
     assert exchange_credentials.balance_snapshot_created is None
@@ -136,7 +142,7 @@ def test_snapshot_account_balances(bot: models.Bot, mocker, market_type):
     exchange_credentials = models.ExchangeCredentials.objects.first()
     exchange_credentials.account_type = market_type.value
 
-    snapshot_account_balances(exchange_credentials, DummyDataStore())
+    snapshot_account_balances(exchange_credentials, DummyDataStore(), DummyCredentialsStore())
 
     snapshot = exchange_credentials.balance_snapshot
     snapshot['balances'] = tuple(snapshot['balances'])

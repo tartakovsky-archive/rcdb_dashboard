@@ -57,3 +57,6 @@ jobs:
           POSTGRES_DB: db
           DATASTORE_URL: http://localhost:8000
           DATASTORE_TOKEN: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6MX0.oTuWecQ8x2dVtfNAr9ERPHhPa5aaHj0HuTsR_hm0ERc
+          CREDENTIALSTORE_URL: http://localhost:8085
+          CREDENTIALSTORE_TOKEN: eyJhbGciOiJFUzI1NiIsImtpZCI6ImpteHpudmY2ZjZ6NXZsdWY2c3hmYW1ydHdxIiwidHlwIjoiSldUIn0
+          CREDENTIALSTORE_VAULT: dev-secrets

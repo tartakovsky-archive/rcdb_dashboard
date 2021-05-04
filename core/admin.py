@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.db.models import JSONField
 from django_json_widget.widgets import JSONEditorWidget
-from rcdb_commons.schemas import strategy_configs
+from rcdb_commons.lib.schemas import strategy_configs
 
 from core import models
 

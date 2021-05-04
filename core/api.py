@@ -9,7 +9,7 @@ from ninja.security import HttpBearer, django_auth
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import models as auth_models
-from rcdb_commons.schemas import strategy_configs
+from rcdb_commons.lib.schemas import strategy_configs
 
 from . import models, schemas
 

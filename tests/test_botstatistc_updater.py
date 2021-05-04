@@ -4,7 +4,7 @@ import pytz
 import pytest
 import pandas as pd
 from dateutil.parser import parse as dt_parse
-from rcdb_commons.data_store import DataStore, DataType
+from rcdb_commons.lib.stores import DataStore, DataType
 
 from core import models
 from core.services import BotStatisticUpdater

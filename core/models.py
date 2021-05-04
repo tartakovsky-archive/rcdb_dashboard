@@ -8,8 +8,8 @@ from django.db.models.fields.json import KeyTextTransform
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import RegexValidator, ValidationError
 from django.contrib.auth.models import User
-from rcdb_commons.schemas import strategy_configs
-from rcdb_commons.schemas.exchange import AccountType
+from rcdb_commons.lib.schemas import strategy_configs
+from rcdb_commons.lib.schemas.exchange import AccountType
 
 
 class Owner(models.Model):

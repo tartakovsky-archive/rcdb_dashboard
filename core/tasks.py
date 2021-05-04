@@ -4,7 +4,7 @@ import ccxt
 import requests
 from celery import shared_task
 from django.conf import settings
-from rcdb_commons.data_store import DataStore
+from rcdb_commons.lib.stores import CredentialsStore, DataStore
 
 from .models import Bot, ExchangeCredentials
 from .services import BotStatisticUpdater, snapshot_account_balances, update_account_statistics
@@ -41,8 +41,7 @@ def t_update_bot_statistic(bot_id: int):
 def t_schedule_snapshot_balances():
     logging.info('started task: <t_schedule_snapshot_balances>')
     for exchange_credentials in ExchangeCredentials.objects.all():
-        if exchange_credentials.parameters:
-            t_snapshot_exchange_credentials_balances.delay(exchange_credentials.id)
+        t_snapshot_exchange_credentials_balances.delay(exchange_credentials.id)
     logging.info('ended task: <t_schedule_snapshot_balances>')
 
 
@@ -52,7 +51,12 @@ def t_snapshot_exchange_credentials_balances(exchange_credentials_id: int):
     try:
         snapshot_account_balances(
             ExchangeCredentials.objects.get(pk=exchange_credentials_id),
-            DataStore(settings.DATASTORE_URL, settings.DATASTORE_TOKEN)
+            DataStore(settings.DATASTORE_URL, settings.DATASTORE_TOKEN),
+            CredentialsStore(
+                settings.CREDENTIALSTORE_URL,
+                settings.CREDENTIALSTORE_TOKEN,
+                settings.CREDENTIALSTORE_VAULT
+            )
         )
     except ExchangeCredentials.DoesNotExist:
         logging.warning(

@@ -4,7 +4,7 @@
     "strategy_config": {
         "exchange_credentials": {
             "exchange": "EMPTY",
-            "credentials": {},
+            "credentials": "EMPTY",
             "type": "EMPTY"
         },
         "symbol": {
