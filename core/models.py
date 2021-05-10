@@ -1,5 +1,6 @@
 from typing import Optional
 
+import numpy as np
 import pydantic
 from django.db import models
 from django.utils import timezone
@@ -10,6 +11,13 @@ from django.core.validators import RegexValidator, ValidationError
 from django.contrib.auth.models import User
 from rcdb_commons.lib.schemas import strategy_configs
 from rcdb_commons.lib.schemas.exchange import AccountType
+
+
+class CustomDjangoJSONEncoder(DjangoJSONEncoder):
+    def default(self, o):
+        if isinstance(o, np.int64):
+            return int(o)
+        return super().default(o)
 
 
 class Owner(models.Model):
@@ -179,7 +187,7 @@ class ExchangeCredentials(models.Model):
     balance_snapshot = models.JSONField(null=True, blank=True)
     balance_snapshot_created = models.DateTimeField(null=True, blank=True)
 
-    statistics = models.JSONField(null=True, blank=True)
+    statistics = models.JSONField(null=True, blank=True, encoder=CustomDjangoJSONEncoder)
 
     visible = models.BooleanField(default=True)
     ignore_balance = models.BooleanField(default=False)
@@ -216,7 +224,7 @@ class Bot(models.Model):
     owner = models.ForeignKey(Owner, on_delete=models.SET_NULL, blank=True, null=True)
     is_active = models.BooleanField(default=False)
 
-    config = models.JSONField(default=dict, encoder=DjangoJSONEncoder)
+    config = models.JSONField(default=dict, encoder=CustomDjangoJSONEncoder)
 
     def clean(self, *args, **kwargs):
         try:

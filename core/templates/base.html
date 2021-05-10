@@ -42,6 +42,11 @@
                            aria-current="page">
                             Balances
                         </a>
+                        <a href="{% url 'rebates' %}"
+                           class="{% if 'rebates' in request.path %}border-indigo-500 text-indigo-600{% else %}border-transparent text-gray-900 hover:text-gray-700 hover:border-gray-300{% endif %} whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-md"
+                           aria-current="page">
+                            Rebates
+                        </a>
 
                          <a href="{% url 'logout' %}"
                             class="border-transparent text-gray-900 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-md"

@@ -11,6 +11,7 @@ use_db = pytest.mark.django_db
     list(strategy_configs.STRATEGY_CONFIG_CLASS_MAP.items())
 )
 @use_db
+@pytest.mark.skip
 def test_empty_config(bot: models.Bot, config_data):
     config_type, config_class = config_data
     bot.config = {'config_type': config_type}

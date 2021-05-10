@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% load humanize %}
-{% block title %}Balances of {{ owner.name }}{% endblock %}
+{% block title %}Balances of {{ creds.name }} {{ creds.label }} {{ creds.account_type_label }}{% endblock %}
 
 {% block body %}
     <div class="m-4 mt-8">

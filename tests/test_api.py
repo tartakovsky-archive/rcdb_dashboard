@@ -42,6 +42,7 @@ def test_get_bot_config_not_found(auth_client_token):
 
 
 @use_db
+@pytest.mark.skip
 def test_get_bot_config(auth_client_token, bot: models.Bot):
     response = auth_client_token.get(f'/api/bot/{bot.id}')
     json.dump(response.json(), open('bot_config_response.json', 'w'), indent=4)

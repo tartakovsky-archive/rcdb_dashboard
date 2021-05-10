@@ -1,6 +1,7 @@
 import datetime
 import pandas as pd
 import pytest
+from rcdb_commons.lib.stores import DataType
 
 from core.models import Bot, ExchangeCredentials
 from core.services import update_account_statistics, df_from_list, df_to_list
@@ -15,6 +16,10 @@ TEST_DF = pd.DataFrame([
         symbol='BTC/USDT',
         volume_buy_usd=100,
         volume_sell_usd=10.5,
+        volume_buy=200,
+        volume_sell=21,
+        price_avg_buy=2,
+        price_avg_sell=2,
         trades_count_buy=10,
         trades_count_sell=5
     ),
@@ -23,6 +28,10 @@ TEST_DF = pd.DataFrame([
         symbol='BTC/USDT',
         volume_buy_usd=100,
         volume_sell_usd=10.5,
+        volume_buy=200,
+        volume_sell=21,
+        price_avg_buy=2.,
+        price_avg_sell=2.,
         trades_count_buy=10,
         trades_count_sell=5
     ),
@@ -31,6 +40,10 @@ TEST_DF = pd.DataFrame([
         symbol='BTC/USDT',
         volume_buy_usd=100,
         volume_sell_usd=10.5,
+        volume_buy=200,
+        volume_sell=21,
+        price_avg_buy=2,
+        price_avg_sell=2,
         trades_count_buy=10,
         trades_count_sell=5
     ),
@@ -39,6 +52,10 @@ TEST_DF = pd.DataFrame([
         symbol='BTC/USDT',
         volume_buy_usd=101,
         volume_sell_usd=10.5,
+        volume_buy=200,
+        volume_sell=21,
+        price_avg_buy=2,
+        price_avg_sell=2,
         trades_count_buy=12,
         trades_count_sell=5
     ),
@@ -47,6 +64,10 @@ TEST_DF = pd.DataFrame([
         symbol='BTC/USDT',
         volume_buy_usd=102,
         volume_sell_usd=10.5,
+        volume_buy=200,
+        volume_sell=21,
+        price_avg_buy=2,
+        price_avg_sell=2,
         trades_count_buy=11,
         trades_count_sell=5
     )
@@ -57,6 +78,10 @@ ADDITIONAL_DF = pd.DataFrame([
         symbol='BTC/USDT',
         volume_buy_usd=1,
         volume_sell_usd=0,
+        volume_buy=2,
+        volume_sell=0,
+        price_avg_buy=2,
+        price_avg_sell=2,
         trades_count_buy=1,
         trades_count_sell=0
     )
@@ -66,14 +91,19 @@ ADDITIONAL_DF = pd.DataFrame([
 def test_df_from_to_list():
     data = df_to_list(TEST_DF)
     df = df_from_list(data)
+    print(df)
+    print(TEST_DF)
     assert TEST_DF.equals(df)
 
 
 @use_db
-def test_update_account_statistics_no_markets(bot: Bot):
+def test_update_account_statistics_no_markets(bot: Bot, mocker):
     exchange_credentials = ExchangeCredentials.objects.first()
     exchange_credentials.meta = {}
     exchange_credentials.save()
+
+    mocker.patch('core.services.DataStoreDataSynchronizer.get_updated_trades', return_value=pd.DataFrame([]))
+    mocker.patch('core.services.DataStoreDataSynchronizer.get_updated_rebates', return_value=pd.DataFrame([]))
 
     update_account_statistics(None, exchange_credentials)
     assert exchange_credentials.statistics['updated']
@@ -114,7 +144,7 @@ def mocked_dt(mocker):
                 'd7_trades_count': 48,
                 'trades': df_to_list(TEST_DF)[1:]
             },
-            TEST_DF,
+            TEST_DF.copy(),
             None
         ),
         (
@@ -127,7 +157,7 @@ def mocked_dt(mocker):
                 'd7_trades_count': 49,
                 'trades': df_to_list(TEST_DF)[1:] + df_to_list(ADDITIONAL_DF)
             },
-            ADDITIONAL_DF,
+            ADDITIONAL_DF.copy(),
             df_to_list(TEST_DF)
         )
     ]
@@ -139,9 +169,17 @@ def test_update_account_statistics(bot: Bot, mocker, mocked_dt, results, df, ini
         exchange_credentials.statistics = {'trades': init_trades}
     exchange_credentials.save()
 
-    mocker.patch('core.services.get_trades_since', return_value=df)
+    class DummyDatastore:
+        ret = True
 
-    update_account_statistics(None, exchange_credentials)
+        @classmethod
+        def read(cls, datatype, *args, **kwargs):
+            if cls.ret and datatype is DataType.account_trades:
+                cls.ret = not cls.ret
+                return df
+            return pd.DataFrame([])
+
+    update_account_statistics(DummyDatastore(), exchange_credentials)
 
     assert exchange_credentials.statistics['updated']
     assert exchange_credentials.statistics['h1_usd_volume'] == results['h1_usd_volume']
