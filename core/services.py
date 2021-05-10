@@ -310,7 +310,8 @@ class DataStoreDataSynchronizer:
                 if len(df_local) else
                 (datetime.datetime.utcnow() - datetime.timedelta(days=30))
             ),
-            name=exchange_credentials.name
+            name=exchange_credentials.name,
+            account_type=exchange_credentials.account_type
         )
         return self.concat_dfs_safe_with_cut_history([df_local, df_updates])
 
