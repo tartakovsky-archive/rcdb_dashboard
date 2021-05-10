@@ -447,7 +447,7 @@ class StatisticsCalculator:
             **(
                 {
                     'total_volume': rebates.volume.sum(),
-                    'total_rebate': rebates.volume.sum(),
+                    'total_rebate': rebates.rebate.sum(),
                     'total_expected_rebate': rebates.expected_rebate.sum()
                 } if len(rebates) else {
                     'total_volume': 0,
