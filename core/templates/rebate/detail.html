@@ -36,7 +36,16 @@
                                         Expected Rebate
                                     </th>
                                     <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
-                                        Rebate
+                                        Received Rebate
+                                    </th>
+                                    <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
+                                        Volume, $
+                                    </th>
+                                    <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
+                                        Expected Rebate, $
+                                    </th>
+                                    <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
+                                        Received Rebate, $
                                     </th>
                                 </tr>
                                 </thead>
@@ -55,6 +64,15 @@
                                             <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
                                                 {{ item.rebate|floatformat:2|intcomma }}
                                             </td>
+                                            <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+                                                {{ item.volume_usd|floatformat:2|intcomma }}
+                                            </td>
+                                            <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+                                                {{ item.expected_rebate_usd|floatformat:2|intcomma }}
+                                            </td>
+                                            <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+                                                {{ item.rebate_usd|floatformat:2|intcomma }}
+                                            </td>
                                         </tr>
                                     {% endfor %}
                                 </tbody>
@@ -70,6 +88,15 @@
                                         </td>
                                         <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
                                             {{ rebates.total_rebate|floatformat:2|intcomma }}
+                                        </td>
+                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
+                                            {{ rebates.total_volume_usd|floatformat:2|intcomma }}
+                                        </td>
+                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
+                                            {{ rebates.total_expected_rebate_usd|floatformat:2|intcomma }}
+                                        </td>
+                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
+                                            {{ rebates.total_rebate_usd|floatformat:2|intcomma }}
                                         </td>
                                     </tr>
                                 </tfoot>

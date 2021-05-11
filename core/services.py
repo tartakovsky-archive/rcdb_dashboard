@@ -397,13 +397,14 @@ class StatisticsCalculator:
             if rebate is None:
                 rebate = pd.DataFrame(index=df.index)
                 rebate['rebate'] = 0.
+                rebate['rebate_usd'] = 0.
             rebate.index = rebate.index.map(lambda x: x.replace(second=0))
             res[symbol] = df.merge(rebate, how='outer', left_index=True, right_index=True)
 
         res_df = concat_dfs_safe([df.assign(symbol=symbol) for symbol, df in res.items()]).fillna(0.)
         if len(res_df):
             res_df = res_df[
-                ['symbol', 'volume', 'expected_rebate', 'rebate']
+                ['symbol', 'volume', 'expected_rebate', 'rebate', 'volume_usd', 'expected_rebate_usd', 'rebate_usd']
             ]
         return {
             'raw_rebates': df_to_list(rebates),
@@ -433,6 +434,9 @@ class StatisticsCalculator:
                     'volume': 'sum',
                     'rebate': 'sum',
                     'expected_rebate': 'sum',
+                    'volume_usd': 'sum',
+                    'rebate_usd': 'sum',
+                    'expected_rebate_usd': 'sum',
                     'ts': 'first'
                 }
             )
@@ -449,11 +453,17 @@ class StatisticsCalculator:
                 {
                     'total_volume': rebates.volume.sum(),
                     'total_rebate': rebates.rebate.sum(),
-                    'total_expected_rebate': rebates.expected_rebate.sum()
+                    'total_expected_rebate': rebates.expected_rebate.sum(),
+                    'total_volume_usd': rebates.volume_usd.sum(),
+                    'total_rebate_usd': rebates.rebate_usd.sum(),
+                    'total_expected_rebate_usd': rebates.expected_rebate_usd.sum()
                 } if len(rebates) else {
                     'total_volume': 0,
                     'total_rebate': 0,
-                    'total_expected_rebate': 0
+                    'total_expected_rebate': 0,
+                    'total_volume_usd': 0,
+                    'total_rebate_usd': 0,
+                    'total_expected_rebate_usd': 0
                 }
             )
         }
@@ -475,6 +485,7 @@ class StatisticsCalculator:
         is_endswith_fiat = df.symbol.str.endswith(tuple(map(lambda s: f'/{s}', fiat_symbols)))
         df.symbol = df.symbol.apply(symbol_replacer)
         df['volume'] = 0.
+        df['volume_usd'] = df.volume_buy_usd + df.volume_sell_usd
         df.loc[is_endswith_fiat, 'volume'] = (
             df.loc[is_endswith_fiat, 'volume_buy'] + df.loc[is_endswith_fiat, 'volume_sell']
         )
@@ -486,7 +497,8 @@ class StatisticsCalculator:
             ).fillna(0.)
         )
         df['expected_rebate'] = df.volume * rebate_percent
-        df = df[['timestamp', 'expected_rebate', 'symbol', 'volume']].reset_index()
+        df['expected_rebate_usd'] = df.volume_usd * rebate_percent
+        df = df[['timestamp', 'expected_rebate', 'expected_rebate_usd', 'symbol', 'volume', 'volume_usd']].reset_index()
         is_before_half_hour = df.timestamp.dt.minute <= 30
         is_after_half_hour = ~is_before_half_hour
         df['rebate_time'] = pd.NaT
@@ -498,7 +510,14 @@ class StatisticsCalculator:
         )
         df.drop('timestamp', axis=1, inplace=True)
         df.rename(columns={'rebate_time': 'timestamp'}, inplace=True)
-        df = df.groupby(['symbol', 'timestamp']).agg({'expected_rebate': 'sum', 'volume': 'sum'})
+        df = df.groupby(['symbol', 'timestamp']).agg(
+            {
+                'expected_rebate': 'sum',
+                'volume': 'sum',
+                'expected_rebate_usd': 'sum',
+                'volume_usd': 'sum'
+            }
+        )
 
         return concat_dfs_safe([df.loc[symbol].assign(symbol=symbol) for symbol in df.index.unique(level=0)])
 
