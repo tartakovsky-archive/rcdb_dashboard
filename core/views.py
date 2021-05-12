@@ -1,3 +1,6 @@
+import datetime
+from typing import Optional
+
 import numpy as np
 import pandas as pd
 from django.views.generic import ListView, DetailView, FormView
@@ -88,9 +91,23 @@ class RebatesView(LoginRequiredMixin, FormView):
         return self.post(request, *args, **kwargs)
 
     @staticmethod
-    def filter_df_by_get_dt(df: pd.DataFrame, form: RebatesForm) -> pd.DataFrame:
-        start = form.cleaned_data.get('start')
-        end = form.cleaned_data.get('end')
+    def combine_datetime(
+        date: Optional[datetime.date],
+        time: Optional[datetime.time],
+        start: bool = True
+    ) -> Optional[datetime.datetime]:
+        if not date:
+            return None
+
+        if not time:
+            time = datetime.time(0, 0) if start else datetime.time(23, 59)
+
+        return datetime.datetime.combine(date, time)
+
+    @classmethod
+    def filter_df_by_get_dt(cls, df: pd.DataFrame, form: RebatesForm) -> pd.DataFrame:
+        start = cls.combine_datetime(form.cleaned_data.get('start_date'), form.cleaned_data.get('start_time'))
+        end = cls.combine_datetime(form.cleaned_data.get('end_date'), form.cleaned_data.get('end_time'), start=False)
 
         if not len(df):
             return df

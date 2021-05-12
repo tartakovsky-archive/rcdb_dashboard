@@ -3,7 +3,7 @@
 {% block title %}Balances{% endblock %}
 
 {% block body %}
-    <div class="m-4 mt-8">
+    <div class="m-8 mt-8">
         {% for owner in owners %}
             <h3 class="text-lg leading-6 font-medium text-gray-900"><a href="{% url 'admin:core_owner_change' owner.pk %}">{{ owner.name }}</a></h3>
             <!-- table -->
