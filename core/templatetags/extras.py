@@ -17,3 +17,8 @@ def to_int(value):
     if value:
         return int(value)
     return value
+
+
+@register.filter(name='cssclass')
+def cssclass(field, css):
+    return field.as_widget(attrs={'class': css})

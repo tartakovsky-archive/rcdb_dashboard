@@ -121,7 +121,5 @@ class RebatesView(LoginRequiredMixin, FormView):
                 symbol: StatisticsCalculator.aggregate_rebates_and_calculate_summary(df, form.cleaned_data['timeframe'])
                 for symbol, df in StatisticsCalculator.df_dict_group(rebates, 'symbol').items()
             }
-        print(context)
-        print(rebates)
         context.update({'form': form, 'exchange_credentials': exchange_credentials})
         return self.render_to_response(context)
