@@ -1,10 +1,18 @@
 import datetime
+from typing import Optional
 
 from django import forms
+from django.db.models import TextChoices
+from django.core.exceptions import ValidationError
 
 from .models import ExchangeCredentials
 
 TIMEFRAMES = [('1H', '1H'), ('1D', '1D'), ('1W', '1W'), ('1M', '1M')]
+
+
+class ReportType(TextChoices):
+    BY_ACCOUNT = 'BY_ACCOUNT', 'By Account'
+    OVERALL = 'OVERALL', 'Overall'
 
 
 class ExchangeCredentialsChoiceField(forms.ModelChoiceField):
@@ -13,9 +21,11 @@ class ExchangeCredentialsChoiceField(forms.ModelChoiceField):
 
 
 class RebatesForm(forms.Form):
+    type = forms.ChoiceField(label='Type', choices=ReportType.choices, initial=ReportType.BY_ACCOUNT.value)
     exchange_credentials = ExchangeCredentialsChoiceField(
         label='Exchange credentials',
-        queryset=ExchangeCredentials.objects.all()
+        queryset=ExchangeCredentials.objects.all(),
+        required=False
     )
     timeframe = forms.ChoiceField(label='Timeframe', choices=TIMEFRAMES, initial=TIMEFRAMES[0])
     start_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}), required=False)
@@ -31,3 +41,38 @@ class RebatesForm(forms.Form):
 
         self.fields['end_date'].widget.attrs['value'] = now.date().isoformat()
         self.fields['end_time'].widget.attrs['value'] = datetime.time(23, 59).isoformat()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if not cleaned_data.get('exchange_credentials') and cleaned_data.get('type') == ReportType.BY_ACCOUNT.value:
+            raise ValidationError('exchange_credentials should be selected when used BY_ACCOUNT')
+        return cleaned_data
+
+    @property
+    def start(self) -> Optional[datetime.datetime]:
+        return self.combine_datetime(
+            self.cleaned_data.get('start_date'),
+            self.cleaned_data.get('start_time')
+        )
+
+    @property
+    def end(self) -> Optional[datetime.datetime]:
+        return self.combine_datetime(
+            self.cleaned_data.get('end_date'),
+            self.cleaned_data.get('end_time'),
+            start=False
+        )
+
+    @staticmethod
+    def combine_datetime(
+        date: Optional[datetime.date],
+        time: Optional[datetime.time],
+        start: bool = True
+    ) -> Optional[datetime.datetime]:
+        if not date:
+            return None
+
+        if not time:
+            time = datetime.time(0, 0) if start else datetime.time(23, 59)
+
+        return datetime.datetime.combine(date, time)

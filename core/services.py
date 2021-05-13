@@ -1,15 +1,17 @@
 import logging
 import operator
 import datetime
-from typing import Generator, Optional, Dict, List, Union, Iterable
+from typing import Generator, Optional, Dict, List, Tuple, Union, Iterable
 
 import pytz
 import ccxt
+import numpy as np
 import pandas as pd
 from django.utils import timezone
 from rcdb_commons.lib.schemas.exchange import AccountType, SymbolEmpty
 from rcdb_commons.lib.stores import CredentialsStore, DataStore, DataType
 
+from .forms import ReportType, RebatesForm
 from .models import Bot, BotStatistic, ExchangeCredentials
 
 
@@ -374,21 +376,15 @@ class StatisticsCalculator:
         statistics['trades'] = df_to_list(trades)
         return statistics
 
-    @staticmethod
-    def df_dict_group(df: pd.DataFrame, column_name: str) -> Dict[str, pd.DataFrame]:
-        if not len(df):
-            return {}
-        return {group_name: df[df[column_name] == group_name] for group_name in df[column_name].unique()}
-
     @classmethod
     def rebates_statistics(cls, rebates: pd.DataFrame, expected_rebates: pd.DataFrame) -> dict:
         if len(rebates):
             rebates = rebates.set_index('timestamp')
-            rebates_symbol_map = cls.df_dict_group(rebates, 'symbol')
+            rebates_symbol_map = df_dict_group(rebates, 'symbol')
         else:
             rebates_symbol_map = {}
 
-        expected_rebates_symbol_map = cls.df_dict_group(expected_rebates, 'symbol')
+        expected_rebates_symbol_map = df_dict_group(expected_rebates, 'symbol')
 
         res = {}
         df: pd.DataFrame
@@ -409,63 +405,6 @@ class StatisticsCalculator:
         return {
             'raw_rebates': df_to_list(rebates),
             'rebates': df_to_list(res_df)
-        }
-
-    @staticmethod
-    def aggregate_rebates(rebates: pd.DataFrame, timeframe: str) -> pd.DataFrame:
-        rebates = rebates.copy().sort_values('timestamp')
-        rebates['ts'] = rebates.timestamp
-        dt_format = {
-            '1H': '%d/%m/%Y %H:%M:%S',
-            '1D': '%d/%m/%Y',
-            '1W': '%Y-%U',
-            '1M': '%Y/%m',
-        }
-
-        rebates.timestamp = rebates.timestamp.dt.strftime(dt_format[timeframe])
-        if timeframe == '1H':
-            return rebates.sort_values('ts', ascending=False)
-
-        return (
-            rebates
-            .groupby('timestamp')
-            .agg(
-                {
-                    'volume': 'sum',
-                    'rebate': 'sum',
-                    'expected_rebate': 'sum',
-                    'volume_usd': 'sum',
-                    'rebate_usd': 'sum',
-                    'expected_rebate_usd': 'sum',
-                    'ts': 'first'
-                }
-            )
-            .reset_index()
-            .sort_values('ts', ascending=False)
-        )
-
-    @classmethod
-    def aggregate_rebates_and_calculate_summary(cls, rebates: pd.DataFrame, timeframe: str):
-        rebates = cls.aggregate_rebates(rebates, timeframe)
-        return {
-            'data': rebates.to_dict(orient='records'),
-            **(
-                {
-                    'total_volume': rebates.volume.sum(),
-                    'total_rebate': rebates.rebate.sum(),
-                    'total_expected_rebate': rebates.expected_rebate.sum(),
-                    'total_volume_usd': rebates.volume_usd.sum(),
-                    'total_rebate_usd': rebates.rebate_usd.sum(),
-                    'total_expected_rebate_usd': rebates.expected_rebate_usd.sum()
-                } if len(rebates) else {
-                    'total_volume': 0,
-                    'total_rebate': 0,
-                    'total_expected_rebate': 0,
-                    'total_volume_usd': 0,
-                    'total_rebate_usd': 0,
-                    'total_expected_rebate_usd': 0
-                }
-            )
         }
 
     @staticmethod
@@ -522,6 +461,151 @@ class StatisticsCalculator:
         return concat_dfs_safe([df.loc[symbol].assign(symbol=symbol) for symbol in df.index.unique(level=0)])
 
 
+class RebateReport:
+    def __init__(self, report_form: RebatesForm):
+        form_data = report_form.cleaned_data
+        self.exchange_credentials_list = (
+            [form_data['exchange_credentials']]
+            if form_data['exchange_credentials'] and form_data['type'] == ReportType.BY_ACCOUNT.value else
+            ExchangeCredentials.objects.all()
+        )
+        self.report_form = report_form
+        self.exchange_credentials_account_map = {
+            (ex.name, ex.account_type): ex for ex in self.exchange_credentials_list
+        }
+
+    def generate_report(self) -> dict:
+        rebates = self.filter_df_by_get_dt(
+            concat_dfs_safe([
+                DataStoreDataSynchronizer.get_df_statistics(exchange_credentials, 'rebates').assign(
+                    account_type=exchange_credentials.account_type,
+                    name=exchange_credentials.name
+                )
+                for exchange_credentials in self.exchange_credentials_list
+            ])
+        )
+
+        summary_method = {
+            ReportType.BY_ACCOUNT: self.calculate_by_account_summary,
+            ReportType.OVERALL: self.calculate_overall_summary
+        }[self.report_form.cleaned_data['type']]
+
+        return {
+            'type': self.report_form.cleaned_data['type'],
+            'report_data': {
+                symbol: summary_method(df)
+                for symbol, df in df_dict_group(rebates, 'symbol').items()
+            }
+        }
+
+    def filter_df_by_get_dt(self, df: pd.DataFrame) -> pd.DataFrame:
+        if not len(df):
+            return df
+
+        start = self.report_form.start
+        end = self.report_form.end
+
+        if start and end:
+            return df[(df.timestamp >= np.datetime64(start)) & (df.timestamp <= np.datetime64(end))]
+
+        if start:
+            return df[df.timestamp >= np.datetime64(start)]
+
+        if end:
+            return df[df.timestamp <= np.datetime64(end)]
+
+        return df
+
+    def calculate_overall_summary(self, rebates: pd.DataFrame) -> dict:
+        summary = {
+            'total_rebate': 0,
+            'total_expected_rebate': 0,
+            'total_difference': 0,
+            'accounts_data': []
+        }
+        if not len(rebates):
+            return summary
+
+        rebates['difference'] = rebates.rebate - rebates.expected_rebate
+        rebates = rebates[rebates.difference != 0.]
+
+        summary.update(self._calculate_overall_totals(rebates))
+
+        for account, account_rebates in df_dict_group(rebates, ['name', 'account_type']).items():
+            aggregated_account_rebates = self.aggregate_rebates(
+                account_rebates, self.report_form.cleaned_data['timeframe']
+            )
+            account_data = self._calculate_overall_totals(aggregated_account_rebates)
+            account_data['data'] = aggregated_account_rebates.to_dict(orient='records')
+            account_data['exchange_credentials'] = self.exchange_credentials_account_map[account]
+            summary['accounts_data'].append(account_data)
+
+        return summary
+
+    def _calculate_overall_totals(self, rebates: pd.DataFrame) -> dict:
+        return {
+            'total_rebate': rebates.rebate.sum(),
+            'total_expected_rebate': rebates.expected_rebate.sum(),
+            'total_difference': rebates.difference.sum()
+        }
+
+    def calculate_by_account_summary(self, rebates: pd.DataFrame) -> dict:
+        aggregated_rebates = self.aggregate_rebates(rebates, self.report_form.cleaned_data['timeframe'])
+        summary = (
+            {
+                'total_volume': aggregated_rebates.volume.sum(),
+                'total_rebate': aggregated_rebates.rebate.sum(),
+                'total_expected_rebate': aggregated_rebates.expected_rebate.sum(),
+                'total_volume_usd': aggregated_rebates.volume_usd.sum(),
+                'total_rebate_usd': aggregated_rebates.rebate_usd.sum(),
+                'total_expected_rebate_usd': aggregated_rebates.expected_rebate_usd.sum()
+            } if len(aggregated_rebates) else {
+                'total_volume': 0,
+                'total_rebate': 0,
+                'total_expected_rebate': 0,
+                'total_volume_usd': 0,
+                'total_rebate_usd': 0,
+                'total_expected_rebate_usd': 0
+            }
+        )
+        summary['data'] = aggregated_rebates.to_dict(orient='records')
+        return summary
+
+    @staticmethod
+    def aggregate_rebates(rebates: pd.DataFrame, timeframe: str) -> pd.DataFrame:
+        rebates = rebates.copy().sort_values('timestamp')
+        rebates['ts'] = rebates.timestamp
+        dt_format = {
+            '1H': '%d/%m/%Y %H:%M:%S',
+            '1D': '%d/%m/%Y',
+            '1W': '%Y-%U',
+            '1M': '%Y/%m',
+        }
+
+        rebates.timestamp = rebates.timestamp.dt.strftime(dt_format[timeframe])
+        if timeframe == '1H':
+            return rebates.sort_values('ts', ascending=False)
+
+        return (
+            rebates
+            .groupby('timestamp')
+            .agg(
+                {
+                    'volume': 'sum',
+                    'rebate': 'sum',
+                    'expected_rebate': 'sum',
+                    'volume_usd': 'sum',
+                    'rebate_usd': 'sum',
+                    'expected_rebate_usd': 'sum',
+                    'ts': 'first',
+                    **({'difference': 'sum'} if 'difference' in rebates.columns else {}),
+                }
+            )
+            .reset_index()
+            .sort_values('ts', ascending=False)
+        )
+
+
 def update_account_statistics(datastore: DataStore, exchange_credentials: ExchangeCredentials):
     datastore_manager = DataStoreDataSynchronizer(datastore)
     trades = datastore_manager.get_updated_trades(exchange_credentials)
@@ -572,3 +656,19 @@ def df_from_list(data: List[dict]) -> pd.DataFrame:
     if 'timestamp' in df.columns:
         df.timestamp = pd.to_datetime(df.timestamp, unit='s')
     return df
+
+
+def df_dict_group(
+    df: pd.DataFrame,
+    column_names: Union[List[str], str]
+) -> Dict[Union[str, Tuple[str]], pd.DataFrame]:
+    if not len(df) or not column_names:
+        return {}
+
+    if isinstance(column_names, str):
+        column_name = column_names
+        return {group_name: df[df[column_name] == group_name] for group_name in df[column_name].unique()}
+
+    df = df.copy()
+    df['x'] = df[column_names].apply(tuple, axis=1)
+    return {group: df[df.x == group].drop('x', axis=1) for group in df.x.unique()}

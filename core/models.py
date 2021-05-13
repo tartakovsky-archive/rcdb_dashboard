@@ -176,6 +176,7 @@ class ExchangeCredentials(models.Model):
         ordering = ['order_id', 'name']
 
     name = models.CharField(max_length=200)
+    account_id = models.CharField(max_length=64, blank=True, null=True)
     label = models.CharField(max_length=200, blank=True, default='')
     owner = models.ForeignKey(Owner, on_delete=models.PROTECT)
     account_type = models.CharField(

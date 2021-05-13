@@ -1,15 +1,10 @@
-import datetime
-from typing import Optional
-
-import numpy as np
-import pandas as pd
 from django.views.generic import ListView, DetailView, FormView
 from django.db.models import Count, Sum, Q
 from django.contrib.auth.mixins import LoginRequiredMixin
 
 from .models import Owner, ExchangeCredentials
-from .forms import RebatesForm
-from .services import df_from_list, StatisticsCalculator
+from .forms import RebatesForm, ReportType
+from .services import RebateReport
 
 
 class OwnerUserPermissionFilterMixin:
@@ -90,53 +85,11 @@ class RebatesView(LoginRequiredMixin, FormView):
             return super().get(request, *args, **kwargs)
         return self.post(request, *args, **kwargs)
 
-    @staticmethod
-    def combine_datetime(
-        date: Optional[datetime.date],
-        time: Optional[datetime.time],
-        start: bool = True
-    ) -> Optional[datetime.datetime]:
-        if not date:
-            return None
-
-        if not time:
-            time = datetime.time(0, 0) if start else datetime.time(23, 59)
-
-        return datetime.datetime.combine(date, time)
-
-    @classmethod
-    def filter_df_by_get_dt(cls, df: pd.DataFrame, form: RebatesForm) -> pd.DataFrame:
-        start = cls.combine_datetime(form.cleaned_data.get('start_date'), form.cleaned_data.get('start_time'))
-        end = cls.combine_datetime(form.cleaned_data.get('end_date'), form.cleaned_data.get('end_time'), start=False)
-
-        if not len(df):
-            return df
-
-        if start and end:
-            return df[(df.timestamp >= np.datetime64(start)) & (df.timestamp <= np.datetime64(end))]
-
-        if start:
-            return df[df.timestamp >= np.datetime64(start)]
-
-        if end:
-            return df[df.timestamp <= np.datetime64(end)]
-
-        return df
-
     def form_valid(self, form: RebatesForm):
-        exchange_credentials: ExchangeCredentials = form.cleaned_data['exchange_credentials']
-        rebates = self.filter_df_by_get_dt(
-            df_from_list(
-                (exchange_credentials.statistics or {}).get('rebates', [])
-            ),
-            form
-        )
-
-        context = {}
-        if len(rebates):
-            context['rebates_data'] = {
-                symbol: StatisticsCalculator.aggregate_rebates_and_calculate_summary(df, form.cleaned_data['timeframe'])
-                for symbol, df in StatisticsCalculator.df_dict_group(rebates, 'symbol').items()
+        return self.render_to_response(
+            {
+                'form': form,
+                'report': RebateReport(form).generate_report(),
+                'ReportType': ReportType
             }
-        context.update({'form': form, 'exchange_credentials': exchange_credentials})
-        return self.render_to_response(context)
+        )

@@ -11,6 +11,14 @@
                     <div class="flex justify-items-start">
                         <div class="px-4 py-4 sm:px-6">
                             <label id="select-account-label" class="block text-sm font-medium text-gray-700">
+                                Type
+                            </label>
+                            <div class="relative pt-1 mt-1 sm:mt-0 sm:col-span-2">
+                                {{ form.type|cssclass:"relative bg-white border border-gray-300 rounded-md shadow-sm pl-3 pr-3 py-2 text-left cursor-default focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" }}
+                            </div>
+                        </div>
+                        <div id="exchange-credentials-block" class="px-4 py-4 sm:px-6">
+                            <label id="select-account-label" class="block text-sm font-medium text-gray-700">
                                 {{ form.exchange_credentials.label }}
                             </label>
                             <div class="relative pt-1 mt-1 sm:mt-0 sm:col-span-2">
@@ -58,98 +66,32 @@
                 </form>
             </div>
         </div>
-        <div class="mx-8 mt-5 bg-gray-50">
-            {% for symbol, rebates in rebates_data.items %}
-                <p>{{ symbol }}</p>
-                <div class="mt-5 mb-10">
-                    <div class="flex flex-col">
-                        <div class="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-                            <div class="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">
-                                <div class="shadow overflow-hidden border-b border-gray-200 sm:rounded-lg">
-                                    <table class="min-w-full">
-                                        <thead class="bg-indigo-100">
-                                        <tr>
-                                            <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
-                                                Timestamp
-                                            </th>
-                                            <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
-                                                Volume
-                                            </th>
-                                            <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
-                                                Expected Rebate
-                                            </th>
-                                            <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
-                                                Received Rebate
-                                            </th>
-                                            <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
-                                                Volume, $
-                                            </th>
-                                            <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
-                                                Expected Rebate, $
-                                            </th>
-                                            <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
-                                                Received Rebate, $
-                                            </th>
-                                        </tr>
-                                        </thead>
-                                        <tbody>
-                                            {% for item in rebates.data %}
-                                                <tr class="{% if forloop.counter|divisibleby:2 %}bg-gray-50{% else %}bg-white{% endif %} divide-x">
-                                                    <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
-                                                        {{ item.timestamp }}
-                                                    </td>
-                                                    <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
-                                                        {{ item.volume|floatformat:2|intcomma }}
-                                                    </td>
-                                                    <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
-                                                        {{ item.expected_rebate|floatformat:2|intcomma }}
-                                                    </td>
-                                                    <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
-                                                        {{ item.rebate|floatformat:2|intcomma }}
-                                                    </td>
-                                                    <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
-                                                        {{ item.volume_usd|floatformat:2|intcomma }}
-                                                    </td>
-                                                    <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
-                                                        {{ item.expected_rebate_usd|floatformat:2|intcomma }}
-                                                    </td>
-                                                    <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
-                                                        {{ item.rebate_usd|floatformat:2|intcomma }}
-                                                    </td>
-                                                </tr>
-                                            {% endfor %}
-                                        </tbody>
-                                        <tfoot>
-                                            <tr class="bg-gray-100">
-                                                <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
-                                                </td>
-                                                <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
-                                                    {{ rebates.total_volume|floatformat:2|intcomma }}
-                                                </td>
-                                                <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
-                                                    {{ rebates.total_expected_rebate|floatformat:2|intcomma }}
-                                                </td>
-                                                <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
-                                                    {{ rebates.total_rebate|floatformat:2|intcomma }}
-                                                </td>
-                                                <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
-                                                    {{ rebates.total_volume_usd|floatformat:2|intcomma }}
-                                                </td>
-                                                <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
-                                                    {{ rebates.total_expected_rebate_usd|floatformat:2|intcomma }}
-                                                </td>
-                                                <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
-                                                    {{ rebates.total_rebate_usd|floatformat:2|intcomma }}
-                                                </td>
-                                            </tr>
-                                        </tfoot>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            {% endfor %}
-        </div>
+        {% if report %}
+            <div class="mx-8 mt-5">
+                {% if report.type == ReportType.BY_ACCOUNT.value %}
+                    {% include 'rebate/includes/report_by_account.html' %}
+                {% elif report.type == ReportType.OVERALL.value %}
+                    {% include 'rebate/includes/report_overall.html' %}
+                {% endif %}
+            </div>
+        {% endif %}
     </div>
+
+    <script>
+        (function (){
+            function toggleAccountSelectBlock () {
+                let accountSelectBlock = document.getElementById('exchange-credentials-block');
+                let reportType = document.getElementById('id_type').value;
+
+                if (reportType === 'OVERALL') {
+                    accountSelectBlock.style.display = 'none';
+                    document.getElementById('id_exchange_credentials').value = '';
+                } else {
+                    accountSelectBlock.style.display = 'block';
+                }
+            }
+            toggleAccountSelectBlock();
+            document.getElementById('id_type').onchange = toggleAccountSelectBlock;
+        })();
+    </script>
 {% endblock %}
