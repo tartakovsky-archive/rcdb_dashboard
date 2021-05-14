@@ -15,7 +15,8 @@ class ReportType(TextChoices):
     OVERALL = 'OVERALL', 'Overall'
 
 
-class RebateCurrencies(TextChoices):
+class RebateCurrency(TextChoices):
+    ALL = 'ALL', 'All'
     EUR = 'EUR', 'EUR'
     GBP = 'GBP', 'GBP'
     BRL = 'BRL', 'BRL'
@@ -43,7 +44,7 @@ class RebatesForm(forms.Form):
         required=False
     )
     currencies = forms.MultipleChoiceField(
-        choices=RebateCurrencies.choices,
+        choices=RebateCurrency.choices,
         widget=forms.CheckboxSelectMultiple(),
         required=True
     )

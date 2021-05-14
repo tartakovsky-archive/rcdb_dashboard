@@ -11,7 +11,7 @@ from django.utils import timezone
 from rcdb_commons.lib.schemas.exchange import AccountType, SymbolEmpty
 from rcdb_commons.lib.stores import CredentialsStore, DataStore, DataType
 
-from .forms import ReportType, RebatesForm
+from .forms import ReportType, RebatesForm, RebateCurrency
 from .models import Bot, BotStatistic, ExchangeCredentials
 
 
@@ -505,7 +505,7 @@ class RebateReport:
         }
 
     def filter_df_by_rebate_currencies(self, df: pd.DataFrame) -> pd.DataFrame:
-        if not len(df):
+        if not len(df) or RebateCurrency.ALL.value in self.report_form.cleaned_data['currencies']:
             return df
         return df[df.symbol.isin(self.report_form.cleaned_data['currencies'])]
 
