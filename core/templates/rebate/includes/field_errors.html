@@ -1,0 +1,10 @@
+{% if field.errors %}
+    {% for error in field.errors %}
+        <small>{{ error }}</small>
+    {% endfor %}
+{% endif %}
+{% if field.non_field_errors %}
+    {% for error in field.non_field_errors %}
+        <small>{{ error }}</small>
+    {% endfor %}
+{% endif %}

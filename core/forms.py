@@ -15,6 +15,16 @@ class ReportType(TextChoices):
     OVERALL = 'OVERALL', 'Overall'
 
 
+class RebateCurrencies(TextChoices):
+    EUR = 'EUR', 'EUR'
+    GBP = 'GBP', 'GBP'
+    BRL = 'BRL', 'BRL'
+    TRY = 'TRY', 'TRY'
+    RUB = 'RUB', 'RUB'
+    UAH = 'UAH', 'UAH'
+    AUD = 'AUD', 'AUD'
+
+
 class ExchangeCredentialsChoiceField(forms.ModelChoiceField):
     def label_from_instance(self, obj: ExchangeCredentials):
         return f'{obj.name} | {obj.account_type_label} | {obj.label}'
@@ -26,6 +36,16 @@ class RebatesForm(forms.Form):
         label='Exchange credentials',
         queryset=ExchangeCredentials.objects.all(),
         required=False
+    )
+    excluded_exchange_credentials = forms.ModelMultipleChoiceField(
+        queryset=ExchangeCredentials.objects.all(),
+        widget=forms.CheckboxSelectMultiple(),
+        required=False
+    )
+    currencies = forms.MultipleChoiceField(
+        choices=RebateCurrencies.choices,
+        widget=forms.CheckboxSelectMultiple(),
+        required=True
     )
     timeframe = forms.ChoiceField(label='Timeframe', choices=TIMEFRAMES, initial=TIMEFRAMES[0])
     start_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}), required=False)

@@ -85,6 +85,9 @@ class RebatesView(LoginRequiredMixin, FormView):
             return super().get(request, *args, **kwargs)
         return self.post(request, *args, **kwargs)
 
+    def form_invalid(self, form):
+        return super().form_invalid(form)
+
     def form_valid(self, form: RebatesForm):
         return self.render_to_response(
             {

@@ -467,7 +467,11 @@ class RebateReport:
         self.exchange_credentials_list = (
             [form_data['exchange_credentials']]
             if form_data['exchange_credentials'] and form_data['type'] == ReportType.BY_ACCOUNT.value else
-            ExchangeCredentials.objects.all()
+            ExchangeCredentials.objects.exclude(
+                id__in=list(
+                    map(operator.attrgetter('id'), form_data['excluded_exchange_credentials'])
+                )
+            )
         )
         self.report_form = report_form
         self.exchange_credentials_account_map = {
@@ -475,14 +479,16 @@ class RebateReport:
         }
 
     def generate_report(self) -> dict:
-        rebates = self.filter_df_by_get_dt(
-            concat_dfs_safe([
-                DataStoreDataSynchronizer.get_df_statistics(exchange_credentials, 'rebates').assign(
-                    account_type=exchange_credentials.account_type,
-                    name=exchange_credentials.name
-                )
-                for exchange_credentials in self.exchange_credentials_list
-            ])
+        rebates = self.filter_df_by_rebate_currencies(
+            self.filter_df_by_get_dt(
+                concat_dfs_safe([
+                    DataStoreDataSynchronizer.get_df_statistics(exchange_credentials, 'rebates').assign(
+                        account_type=exchange_credentials.account_type,
+                        name=exchange_credentials.name
+                    )
+                    for exchange_credentials in self.exchange_credentials_list
+                ])
+            )
         )
 
         summary_method = {
@@ -497,6 +503,11 @@ class RebateReport:
                 for symbol, df in df_dict_group(rebates, 'symbol').items()
             }
         }
+
+    def filter_df_by_rebate_currencies(self, df: pd.DataFrame) -> pd.DataFrame:
+        if not len(df):
+            return df
+        return df[df.symbol.isin(self.report_form.cleaned_data['currencies'])]
 
     def filter_df_by_get_dt(self, df: pd.DataFrame) -> pd.DataFrame:
         if not len(df):
@@ -518,6 +529,7 @@ class RebateReport:
 
     def calculate_overall_summary(self, rebates: pd.DataFrame) -> dict:
         summary = {
+            'total_volume': 0,
             'total_rebate': 0,
             'total_expected_rebate': 0,
             'total_difference': 0,
@@ -544,6 +556,7 @@ class RebateReport:
 
     def _calculate_overall_totals(self, rebates: pd.DataFrame) -> dict:
         return {
+            'total_volume': rebates.volume.sum(),
             'total_rebate': rebates.rebate.sum(),
             'total_expected_rebate': rebates.expected_rebate.sum(),
             'total_difference': rebates.difference.sum()
@@ -571,22 +584,25 @@ class RebateReport:
         summary['data'] = aggregated_rebates.to_dict(orient='records')
         return summary
 
-    @staticmethod
-    def aggregate_rebates(rebates: pd.DataFrame, timeframe: str) -> pd.DataFrame:
+    @classmethod
+    def aggregate_rebates(cls, rebates: pd.DataFrame, timeframe: str) -> pd.DataFrame:
         rebates = rebates.copy().sort_values('timestamp')
         rebates['ts'] = rebates.timestamp
         dt_format = {
             '1H': '%d/%m/%Y %H:%M:%S',
             '1D': '%d/%m/%Y',
-            '1W': '%Y-%U',
             '1M': '%Y/%m',
         }
 
-        rebates.timestamp = rebates.timestamp.dt.strftime(dt_format[timeframe])
-        if timeframe == '1H':
-            return rebates.sort_values('ts', ascending=False)
+        if timeframe == '1W':
+            rebates.timestamp = rebates.timestamp.apply(cls.week_string)
+        else:
+            rebates.timestamp = rebates.timestamp.dt.strftime(dt_format[timeframe])
 
-        return (
+            if timeframe == '1H':
+                return rebates.sort_values('ts', ascending=False)
+
+        rebates = (
             rebates
             .groupby('timestamp')
             .agg(
@@ -604,6 +620,15 @@ class RebateReport:
             .reset_index()
             .sort_values('ts', ascending=False)
         )
+        return rebates
+
+    @staticmethod
+    def week_string(dt: pd.Timestamp) -> str:
+        dt = dt.to_pydatetime().date()
+        start_of_week = dt - datetime.timedelta(days=dt.weekday())
+        end_of_week = start_of_week + datetime.timedelta(days=6)
+        dt_format = '%d/%m/%Y'
+        return f'{start_of_week.strftime(dt_format)} - {end_of_week.strftime(dt_format)}'
 
 
 def update_account_statistics(datastore: DataStore, exchange_credentials: ExchangeCredentials):

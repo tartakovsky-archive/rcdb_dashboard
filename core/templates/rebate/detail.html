@@ -15,6 +15,7 @@
                             </label>
                             <div class="relative pt-1 mt-1 sm:mt-0 sm:col-span-2">
                                 {{ form.type|cssclass:"relative bg-white border border-gray-300 rounded-md shadow-sm pl-3 pr-3 py-2 text-left cursor-default focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" }}
+                                {% include 'rebate/includes/field_errors.html' with field=form.type %}
                             </div>
                         </div>
                         <div id="exchange-credentials-block" class="px-4 py-4 sm:px-6">
@@ -23,6 +24,25 @@
                             </label>
                             <div class="relative pt-1 mt-1 sm:mt-0 sm:col-span-2">
                                 {{ form.exchange_credentials|cssclass:"relative bg-white border border-gray-300 rounded-md shadow-sm pl-3 pr-3 py-2 text-left cursor-default focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" }}
+                                {% include 'rebate/includes/field_errors.html' with field=form.exchange_credentials %}
+                            </div>
+                        </div>
+                        <div id="exchange-credentials-exclude-block" class="px-4 py-4 sm:px-6">
+                            <label id="select-account-label" class="block text-sm font-medium text-gray-700">
+                                Excluded accounts
+                            </label>
+                            <div class="relative pt-1 mt-1 sm:mt-0 sm:col-span-2">
+                                {{ form.excluded_exchange_credentials|cssclass:"relative bg-white border border-gray-300 rounded-md shadow-sm pl-3 pr-3 py-2 text-left cursor-default focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm max-h-20 overflow-y-auto" }}
+                                {% include 'rebate/includes/field_errors.html' with field=form.excluded_exchange_credentials %}
+                            </div>
+                        </div>
+                        <div id="overall-currencies" class="px-4 py-4 sm:px-6">
+                            <label id="select-account-label" class="block text-sm font-medium text-gray-700">
+                                Currencies
+                            </label>
+                            <div class="relative pt-1 mt-1 sm:mt-0 sm:col-span-2">
+                                {{ form.currencies|cssclass:"relative bg-white border border-gray-300 rounded-md shadow-sm pl-3 pr-3 py-2 text-left cursor-default focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm max-h-20 overflow-y-auto" }}
+                                {% include 'rebate/includes/field_errors.html' with field=form.currencies only %}
                             </div>
                         </div>
                         <div class="px-4 py-4 sm:px-6">
@@ -31,6 +51,7 @@
                             </label>
                             <div class="pt-1 mt-1 sm:mt-0 sm:col-span-2">
                                 {{ form.timeframe|cssclass:"relative bg-white border border-gray-300 rounded-md shadow-sm pl-3 pr-3 py-2 text-left cursor-default focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" }}
+                                {% include 'rebate/includes/field_errors.html' with field=form.timeframe %}
                             </div>
                         </div>
                     </div>
@@ -53,7 +74,6 @@
                                 {{ form.end_time|cssclass:"bg-white border border-gray-300 rounded-md shadow-sm pl-3 pr-3 py-2 text-left cursor-default focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" }}
                             </div>
                         </div>
-
                         <div class="pb-4 px-4 flex">
                             <button
                                 type="submit"
@@ -82,12 +102,15 @@
             function toggleAccountSelectBlock () {
                 let accountSelectBlock = document.getElementById('exchange-credentials-block');
                 let reportType = document.getElementById('id_type').value;
+                let accountExcludeBlock = document.getElementById('exchange-credentials-exclude-block');
 
                 if (reportType === 'OVERALL') {
                     accountSelectBlock.style.display = 'none';
+                    accountExcludeBlock.style.display = 'block';
                     document.getElementById('id_exchange_credentials').value = '';
                 } else {
                     accountSelectBlock.style.display = 'block';
+                    accountExcludeBlock.style.display = 'none';
                 }
             }
             toggleAccountSelectBlock();
