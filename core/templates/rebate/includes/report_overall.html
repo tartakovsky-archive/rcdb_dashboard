@@ -1,129 +1,155 @@
 {% load extras %}
 {% load humanize %}
 
-{% for symbol, symbol_data in report.report_data.items %}
-    <p>{{ symbol }}</p>
-    {% for account_data in symbol_data.accounts_data %}
-        <p>{{ account_data.exchange_credentials.name }} {% if account_data.exchange_credentials.account_id %}({{ account_data.exchange_credentials.account_id }}){% endif %} {{ account_data.exchange_credentials.account_type_label }}</p>
-        <div class="mt-5 mb-10">
-            <div class="flex flex-col">
-                <div class="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-                    <div class="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">
-                        <div class="shadow overflow-hidden border-b border-gray-200 sm:rounded-lg">
-                            <table class="min-w-full">
-                                <thead class="bg-indigo-100">
-                                    <tr>
-                                        <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
-                                            Timestamp
-                                        </th>
-                                        <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
-                                            Volume
-                                        </th>
-                                        <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
-                                            Expected Rebate
-                                        </th>
-                                        <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
-                                            Received Rebate
-                                        </th>
-                                        <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
-                                            Difference
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for item in account_data.data %}
-                                        <tr class="{% if forloop.counter|divisibleby:2 %}bg-gray-50{% else %}bg-white{% endif %} divide-x">
-                                            <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
-                                                {{ item.timestamp }}
-                                            </td>
-                                            <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
-                                                {{ item.volume|floatformat:2|intcomma }}
-                                            </td>
-                                            <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
-                                                {{ item.expected_rebate|floatformat:2|intcomma }}
-                                            </td>
-                                            <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
-                                                {{ item.rebate|floatformat:2|intcomma }}
-                                            </td>
-                                            <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
-                                                {{ item.difference|floatformat:2|intcomma }}
-                                            </td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                                <tfoot>
-                                    <tr class="bg-gray-100">
-                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
-                                        </td>
-                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
-                                            {{ account_data.total_volume|floatformat:2|intcomma }}
-                                        </td>
-                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
-                                            {{ account_data.total_expected_rebate|floatformat:2|intcomma }}
-                                        </td>
-                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
-                                            {{ account_data.total_rebate|floatformat:2|intcomma }}
-                                        </td>
-                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
-                                            {{ account_data.total_difference|floatformat:2|intcomma }}
-                                        </td>
-                                    </tr>
-                                </tfoot>
-                            </table>
+<div class="bg-white shadow overflow-hidden sm:rounded-md">
+    <ul class="divide-y divide-gray-200">
+        {% for symbol, symbol_data in report.report_data.items %}
+            <li>
+                <a href="#" data-symbol="{{ symbol }}" class="rebate-summary block hover:bg-gray-50">
+                    <div class="px-4 py-4 flex items-center sm:px-6">
+                        <div class="min-w-0 flex-1 sm:flex sm:items-center sm:justify-between">
+                            <div class="truncate">
+                                <div class="flex text-sm">
+                                    <p class="font-medium text-gray-600 truncate">{{ symbol }}</p>
+                                    {% if symbol_data.total_difference != 0 %}
+                                        <span class="ml-1 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                            Missing rebates
+                                        </span>
+                                    {% else %}
+                                        <span class="ml-1 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                            Received in full
+                                        </span>
+                                    {% endif %}
+                                </div>
+                                <div class="mt-2 flex">
+                                    <div class="flex items-center text-sm text-gray-500">
+                                        <dl class="-mx-8 -mt-8 flex flex-wrap">
+                                            <div class="flex flex-col px-8 pt-8">
+                                                <dt class="order-2 text-sm font-medium text-gray-500">
+                                                    Volume
+                                                </dt>
+                                                <dd class="order-1 text-xl font-extrabold text-indigo-600 sm:text-xl">
+                                                    {{ symbol_data.total_volume|floatformat:2|intcomma }}
+                                                </dd>
+                                            </div>
+                                            <div class="flex flex-col px-8 pt-8">
+                                                <dt class="order-2 text-sm font-medium text-gray-500">
+                                                    Expected
+                                                </dt>
+                                                <dd class="order-1 text-xl font-extrabold text-indigo-600 sm:text-xl">
+                                                    {{ symbol_data.total_expected_rebate|floatformat:2|intcomma }}
+                                                </dd>
+                                            </div>
+                                            <div class="flex flex-col px-8 pt-8">
+                                                <dt class="order-2 text-sm font-medium text-gray-500">
+                                                    Received
+                                                </dt>
+                                                <dd class="order-1 text-xl font-extrabold text-indigo-600 sm:text-xl">
+                                                    {{ symbol_data.total_rebate|floatformat:2|intcomma }}
+                                                </dd>
+                                            </div>
+                                            <div class="flex flex-col px-8 pt-8">
+                                                <dt class="order-2 text-sm font-medium text-gray-500">
+                                                    Difference
+                                                </dt>
+                                                <dd class="order-1 text-xl font-extrabold text-indigo-600 sm:text-xl">
+                                                    {{ symbol_data.total_difference|floatformat:2|intcomma }}
+                                                </dd>
+                                            </div>
+                                        </dl>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ml-5 flex-shrink-0">
+                            <!-- Heroicon name: solid/chevron-right -->
+                            <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg"
+                                 viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fill-rule="evenodd"
+                                      d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                                      clip-rule="evenodd"/>
+                            </svg>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-    {% endfor %}
-    <p>{{ symbol }} Total</p>
-    <div class="mt-5 mb-10">
-        <div class="flex flex-col">
-            <div class="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-                <div class="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">
-                    <div class="shadow overflow-hidden border-b border-gray-200 sm:rounded-lg">
-                        <table class="min-w-full">
-                            <thead class="bg-indigo-100">
-                                <tr>
-                                    <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
-                                        Timestamp
-                                    </th>
-                                    <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
-                                        Volume
-                                    </th>
-                                    <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
-                                        Expected Rebate
-                                    </th>
-                                    <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
-                                        Received Rebate
-                                    </th>
-                                    <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
-                                        Difference
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr class="bg-white divide-x">
-                                    <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
-                                    </td>
-                                    <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
-                                        {{ symbol_data.total_volume|floatformat:2|intcomma }}
-                                    </td>
-                                    <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
-                                        {{ symbol_data.total_expected_rebate|floatformat:2|intcomma }}
-                                    </td>
-                                    <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
-                                        {{ symbol_data.total_rebate|floatformat:2|intcomma }}
-                                    </td>
-                                    <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
-                                        {{ symbol_data.total_difference|floatformat:2|intcomma }}
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
+                </a>
+                {% for account_data in symbol_data.accounts_data %}
+                    <div class="px-4 py-4 sm:px-6 report-detail report-detail-{{ symbol }}">
+                        <div class="flex text-sm">
+                            <div class="font-bold text-gray-600 truncate">{{ symbol }}</div>
+                            <div class="ml-1 font-normal text-gray-600 truncate">| {{ account_data.exchange_credentials.name }} {{ account_data.exchange_credentials.account_type_label }} {% if account_data.exchange_credentials.account_id %}{{ account_data.exchange_credentials.account_id }}{% endif %}</div>
+                        </div>
+
+                        <div class="flex flex-col">
+                            <div class="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+                                <div class="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">
+                                    <div class="shadow overflow-hidden border-b border-gray-200 sm:rounded-lg">
+                                        <table class="min-w-full">
+                                            <thead class="bg-indigo-100">
+                                                <tr>
+                                                    <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
+                                                        Timestamp
+                                                    </th>
+                                                    <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
+                                                        Volume
+                                                    </th>
+                                                    <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
+                                                        Expected Rebate
+                                                    </th>
+                                                    <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
+                                                        Received Rebate
+                                                    </th>
+                                                    <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
+                                                        Difference
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for item in account_data.data %}
+                                                    <tr class="{% if forloop.counter|divisibleby:2 %}bg-gray-50{% else %}bg-white{% endif %} divide-x">
+                                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
+                                                            {{ item.timestamp }}
+                                                        </td>
+                                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+                                                            {{ item.volume|floatformat:2|intcomma }}
+                                                        </td>
+                                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+                                                            {{ item.expected_rebate|floatformat:2|intcomma }}
+                                                        </td>
+                                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+                                                            {{ item.rebate|floatformat:2|intcomma }}
+                                                        </td>
+                                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
+                                                            {{ item.difference|floatformat:2|intcomma }}
+                                                        </td>
+                                                    </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                            <tfoot>
+                                                <tr class="bg-gray-100">
+                                                    <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
+                                                    </td>
+                                                    <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
+                                                        {{ account_data.total_volume|floatformat:2|intcomma }}
+                                                    </td>
+                                                    <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
+                                                        {{ account_data.total_expected_rebate|floatformat:2|intcomma }}
+                                                    </td>
+                                                    <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
+                                                        {{ account_data.total_rebate|floatformat:2|intcomma }}
+                                                    </td>
+                                                    <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
+                                                        {{ account_data.total_difference|floatformat:2|intcomma }}
+                                                    </td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-{% endfor %}
+                {% endfor %}
+            </li>
+        {% endfor %}
+    </ul>
+</div>

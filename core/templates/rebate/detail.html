@@ -99,6 +99,20 @@
 
     <script>
         (function (){
+            function toggleRebatesDetails (symbol) {
+                console.log('toggleRebatesDetails', symbol)
+                Array.from(document.getElementsByClassName('report-detail-' +  symbol)).forEach(
+                    element => element.style.display = (element.style.display === 'none' ? 'block' : 'none')
+                )
+            }
+
+            function hideAllRebatesDetails () {
+                console.log('hideAllRebatesDetails')
+                Array.from(document.getElementsByClassName('report-detail')).forEach(
+                    element => element.style.display = 'none'
+                )
+            }
+
             function toggleAccountSelectBlock () {
                 let accountSelectBlock = document.getElementById('exchange-credentials-block');
                 let reportType = document.getElementById('id_type').value;
@@ -113,8 +127,12 @@
                     accountExcludeBlock.style.display = 'none';
                 }
             }
+            hideAllRebatesDetails();
             toggleAccountSelectBlock();
             document.getElementById('id_type').onchange = toggleAccountSelectBlock;
+            Array.from(document.getElementsByClassName('rebate-summary')).forEach(
+                (element) => element.onclick = () => toggleRebatesDetails(element.dataset.symbol)
+            );
         })();
     </script>
 {% endblock %}
