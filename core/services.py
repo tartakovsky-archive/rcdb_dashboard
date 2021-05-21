@@ -293,7 +293,7 @@ class DataStoreDataSynchronizer:
                 since=(
                     df_local[df_local.symbol == market].timestamp.max().to_pydatetime()
                     if len(df_local) and (df_local.symbol == market).any() else
-                    (datetime.datetime.utcnow() - datetime.timedelta(days=30))
+                    (datetime.datetime.utcnow() - datetime.timedelta(days=4*30))
                 ),
                 name=exchange_credentials.name,
                 symbol=market,
@@ -310,7 +310,7 @@ class DataStoreDataSynchronizer:
             since=(
                 df_local.timestamp.max().to_pydatetime()
                 if len(df_local) else
-                (datetime.datetime.utcnow() - datetime.timedelta(days=30))
+                (datetime.datetime.utcnow() - datetime.timedelta(days=4*30))
             ),
             name=exchange_credentials.name,
             account_type=exchange_credentials.account_type
@@ -341,7 +341,7 @@ class DataStoreDataSynchronizer:
         return df
 
     @staticmethod
-    def concat_dfs_safe_with_cut_history(dfs: List[pd.DataFrame], td=datetime.timedelta(days=30)) -> pd.DataFrame:
+    def concat_dfs_safe_with_cut_history(dfs: List[pd.DataFrame], td=datetime.timedelta(days=4*30)) -> pd.DataFrame:
         df = concat_dfs_safe(dfs)
         if len(df):
             df = df[df.timestamp >= (datetime.datetime.utcnow() - td)]
