@@ -438,17 +438,7 @@ class StatisticsCalculator:
         df['expected_rebate'] = df.volume * rebate_percent
         df['expected_rebate_usd'] = df.volume_usd * rebate_percent
         df = df[['timestamp', 'expected_rebate', 'expected_rebate_usd', 'symbol', 'volume', 'volume_usd']].reset_index()
-        is_before_half_hour = df.timestamp.dt.minute <= 30
-        is_after_half_hour = ~is_before_half_hour
-        df['rebate_time'] = pd.NaT
-        df.loc[is_before_half_hour, 'rebate_time'] = (
-            df.loc[is_before_half_hour, 'timestamp'].apply(lambda x: x.replace(minute=30))
-        )
-        df.loc[is_after_half_hour, 'rebate_time'] = (
-            df.loc[is_after_half_hour, 'timestamp'].apply(lambda x: x.replace(minute=30) + datetime.timedelta(hours=1))
-        )
-        df.drop('timestamp', axis=1, inplace=True)
-        df.rename(columns={'rebate_time': 'timestamp'}, inplace=True)
+        df.timestamp = df.timestamp.dt.floor('H')
         df = df.groupby(['symbol', 'timestamp']).agg(
             {
                 'expected_rebate': 'sum',
@@ -585,25 +575,48 @@ class RebateReport:
         return summary
 
     @classmethod
+    def group_field(cls, timeframe: str, timestamp: pd.Series) -> pd.Series:
+        return {
+            '1H': cls._1H_group_field,
+            '1D': cls._1D_group_field,
+            '1W': cls._1W_group_field,
+            '1M': cls._1M_group_field,
+        }[timeframe](timestamp)
+
+    @staticmethod
+    def _1H_group_field(timestamp: pd.Series) -> pd.Series:
+        return (
+            timestamp
+            .dt.strftime('%d/%m/%Y %H:%M')
+            .str.cat((timestamp + datetime.timedelta(hours=1)).dt.strftime(' - %H:%M'))
+        )
+
+    @staticmethod
+    def _1D_group_field(timestamp: pd.Series) -> pd.Series:
+        return (
+            timestamp
+            .dt.strftime('%d/%m/%Y')
+            .str.cat((timestamp + datetime.timedelta(days=1)).dt.strftime(' - %d/%m/%Y'))
+        )
+
+    @classmethod
+    def _1W_group_field(cls, timestamp: pd.Series) -> pd.Series:
+        return timestamp.apply(cls.week_string)
+
+    @staticmethod
+    def _1M_group_field(timestamp: pd.Series) -> pd.Series:
+        return timestamp.dt.strftime('%Y/%m')
+
+    @classmethod
     def aggregate_rebates(cls, rebates: pd.DataFrame, timeframe: str) -> pd.DataFrame:
-        rebates = rebates.copy().sort_values('timestamp')
-        rebates['ts'] = rebates.timestamp
-        dt_format = {
-            '1H': '%d/%m/%Y %H:%M:%S',
-            '1D': '%d/%m/%Y',
-            '1M': '%Y/%m',
-        }
-
-        if timeframe == '1W':
-            rebates.timestamp = rebates.timestamp.apply(cls.week_string)
-        else:
-            rebates.timestamp = rebates.timestamp.dt.strftime(dt_format[timeframe])
-
-            if timeframe == '1H':
-                return rebates.sort_values('ts', ascending=False)
-
-        rebates = (
+        return (
             rebates
+            .copy()
+            .sort_values('timestamp')
+            .assign(
+                timestamp=cls.group_field(timeframe, rebates.timestamp),
+                ts=rebates.timestamp
+            )
             .groupby('timestamp')
             .agg(
                 {
@@ -620,7 +633,6 @@ class RebateReport:
             .reset_index()
             .sort_values('ts', ascending=False)
         )
-        return rebates
 
     @staticmethod
     def week_string(dt: pd.Timestamp) -> str:
