@@ -537,6 +537,7 @@ class RebateReport:
             aggregated_account_rebates = self.aggregate_rebates(
                 account_rebates, self.report_form.cleaned_data['timeframe']
             )
+            aggregated_account_rebates = aggregated_account_rebates[aggregated_account_rebates.difference > 0.001]
             account_data = self._calculate_overall_totals(aggregated_account_rebates)
             account_data['data'] = aggregated_account_rebates.to_dict(orient='records')
             account_data['exchange_credentials'] = self.exchange_credentials_account_map[account]
