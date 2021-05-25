@@ -424,8 +424,6 @@ class RebateReport:
         if not len(rebates):
             return summary
 
-        summary.update(self._calculate_overall_totals(rebates))
-
         for account, account_rebates in df_dict_group(rebates, ['name', 'account_type']).items():
             aggregated_account_rebates = self.aggregate_rebates(
                 account_rebates, self.report_form.cleaned_data['timeframe']
@@ -434,9 +432,15 @@ class RebateReport:
             account_data['data'] = aggregated_account_rebates.to_dict(
                 orient='records'
             )
-            account_data['exchange_credentials'] = self.exchange_credentials_account_map[account]
-            summary['accounts_data'].append(account_data)
+            try:
+                account_data['exchange_credentials'] = self.exchange_credentials_account_map[account]
+                summary['accounts_data'].append(account_data)
+            except KeyError:
+                logging.warning(f'No {account} in db')
+                name, account_type = account
+                rebates = rebates[~((rebates.account_type == account_type) & (rebates.name == name))]
 
+        summary.update(self._calculate_overall_totals(rebates))
         return summary
 
     def _calculate_overall_totals(self, rebates: pd.DataFrame) -> dict:
