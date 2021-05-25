@@ -103,7 +103,6 @@ def test_update_account_statistics_no_markets(bot: Bot, mocker):
     exchange_credentials.save()
 
     mocker.patch('core.services.DataStoreDataSynchronizer.get_updated_trades', return_value=pd.DataFrame([]))
-    mocker.patch('core.services.DataStoreDataSynchronizer.get_updated_rebates', return_value=pd.DataFrame([]))
 
     update_account_statistics(None, exchange_credentials)
     assert exchange_credentials.statistics['updated']

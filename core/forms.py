@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError
 
 from .models import ExchangeCredentials
 
-TIMEFRAMES = [('1H', '1H'), ('1D', '1D'), ('1W', '1W'), ('1M', '1M')]
+TIMEFRAMES = [('H', '1H'), ('D', '1D'), ('W', '1W'), ('M', '1M')]
 
 
 class ReportType(TextChoices):

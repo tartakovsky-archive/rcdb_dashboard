@@ -1,6 +1,8 @@
 from django.views.generic import ListView, DetailView, FormView
 from django.db.models import Count, Sum, Q
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.conf import settings
+from rcdb_commons.lib.stores import DataStore
 
 from .models import Owner, ExchangeCredentials
 from .forms import RebatesForm, ReportType
@@ -92,7 +94,9 @@ class RebatesView(LoginRequiredMixin, FormView):
         return self.render_to_response(
             {
                 'form': form,
-                'report': RebateReport(form).generate_report(),
+                'report': RebateReport(
+                    form, DataStore(settings.DATASTORE_URL, settings.DATASTORE_TOKEN)
+                ).generate_report(),
                 'ReportType': ReportType
             }
         )

@@ -5,13 +5,12 @@ from typing import Generator, Optional, Dict, List, Tuple, Union, Iterable
 
 import pytz
 import ccxt
-import numpy as np
 import pandas as pd
 from django.utils import timezone
 from rcdb_commons.lib.schemas.exchange import AccountType, SymbolEmpty
 from rcdb_commons.lib.stores import CredentialsStore, DataStore, DataType
 
-from .forms import ReportType, RebatesForm, RebateCurrency
+from .forms import ReportType, RebatesForm
 from .models import Bot, BotStatistic, ExchangeCredentials
 
 
@@ -293,7 +292,7 @@ class DataStoreDataSynchronizer:
                 since=(
                     df_local[df_local.symbol == market].timestamp.max().to_pydatetime()
                     if len(df_local) and (df_local.symbol == market).any() else
-                    (datetime.datetime.utcnow() - datetime.timedelta(days=4*30))
+                    (datetime.datetime.utcnow() - datetime.timedelta(days=30))
                 ),
                 name=exchange_credentials.name,
                 symbol=market,
@@ -302,20 +301,6 @@ class DataStoreDataSynchronizer:
             for market in exchange_credentials.meta.get('markets', [])
         ]
         return self.concat_dfs_safe_with_cut_history([df_local, *markets_data])
-
-    def get_updated_rebates(self, exchange_credentials: ExchangeCredentials) -> pd.DataFrame:
-        df_local = self.get_df_statistics(exchange_credentials, 'raw_rebates')
-        df_updates = self.fetch_from_datastore(
-            data_type=DataType.rebates,
-            since=(
-                df_local.timestamp.max().to_pydatetime()
-                if len(df_local) else
-                (datetime.datetime.utcnow() - datetime.timedelta(days=4*30))
-            ),
-            name=exchange_credentials.name,
-            account_type=exchange_credentials.account_type
-        )
-        return self.concat_dfs_safe_with_cut_history([df_local, df_updates])
 
     def fetch_from_datastore(self, data_type: DataType, since: datetime.datetime, **params) -> pd.DataFrame:
         df = pd.DataFrame([])
@@ -341,7 +326,7 @@ class DataStoreDataSynchronizer:
         return df
 
     @staticmethod
-    def concat_dfs_safe_with_cut_history(dfs: List[pd.DataFrame], td=datetime.timedelta(days=4*30)) -> pd.DataFrame:
+    def concat_dfs_safe_with_cut_history(dfs: List[pd.DataFrame], td=datetime.timedelta(days=30)) -> pd.DataFrame:
         df = concat_dfs_safe(dfs)
         if len(df):
             df = df[df.timestamp >= (datetime.datetime.utcnow() - td)]
@@ -372,87 +357,13 @@ class StatisticsCalculator:
             statistics[f'{key}_trades_count'] = int(
                 (data.trades_count_buy + data.trades_count_sell).sum()
             )
-        statistics['expected_rebates'] = cls.expected_rebates(trades)
         statistics['trades'] = df_to_list(trades)
         return statistics
 
-    @classmethod
-    def rebates_statistics(cls, rebates: pd.DataFrame, expected_rebates: pd.DataFrame) -> dict:
-        if len(rebates):
-            rebates = rebates.set_index('timestamp')
-            rebates_symbol_map = df_dict_group(rebates, 'symbol')
-        else:
-            rebates_symbol_map = {}
-
-        expected_rebates_symbol_map = df_dict_group(expected_rebates, 'symbol')
-
-        res = {}
-        df: pd.DataFrame
-        for symbol, df in expected_rebates_symbol_map.items():
-            rebate = rebates_symbol_map.get(symbol)
-            if rebate is None:
-                rebate = pd.DataFrame(index=df.index)
-                rebate['rebate'] = 0.
-                rebate['rebate_usd'] = 0.
-            rebate.index = rebate.index.map(lambda x: x.replace(second=0))
-            res[symbol] = df.merge(rebate, how='outer', left_index=True, right_index=True)
-
-        res_df = concat_dfs_safe([df.assign(symbol=symbol) for symbol, df in res.items()]).fillna(0.)
-        if len(res_df):
-            res_df = res_df[
-                ['symbol', 'volume', 'expected_rebate', 'rebate', 'volume_usd', 'expected_rebate_usd', 'rebate_usd']
-            ]
-        return {
-            'raw_rebates': df_to_list(rebates),
-            'rebates': df_to_list(res_df)
-        }
-
-    @staticmethod
-    def expected_rebates(
-        trades: pd.DataFrame,
-        fiat_symbols: tuple = ('EUR', 'GBP', 'AUD', 'BRL', 'TRY', 'RUB', 'UAH'),
-        rebate_percent: float = 0.00005
-    ) -> pd.DataFrame:
-        df = trades.copy()
-
-        def symbol_replacer(symbol: str) -> str:
-            for fiat_symbol in fiat_symbols:
-                if symbol.startswith(f'{fiat_symbol}/') or symbol.endswith(f'/{fiat_symbol}'):
-                    return fiat_symbol
-
-        is_startswith_fiat = df.symbol.str.startswith(tuple(map(lambda s: f'{s}/', fiat_symbols)))
-        is_endswith_fiat = df.symbol.str.endswith(tuple(map(lambda s: f'/{s}', fiat_symbols)))
-        df.symbol = df.symbol.apply(symbol_replacer)
-        df['volume'] = 0.
-        df['volume_usd'] = df.volume_buy_usd + df.volume_sell_usd
-        df.loc[is_endswith_fiat, 'volume'] = (
-            df.loc[is_endswith_fiat, 'volume_buy'] + df.loc[is_endswith_fiat, 'volume_sell']
-        )
-        df.loc[is_startswith_fiat, 'volume'] = (
-            (
-                df.loc[is_startswith_fiat, 'volume_buy'] / df.loc[is_startswith_fiat, 'price_avg_buy']
-            ).fillna(0.) + (
-                df.loc[is_startswith_fiat, 'volume_sell'] / df.loc[is_startswith_fiat, 'price_avg_sell']
-            ).fillna(0.)
-        )
-        df['expected_rebate'] = df.volume * rebate_percent
-        df['expected_rebate_usd'] = df.volume_usd * rebate_percent
-        df = df[['timestamp', 'expected_rebate', 'expected_rebate_usd', 'symbol', 'volume', 'volume_usd']].reset_index()
-        df.timestamp = df.timestamp.dt.floor('H')
-        df = df.groupby(['symbol', 'timestamp']).agg(
-            {
-                'expected_rebate': 'sum',
-                'volume': 'sum',
-                'expected_rebate_usd': 'sum',
-                'volume_usd': 'sum'
-            }
-        )
-
-        return concat_dfs_safe([df.loc[symbol].assign(symbol=symbol) for symbol in df.index.unique(level=0)])
-
 
 class RebateReport:
-    def __init__(self, report_form: RebatesForm):
+    def __init__(self, report_form: RebatesForm, data_store: DataStore):
+        self.data_store = data_store
         form_data = report_form.cleaned_data
         self.exchange_credentials_list = (
             [form_data['exchange_credentials']]
@@ -469,18 +380,7 @@ class RebateReport:
         }
 
     def generate_report(self) -> dict:
-        rebates = self.filter_df_by_rebate_currencies(
-            self.filter_df_by_get_dt(
-                concat_dfs_safe([
-                    DataStoreDataSynchronizer.get_df_statistics(exchange_credentials, 'rebates').assign(
-                        account_type=exchange_credentials.account_type,
-                        name=exchange_credentials.name
-                    )
-                    for exchange_credentials in self.exchange_credentials_list
-                ])
-            )
-        )
-
+        rebates = self.fetch_report_rebates().reset_index()
         summary_method = {
             ReportType.BY_ACCOUNT: self.calculate_by_account_summary,
             ReportType.OVERALL: self.calculate_overall_summary
@@ -494,28 +394,24 @@ class RebateReport:
             }
         }
 
-    def filter_df_by_rebate_currencies(self, df: pd.DataFrame) -> pd.DataFrame:
-        if not len(df) or RebateCurrency.ALL.value in self.report_form.cleaned_data['currencies']:
-            return df
-        return df[df.symbol.isin(self.report_form.cleaned_data['currencies'])]
-
-    def filter_df_by_get_dt(self, df: pd.DataFrame) -> pd.DataFrame:
-        if not len(df):
-            return df
-
-        start = self.report_form.start
-        end = self.report_form.end
-
-        if start and end:
-            return df[(df.timestamp >= np.datetime64(start)) & (df.timestamp <= np.datetime64(end))]
-
-        if start:
-            return df[df.timestamp >= np.datetime64(start)]
-
-        if end:
-            return df[df.timestamp <= np.datetime64(end)]
-
-        return df
+    def fetch_report_rebates(self) -> pd.DataFrame:
+        data = self.report_form.cleaned_data
+        return self.data_store.read(
+            DataType.rebate_report,
+            query_params={
+                "start_datetime": self.report_form.start.isoformat(),
+                "end_datetime": self.report_form.end.isoformat(),
+                "timeframe": data['timeframe'],
+                "currencies": data['currencies'],
+                "account": {
+                    'name': data['exchange_credentials'].name,
+                    'account_type': data['exchange_credentials'].account_type
+                } if data['exchange_credentials'] else None,
+                "excluded_accounts": [
+                    {'name': ex.name, 'account_type': ex.account_type} for ex in data['excluded_exchange_credentials']
+                ]
+            }
+        )
 
     def calculate_overall_summary(self, rebates: pd.DataFrame) -> dict:
         summary = {
@@ -528,7 +424,6 @@ class RebateReport:
         if not len(rebates):
             return summary
 
-        rebates['difference'] = rebates.rebate - rebates.expected_rebate
         summary.update(self._calculate_overall_totals(rebates))
 
         for account, account_rebates in df_dict_group(rebates, ['name', 'account_type']).items():
@@ -577,10 +472,10 @@ class RebateReport:
     @classmethod
     def group_field(cls, timeframe: str, timestamp: pd.Series) -> pd.Series:
         return {
-            '1H': cls._1H_group_field,
-            '1D': cls._1D_group_field,
-            '1W': cls._1W_group_field,
-            '1M': cls._1M_group_field,
+            'H': cls._1H_group_field,
+            'D': cls._1D_group_field,
+            'W': cls._1W_group_field,
+            'M': cls._1M_group_field,
         }[timeframe](timestamp)
 
     @staticmethod
@@ -617,20 +512,6 @@ class RebateReport:
                 timestamp=cls.group_field(timeframe, rebates.timestamp),
                 ts=rebates.timestamp
             )
-            .groupby('timestamp')
-            .agg(
-                {
-                    'volume': 'sum',
-                    'rebate': 'sum',
-                    'expected_rebate': 'sum',
-                    'volume_usd': 'sum',
-                    'rebate_usd': 'sum',
-                    'expected_rebate_usd': 'sum',
-                    'ts': 'first',
-                    **({'difference': 'sum'} if 'difference' in rebates.columns else {}),
-                }
-            )
-            .reset_index()
             .sort_values('ts', ascending=False)
         )
 
@@ -646,7 +527,6 @@ class RebateReport:
 def update_account_statistics(datastore: DataStore, exchange_credentials: ExchangeCredentials):
     datastore_manager = DataStoreDataSynchronizer(datastore)
     trades = datastore_manager.get_updated_trades(exchange_credentials)
-    rebates = datastore_manager.get_updated_rebates(exchange_credentials)
 
     exchange_credentials.statistics = {
         'h1_usd_volume': None,
@@ -657,20 +537,11 @@ def update_account_statistics(datastore: DataStore, exchange_credentials: Exchan
         'd7_trades_count': None,
         'updated': timezone.now().strftime('%d/%m/%Y %H:%M:%S'),
         'trades': [],
-        'rebates': [],
-        'raw_rebates': []
     }
 
-    statistics = {
+    exchange_credentials.statistics = {
         **exchange_credentials.statistics,
         **(StatisticsCalculator.trades_statistics(trades) if len(trades) else {}),
-    }
-    exchange_credentials.statistics = {
-        **statistics,
-        **StatisticsCalculator.rebates_statistics(
-            rebates,
-            statistics.pop('expected_rebates', pd.DataFrame([]))
-        )
     }
     exchange_credentials.save()
 
@@ -704,8 +575,8 @@ def df_dict_group(
 
     if isinstance(column_names, str):
         column_name = column_names
-        return {group_name: df[df[column_name] == group_name] for group_name in df[column_name].unique()}
+        return {group_name: df[df[column_name] == group_name] for group_name in sorted(df[column_name].unique())}
 
     df = df.copy()
     df['x'] = df[column_names].apply(tuple, axis=1)
-    return {group: df[df.x == group].drop('x', axis=1) for group in df.x.unique()}
+    return {group: df[df.x == group].drop('x', axis=1) for group in sorted(df.x.unique())}
