@@ -11,13 +11,13 @@
                             <div class="truncate">
                                 <div class="flex text-sm">
                                     <p class="font-medium text-gray-600 truncate">{{ symbol }}</p>
-                                    {% if symbol_data.total_difference|floatformat:2 != '0.00' %}
-                                        <span class="ml-1 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                                            Missing rebates
-                                        </span>
-                                    {% else %}
+                                    {% if symbol_data.total_difference|floatformat:2 == '0.00' or symbol_data.total_difference > 0 %}
                                         <span class="ml-1 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                                             Received in full
+                                        </span>
+                                    {% else %}
+                                        <span class="ml-1 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                            Missing rebates
                                         </span>
                                     {% endif %}
                                 </div>
