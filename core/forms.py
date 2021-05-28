@@ -26,9 +26,17 @@ class RebateCurrency(TextChoices):
     AUD = 'AUD', 'AUD'
 
 
-class ExchangeCredentialsChoiceField(forms.ModelChoiceField):
+class ExchangeCredentialsLabelMixin:
     def label_from_instance(self, obj: ExchangeCredentials):
         return f'{obj.name} | {obj.account_type_label} | {obj.label}'
+
+
+class ExchangeCredentialsChoiceField(ExchangeCredentialsLabelMixin, forms.ModelChoiceField):
+    pass
+
+
+class ExchangeCredentialsMultipleChoiceField(ExchangeCredentialsLabelMixin, forms.ModelMultipleChoiceField):
+    pass
 
 
 class RebatesForm(forms.Form):
@@ -38,7 +46,7 @@ class RebatesForm(forms.Form):
         queryset=ExchangeCredentials.objects.all(),
         required=False
     )
-    excluded_exchange_credentials = forms.ModelMultipleChoiceField(
+    excluded_exchange_credentials = ExchangeCredentialsMultipleChoiceField(
         queryset=ExchangeCredentials.objects.all(),
         widget=forms.CheckboxSelectMultiple(),
         required=False
