@@ -39,23 +39,7 @@ class ExchangeCredentialsMultipleChoiceField(ExchangeCredentialsLabelMixin, form
     pass
 
 
-class RebatesForm(forms.Form):
-    type = forms.ChoiceField(label='Type', choices=ReportType.choices, initial=ReportType.BY_ACCOUNT.value)
-    exchange_credentials = ExchangeCredentialsChoiceField(
-        label='Exchange credentials',
-        queryset=ExchangeCredentials.objects.all(),
-        required=False
-    )
-    excluded_exchange_credentials = ExchangeCredentialsMultipleChoiceField(
-        queryset=ExchangeCredentials.objects.all(),
-        widget=forms.CheckboxSelectMultiple(),
-        required=False
-    )
-    currencies = forms.MultipleChoiceField(
-        choices=RebateCurrency.choices,
-        widget=forms.CheckboxSelectMultiple(),
-        required=True
-    )
+class TimeframeForm(forms.Form):
     timeframe = forms.ChoiceField(label='Timeframe', choices=TIMEFRAMES, initial=TIMEFRAMES[0])
     start_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}), required=False)
     start_time = forms.TimeField(widget=forms.TimeInput(attrs={'type': 'time'}), required=False)
@@ -63,19 +47,13 @@ class RebatesForm(forms.Form):
     end_time = forms.TimeField(widget=forms.TimeInput(attrs={'type': 'time'}), required=False)
 
     def __init__(self, *args, **kwargs):
-        super(RebatesForm, self).__init__(*args, **kwargs)
+        super(TimeframeForm, self).__init__(*args, **kwargs)
         now = datetime.datetime.utcnow()
         self.fields['start_date'].widget.attrs['value'] = now.date().isoformat()
         self.fields['start_time'].widget.attrs['value'] = datetime.time(0, 0).isoformat()
 
         self.fields['end_date'].widget.attrs['value'] = now.date().isoformat()
         self.fields['end_time'].widget.attrs['value'] = datetime.time(23, 59).isoformat()
-
-    def clean(self):
-        cleaned_data = super().clean()
-        if not cleaned_data.get('exchange_credentials') and cleaned_data.get('type') == ReportType.BY_ACCOUNT.value:
-            raise ValidationError('exchange_credentials should be selected when used BY_ACCOUNT')
-        return cleaned_data
 
     @property
     def start(self) -> Optional[datetime.datetime]:
@@ -105,3 +83,28 @@ class RebatesForm(forms.Form):
             time = datetime.time(0, 0) if start else datetime.time(23, 59)
 
         return datetime.datetime.combine(date, time)
+
+
+class RebatesForm(TimeframeForm):
+    type = forms.ChoiceField(label='Type', choices=ReportType.choices, initial=ReportType.BY_ACCOUNT.value)
+    exchange_credentials = ExchangeCredentialsChoiceField(
+        label='Exchange credentials',
+        queryset=ExchangeCredentials.objects.all(),
+        required=False
+    )
+    excluded_exchange_credentials = ExchangeCredentialsMultipleChoiceField(
+        queryset=ExchangeCredentials.objects.all(),
+        widget=forms.CheckboxSelectMultiple(),
+        required=False
+    )
+    currencies = forms.MultipleChoiceField(
+        choices=RebateCurrency.choices,
+        widget=forms.CheckboxSelectMultiple(),
+        required=True
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if not cleaned_data.get('exchange_credentials') and cleaned_data.get('type') == ReportType.BY_ACCOUNT.value:
+            raise ValidationError('exchange_credentials should be selected when used BY_ACCOUNT')
+        return cleaned_data

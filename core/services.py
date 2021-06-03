@@ -361,117 +361,13 @@ class StatisticsCalculator:
         return statistics
 
 
-class RebateReport:
-    def __init__(self, report_form: RebatesForm, data_store: DataStore):
-        self.data_store = data_store
-        form_data = report_form.cleaned_data
-        self.exchange_credentials_list = (
-            [form_data['exchange_credentials']]
-            if form_data['exchange_credentials'] and form_data['type'] == ReportType.BY_ACCOUNT.value else
-            ExchangeCredentials.objects.exclude(
-                id__in=list(
-                    map(operator.attrgetter('id'), form_data['excluded_exchange_credentials'])
-                )
-            )
-        )
+class Report:
+    def __init__(self, report_form, data_store: DataStore):
         self.report_form = report_form
-        self.exchange_credentials_account_map = {
-            (ex.name, ex.account_type): ex for ex in self.exchange_credentials_list
-        }
+        self.data_store = data_store
 
     def generate_report(self) -> dict:
-        rebates = self.fetch_report_rebates().reset_index()
-        summary_method = {
-            ReportType.BY_ACCOUNT: self.calculate_by_account_summary,
-            ReportType.OVERALL: self.calculate_overall_summary
-        }[self.report_form.cleaned_data['type']]
-
-        return {
-            'type': self.report_form.cleaned_data['type'],
-            'report_data': {
-                symbol: summary_method(df)
-                for symbol, df in df_dict_group(rebates, 'symbol').items()
-            }
-        }
-
-    def fetch_report_rebates(self) -> pd.DataFrame:
-        data = self.report_form.cleaned_data
-        return self.data_store.read(
-            DataType.rebate_report,
-            query_params={
-                "start_datetime": self.report_form.start.isoformat(),
-                "end_datetime": self.report_form.end.isoformat(),
-                "timeframe": data['timeframe'],
-                "currencies": data['currencies'],
-                "account": {
-                    'name': data['exchange_credentials'].name,
-                    'account_type': data['exchange_credentials'].account_type
-                } if data['exchange_credentials'] else None,
-                "excluded_accounts": [
-                    {'name': ex.name, 'account_type': ex.account_type} for ex in data['excluded_exchange_credentials']
-                ]
-            }
-        )
-
-    def calculate_overall_summary(self, rebates: pd.DataFrame) -> dict:
-        summary = {
-            'total_volume': 0,
-            'total_rebate': 0,
-            'total_expected_rebate': 0,
-            'total_difference': 0,
-            'accounts_data': []
-        }
-        if not len(rebates):
-            return summary
-
-        for account, account_rebates in df_dict_group(rebates, ['name', 'account_type']).items():
-            aggregated_account_rebates = self.aggregate_rebates(
-                account_rebates, self.report_form.cleaned_data['timeframe']
-            )
-            account_data = self._calculate_overall_totals(aggregated_account_rebates)
-            account_data['data'] = aggregated_account_rebates.to_dict(
-                orient='records'
-            )
-            try:
-                account_data['exchange_credentials'] = self.exchange_credentials_account_map[account]
-                summary['accounts_data'].append(account_data)
-            except KeyError:
-                logging.warning(f'No {account} in db')
-                name, account_type = account
-                rebates = rebates[~((rebates.account_type == account_type) & (rebates.name == name))]
-
-        summary.update(self._calculate_overall_totals(rebates))
-        return summary
-
-    def _calculate_overall_totals(self, rebates: pd.DataFrame) -> dict:
-        return {
-            'total_volume': rebates.volume.sum(),
-            'total_rebate': rebates.rebate.sum(),
-            'total_expected_rebate': rebates.expected_rebate.sum(),
-            'total_difference': rebates.difference.sum()
-        }
-
-    def calculate_by_account_summary(self, rebates: pd.DataFrame) -> dict:
-        aggregated_rebates = self.aggregate_rebates(rebates, self.report_form.cleaned_data['timeframe'])
-        summary = (
-            {
-                'total_volume': aggregated_rebates.volume.sum(),
-                'total_rebate': aggregated_rebates.rebate.sum(),
-                'total_expected_rebate': aggregated_rebates.expected_rebate.sum(),
-                'total_volume_usd': aggregated_rebates.volume_usd.sum(),
-                'total_rebate_usd': aggregated_rebates.rebate_usd.sum(),
-                'total_expected_rebate_usd': aggregated_rebates.expected_rebate_usd.sum()
-            } if len(aggregated_rebates) else {
-                'total_volume': 0,
-                'total_rebate': 0,
-                'total_expected_rebate': 0,
-                'total_volume_usd': 0,
-                'total_rebate_usd': 0,
-                'total_expected_rebate_usd': 0
-            }
-        )
-        summary['data'] = aggregated_rebates.to_dict(orient='records')
-        return summary
+        raise NotImplementedError()
 
     @classmethod
     def group_field(cls, timeframe: str, timestamp: pd.Series) -> pd.Series:
@@ -507,14 +403,14 @@ class RebateReport:
         return timestamp.dt.strftime('%Y/%m')
 
     @classmethod
-    def aggregate_rebates(cls, rebates: pd.DataFrame, timeframe: str) -> pd.DataFrame:
+    def prettify_timestamp_by_timeframe(cls, df: pd.DataFrame, timeframe: str) -> pd.DataFrame:
         return (
-            rebates
+            df
             .copy()
             .sort_values('timestamp')
             .assign(
-                timestamp=cls.group_field(timeframe, rebates.timestamp),
-                ts=rebates.timestamp
+                timestamp=cls.group_field(timeframe, df.timestamp),
+                ts=df.timestamp
             )
             .sort_values('ts', ascending=False)
         )
@@ -526,6 +422,161 @@ class RebateReport:
         end_of_week = start_of_week + datetime.timedelta(days=6)
         dt_format = '%d/%m/%Y'
         return f'{start_of_week.strftime(dt_format)} - {end_of_week.strftime(dt_format)}'
+
+
+class PairVolumesReport(Report):
+    def generate_report(self) -> dict:
+        volumes = self.fetch_report_volumes().reset_index()
+        return {
+            'report_data': {
+                symbol: self._calculate_summary(df)
+                for symbol, df in df_dict_group(volumes, 'symbol').items()
+            }
+        }
+
+    def _calculate_summary(self, df: pd.DataFrame):
+        df = self.prettify_timestamp_by_timeframe(df, self.report_form.cleaned_data['timeframe'])
+        df.pct *= 100
+        total_volume = df.self_volume.sum()
+        total_market_volume = df.market_volume.sum()
+        summary = (
+            {
+                'total_volume': total_volume,
+                'total_market_volume': total_market_volume,
+                'total_pct': ((total_volume / total_market_volume) if total_market_volume else 0) * 100
+            } if len(df) else {
+                'total_volume': 0,
+                'total_market_volume': 0,
+                'total_pct': 0
+            }
+        )
+        summary['data'] = df.to_dict(orient='records')
+        return summary
+
+    def fetch_report_volumes(self) -> pd.DataFrame:
+        data = self.report_form.cleaned_data
+        return self.data_store.read(
+            DataType.report,
+            query_params={
+                "report_name": "pair_volumes",
+                "start_datetime": self.report_form.start.isoformat(),
+                "end_datetime": self.report_form.end.isoformat(),
+                "timeframe": data['timeframe']
+            }
+        )
+
+
+class RebateReport(Report):
+    def __init__(self, report_form: RebatesForm, data_store: DataStore):
+        super().__init__(report_form, data_store)
+        form_data = report_form.cleaned_data
+        self.exchange_credentials_list = (
+            [form_data['exchange_credentials']]
+            if form_data['exchange_credentials'] and form_data['type'] == ReportType.BY_ACCOUNT.value else
+            ExchangeCredentials.objects.exclude(
+                id__in=list(
+                    map(operator.attrgetter('id'), form_data['excluded_exchange_credentials'])
+                )
+            )
+        )
+        self.exchange_credentials_account_map = {
+            (ex.name, ex.account_type): ex for ex in self.exchange_credentials_list
+        }
+
+    def generate_report(self) -> dict:
+        rebates = self.fetch_report_rebates().reset_index()
+        summary_method = {
+            ReportType.BY_ACCOUNT: self.calculate_by_account_summary,
+            ReportType.OVERALL: self.calculate_overall_summary
+        }[self.report_form.cleaned_data['type']]
+
+        return {
+            'type': self.report_form.cleaned_data['type'],
+            'report_data': {
+                symbol: summary_method(df)
+                for symbol, df in df_dict_group(rebates, 'symbol').items()
+            }
+        }
+
+    def fetch_report_rebates(self) -> pd.DataFrame:
+        data = self.report_form.cleaned_data
+        return self.data_store.read(
+            DataType.report,
+            query_params={
+                "report_name": "rebate",
+                "start_datetime": self.report_form.start.isoformat(),
+                "end_datetime": self.report_form.end.isoformat(),
+                "timeframe": data['timeframe'],
+                "currencies": data['currencies'],
+                "account": {
+                    'name': data['exchange_credentials'].name,
+                    'account_type': data['exchange_credentials'].account_type
+                } if data['exchange_credentials'] else None,
+                "excluded_accounts": [
+                    {'name': ex.name, 'account_type': ex.account_type} for ex in data['excluded_exchange_credentials']
+                ]
+            }
+        )
+
+    def calculate_overall_summary(self, rebates: pd.DataFrame) -> dict:
+        summary = {
+            'total_volume': 0,
+            'total_rebate': 0,
+            'total_expected_rebate': 0,
+            'total_difference': 0,
+            'accounts_data': []
+        }
+        if not len(rebates):
+            return summary
+
+        for account, account_rebates in df_dict_group(rebates, ['name', 'account_type']).items():
+            account_rebates_pretty_ts = self.prettify_timestamp_by_timeframe(
+                account_rebates, self.report_form.cleaned_data['timeframe']
+            )
+            account_data = self._calculate_overall_totals(account_rebates_pretty_ts)
+            account_data['data'] = account_rebates_pretty_ts.to_dict(
+                orient='records'
+            )
+            try:
+                account_data['exchange_credentials'] = self.exchange_credentials_account_map[account]
+                summary['accounts_data'].append(account_data)
+            except KeyError:
+                logging.warning(f'No {account} in db')
+                name, account_type = account
+                rebates = rebates[~((rebates.account_type == account_type) & (rebates.name == name))]
+
+        summary.update(self._calculate_overall_totals(rebates))
+        return summary
+
+    def _calculate_overall_totals(self, rebates: pd.DataFrame) -> dict:
+        return {
+            'total_volume': rebates.volume.sum(),
+            'total_rebate': rebates.rebate.sum(),
+            'total_expected_rebate': rebates.expected_rebate.sum(),
+            'total_difference': rebates.difference.sum()
+        }
+
+    def calculate_by_account_summary(self, rebates: pd.DataFrame) -> dict:
+        rebates = self.prettify_timestamp_by_timeframe(rebates, self.report_form.cleaned_data['timeframe'])
+        summary = (
+            {
+                'total_volume': rebates.volume.sum(),
+                'total_rebate': rebates.rebate.sum(),
+                'total_expected_rebate': rebates.expected_rebate.sum(),
+                'total_volume_usd': rebates.volume_usd.sum(),
+                'total_rebate_usd': rebates.rebate_usd.sum(),
+                'total_expected_rebate_usd': rebates.expected_rebate_usd.sum()
+            } if len(rebates) else {
+                'total_volume': 0,
+                'total_rebate': 0,
+                'total_expected_rebate': 0,
+                'total_volume_usd': 0,
+                'total_rebate_usd': 0,
+                'total_expected_rebate_usd': 0
+            }
+        )
+        summary['data'] = rebates.to_dict(orient='records')
+        return summary
 
 
 def update_account_statistics(datastore: DataStore, exchange_credentials: ExchangeCredentials):

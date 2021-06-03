@@ -5,8 +5,8 @@ from django.conf import settings
 from rcdb_commons.lib.stores import DataStore
 
 from .models import Owner, ExchangeCredentials
-from .forms import RebatesForm, ReportType
-from .services import RebateReport
+from .forms import TimeframeForm, RebatesForm, ReportType
+from .services import PairVolumesReport, RebateReport, Report
 
 
 class OwnerUserPermissionFilterMixin:
@@ -71,9 +71,8 @@ class ExchangeBalancesDetailView(OwnerUserPermissionFilterMixin, LoginRequiredMi
         return self.filter_by_user(super().get_queryset())
 
 
-class RebatesView(LoginRequiredMixin, FormView):
-    form_class = RebatesForm
-    template_name = 'rebate/detail.html'
+class ReportView(LoginRequiredMixin, FormView):
+    report_class = Report
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -90,13 +89,31 @@ class RebatesView(LoginRequiredMixin, FormView):
     def form_invalid(self, form):
         return super().form_invalid(form)
 
-    def form_valid(self, form: RebatesForm):
+    def get_context_extra(self):
+        return {}
+
+    def form_valid(self, form):
         return self.render_to_response(
             {
                 'form': form,
-                'report': RebateReport(
+                'report': self.report_class(
                     form, DataStore(settings.DATASTORE_URL, settings.DATASTORE_TOKEN)
                 ).generate_report(),
-                'ReportType': ReportType
+                **self.get_context_extra(),
             }
         )
+
+
+class RebatesReportView(ReportView):
+    report_class = RebateReport
+    form_class = RebatesForm
+    template_name = 'report/rebate.html'
+
+    def get_context_extra(self):
+        return {'ReportType': ReportType}
+
+
+class PairVolumesReportView(ReportView):
+    report_class = PairVolumesReport
+    form_class = TimeframeForm
+    template_name = 'report/pair_volumes.html'

@@ -24,7 +24,8 @@ urlpatterns = [
     path('api/', api.api.urls),
     path('balances/<int:pk>', views.ExchangeBalancesDetailView.as_view(), name='balances_detail'),
     path('balances/', views.ExchangeBalancesListView.as_view(), name='balances'),
-    path('rebates/', views.RebatesView.as_view(), name='rebates'),
+    path('rebates/', views.RebatesReportView.as_view(), name='rebates'),
+    path('pair-volumes/', views.PairVolumesReportView.as_view(), name='pair-volumes'),
     path('', views.BotStatisticListView.as_view(), name='statistic'),
     path('auth/login', auth_views.LoginView.as_view(template_name='auth/login.html'), name='login'),
     path('auth/logout', auth_views.LogoutView.as_view(), name='logout')

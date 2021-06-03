@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% load extras %}
+{% load humanize %}
+
+{% block title %}Pair Volumes{% endblock %}
+{% block body %}
+    <div class="pt-8 pb-8">
+        <div class="max-w-min mx-8">
+            <div class="bg-white shadow overflow-hidden sm:rounded-md">
+                <form action="" method="get" class="flex flex-col">
+                    <div class="flex justify-items-start">
+                        <div class="px-4 py-4 sm:px-6">
+                            <label id="select-timeframe-label" class="block text-sm font-medium text-gray-700">
+                                {{ form.timeframe.label }}
+                            </label>
+                            <div class="pt-1 mt-1 sm:mt-0 sm:col-span-2">
+                                {{ form.timeframe|cssclass:"relative bg-white border border-gray-300 rounded-md shadow-sm pl-3 pr-3 py-2 text-left cursor-default focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" }}
+                                {% include 'report/includes/field_errors.html' with field=form.timeframe %}
+                            </div>
+                        </div>
+                        <div class="px-4 py-4 sm:px-6">
+                            <label id="start-date-label" class="block text-sm font-medium text-gray-700">
+                                Start date and time
+                            </label>
+                            <div class="pt-1 flex space-x-4">
+                                {{ form.start_date|cssclass:"bg-white border border-gray-300 rounded-md shadow-sm pl-3 pr-3 py-2 text-left cursor-default focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" }}
+                                {{ form.start_time|cssclass:"bg-white border border-gray-300 rounded-md shadow-sm pl-3 pr-3 py-2 text-left cursor-default focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" }}
+                            </div>
+                        </div>
+                        <div class="px-4 py-4 sm:px-6">
+                            <label id="end-date-label" class="block text-sm font-medium text-gray-700">
+                                End date and time
+                            </label>
+                            <div class="pt-1 flex space-x-4">
+                                {{ form.end_date|cssclass:"bg-white border border-gray-300 rounded-md shadow-sm pl-3 pr-3 py-2 text-left cursor-default focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" }}
+                                {{ form.end_time|cssclass:"bg-white border border-gray-300 rounded-md shadow-sm pl-3 pr-3 py-2 text-left cursor-default focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" }}
+                            </div>
+                        </div>
+                        <div class="pb-4 px-4 flex">
+                            <button
+                                type="submit"
+                                class="self-end py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                            >
+                                Submit
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% if report %}
+            <div class="mx-8 mt-5">
+                {% include 'report/includes/report_pair_volumes.html' %}
+            </div>
+        {% endif %}
+    </div>
+
+    <script>
+        (function (){
+            function toggleRebatesDetails (symbol) {
+                console.log('toggleRebatesDetails', symbol)
+                Array.from(document.getElementsByClassName('report-detail-' +  symbol)).forEach(
+                    element => element.style.display = (element.style.display === 'none' ? 'block' : 'none')
+                )
+            }
+
+            function hideAllRebatesDetails () {
+                console.log('hideAllRebatesDetails')
+                Array.from(document.getElementsByClassName('report-detail')).forEach(
+                    element => element.style.display = 'none'
+                )
+            }
+
+            hideAllRebatesDetails();
+            console.log(document.getElementsByClassName('report-summary'))
+            Array.from(document.getElementsByClassName('report-summary')).forEach(
+                (element) => { element.onclick = () => toggleRebatesDetails(element.dataset.symbol); console.log('b')}
+            );
+            console.log('x')
+        })();
+    </script>
+{% endblock %}
