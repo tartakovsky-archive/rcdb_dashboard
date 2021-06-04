@@ -6,7 +6,7 @@ from rcdb_commons.lib.stores import DataStore
 
 from .models import Owner, ExchangeCredentials
 from .forms import TimeframeForm, RebatesForm, ReportType
-from .services import PairVolumesReport, RebateReport, Report
+from .services import FiatVolumesReport, PairVolumesReport, RebateReport, Report
 
 
 class OwnerUserPermissionFilterMixin:
@@ -116,4 +116,8 @@ class RebatesReportView(ReportView):
 class PairVolumesReportView(ReportView):
     report_class = PairVolumesReport
     form_class = TimeframeForm
-    template_name = 'report/pair_volumes.html'
+    template_name = 'report/volumes.html'
+
+
+class FiatVolumesReportView(PairVolumesReportView):
+    report_class = FiatVolumesReport

@@ -5,7 +5,7 @@
     <ul class="divide-y divide-gray-200">
         {% for symbol, symbol_data in report.report_data.items %}
             <li>
-                <a href="#" data-symbol="{{ symbol }}" class="report-summary block hover:bg-gray-50">
+                <a href="#/" data-symbol="{{ symbol }}" class="report-summary block hover:bg-gray-50">
                     <div class="px-4 py-4 flex items-center sm:px-6">
                         <div class="min-w-0 flex-1 sm:flex sm:items-center sm:justify-between">
                             <div class="truncate">
@@ -36,7 +36,7 @@
                                                     Pct
                                                 </dt>
                                                 <dd class="order-1 text-xl font-extrabold text-indigo-600 sm:text-xl">
-                                                    {{ symbol_data.total_pct|floatformat:3|intcomma }}%
+                                                    {{ symbol_data.total_pct|floatformat:2|intcomma }}%
                                                 </dd>
                                             </div>
                                         </dl>

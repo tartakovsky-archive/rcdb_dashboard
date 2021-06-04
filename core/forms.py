@@ -25,6 +25,10 @@ class RebateCurrency(TextChoices):
     UAH = 'UAH', 'UAH'
     AUD = 'AUD', 'AUD'
 
+    @classmethod
+    def currencies(cls):
+        return [curr for curr in cls.values if curr != 'ALL']
+
 
 class ExchangeCredentialsLabelMixin:
     def label_from_instance(self, obj: ExchangeCredentials):

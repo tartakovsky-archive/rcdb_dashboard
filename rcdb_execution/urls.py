@@ -26,6 +26,7 @@ urlpatterns = [
     path('balances/', views.ExchangeBalancesListView.as_view(), name='balances'),
     path('rebates/', views.RebatesReportView.as_view(), name='rebates'),
     path('pair-volumes/', views.PairVolumesReportView.as_view(), name='pair-volumes'),
+    path('fiat-volumes/', views.FiatVolumesReportView.as_view(), name='fiat-volumes'),
     path('', views.BotStatisticListView.as_view(), name='statistic'),
     path('auth/login', auth_views.LoginView.as_view(template_name='auth/login.html'), name='login'),
     path('auth/logout', auth_views.LogoutView.as_view(), name='logout')

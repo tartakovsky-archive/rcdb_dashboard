@@ -2,7 +2,7 @@
 {% load extras %}
 {% load humanize %}
 
-{% block title %}Pair Volumes{% endblock %}
+{% block title %}{% if 'fiat-volumes' in request.path %}Fiat Volumes{% else %}Pair Volumes{% endif %}{% endblock %}
 {% block body %}
     <div class="pt-8 pb-8">
         <div class="max-w-min mx-8">
@@ -50,7 +50,11 @@
         </div>
         {% if report %}
             <div class="mx-8 mt-5">
-                {% include 'report/includes/report_pair_volumes.html' %}
+                {% if 'fiat-volumes' in request.path %}
+                    {% include 'report/includes/report_fiats_volumes.html' %}
+                {% else %}
+                    {% include 'report/includes/report_pair_volumes.html' %}
+                {% endif %}
             </div>
         {% endif %}
     </div>
@@ -74,9 +78,8 @@
             hideAllRebatesDetails();
             console.log(document.getElementsByClassName('report-summary'))
             Array.from(document.getElementsByClassName('report-summary')).forEach(
-                (element) => { element.onclick = () => toggleRebatesDetails(element.dataset.symbol); console.log('b')}
+                (element) => { element.onclick = () => toggleRebatesDetails(element.dataset.symbol);}
             );
-            console.log('x')
         })();
     </script>
 {% endblock %}

@@ -3,23 +3,14 @@
 
 <div class="bg-white shadow overflow-hidden sm:rounded-md">
     <ul class="divide-y divide-gray-200">
-        {% for symbol, symbol_data in report.report_data.items %}
+        {% for fiat_symbol, fiat_symbol_data in report.report_data.items %}
             <li>
-                <a href="#/" data-symbol="{{ symbol }}" class="rebate-summary block hover:bg-gray-50">
+                <a href="#/" data-symbol="{{ fiat_symbol }}" class="report-summary block hover:bg-gray-50">
                     <div class="px-4 py-4 flex items-center sm:px-6">
                         <div class="min-w-0 flex-1 sm:flex sm:items-center sm:justify-between">
                             <div class="truncate">
                                 <div class="flex text-sm">
-                                    <p class="font-medium text-gray-600 truncate">{{ symbol }}</p>
-                                    {% if symbol_data.total_difference|floatformat:2 == '0.00' or symbol_data.total_difference > 0 %}
-                                        <span class="ml-1 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                            Received in full
-                                        </span>
-                                    {% else %}
-                                        <span class="ml-1 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                                            Missing rebates
-                                        </span>
-                                    {% endif %}
+                                    <p class="font-medium text-gray-600 truncate">{{ fiat_symbol }}</p>
                                 </div>
                                 <div class="mt-2 flex">
                                     <div class="flex items-center text-sm text-gray-500">
@@ -29,31 +20,23 @@
                                                     Volume
                                                 </dt>
                                                 <dd class="order-1 text-xl font-extrabold text-indigo-600 sm:text-xl">
-                                                    {{ symbol_data.total_volume|floatformat:2|intcomma }}
+                                                    {{ fiat_symbol_data.total_volume|floatformat:2|intcomma }}
                                                 </dd>
                                             </div>
                                             <div class="flex flex-col px-8 pt-8">
                                                 <dt class="order-2 text-sm font-medium text-gray-500">
-                                                    Expected
+                                                    Market Volume
                                                 </dt>
                                                 <dd class="order-1 text-xl font-extrabold text-indigo-600 sm:text-xl">
-                                                    {{ symbol_data.total_expected_rebate|floatformat:2|intcomma }}
+                                                    {{ fiat_symbol_data.total_market_volume|floatformat:2|intcomma }}
                                                 </dd>
                                             </div>
                                             <div class="flex flex-col px-8 pt-8">
                                                 <dt class="order-2 text-sm font-medium text-gray-500">
-                                                    Received
+                                                    Pct
                                                 </dt>
                                                 <dd class="order-1 text-xl font-extrabold text-indigo-600 sm:text-xl">
-                                                    {{ symbol_data.total_rebate|floatformat:2|intcomma }}
-                                                </dd>
-                                            </div>
-                                            <div class="flex flex-col px-8 pt-8">
-                                                <dt class="order-2 text-sm font-medium text-gray-500">
-                                                    Difference
-                                                </dt>
-                                                <dd class="order-1 text-xl font-extrabold text-indigo-600 sm:text-xl">
-                                                    {{ symbol_data.total_difference|floatformat:2|intcomma }}
+                                                    {{ fiat_symbol_data.total_pct|floatformat:2|intcomma }}%
                                                 </dd>
                                             </div>
                                         </dl>
@@ -72,11 +55,10 @@
                         </div>
                     </div>
                 </a>
-                {% for account_data in symbol_data.accounts_data %}
-                    <div class="px-4 py-4 sm:px-6 report-detail report-detail-{{ symbol }}">
+                {% for symbol, symbol_data in fiat_symbol_data.symbols_data.items %}
+                    <div class="px-4 py-4 sm:px-6 report-detail report-detail-{{ fiat_symbol }}">
                         <div class="flex text-sm">
                             <div class="font-bold text-gray-600 truncate">{{ symbol }}</div>
-                            <div class="ml-1 font-normal text-gray-600 truncate">| {{ account_data.exchange_credentials.name }} {{ account_data.exchange_credentials.account_type_label }} {% if account_data.exchange_credentials.account_id %}{{ account_data.exchange_credentials.account_id }}{% endif %}</div>
                         </div>
 
                         <div class="flex flex-col">
@@ -93,33 +75,27 @@
                                                         Volume
                                                     </th>
                                                     <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
-                                                        Expected Rebate
+                                                        Market Volume
                                                     </th>
                                                     <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
-                                                        Received Rebate
-                                                    </th>
-                                                    <th scope="col" class="px-3 xl:px-6 py-1.5 xl:py-3 text-left text-xs font-bold text-gray-900 tracking-wider">
-                                                        Difference
+                                                        Pct, %
                                                     </th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {% for item in account_data.data %}
+                                                {% for item in symbol_data.data %}
                                                     <tr class="{% if forloop.counter|divisibleby:2 %}bg-gray-50{% else %}bg-white{% endif %} divide-x">
                                                         <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
                                                             {{ item.timestamp }}
                                                         </td>
                                                         <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
-                                                            {{ item.volume|floatformat:2|intcomma }}
+                                                            {{ item.self_volume|floatformat:2|intcomma }}
                                                         </td>
                                                         <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
-                                                            {{ item.expected_rebate|floatformat:2|intcomma }}
+                                                            {{ item.market_volume|floatformat:2|intcomma }}
                                                         </td>
                                                         <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
-                                                            {{ item.rebate|floatformat:2|intcomma }}
-                                                        </td>
-                                                        <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
-                                                            {{ item.difference|floatformat:2|intcomma }}
+                                                            {{ item.pct|floatformat:2|intcomma }}
                                                         </td>
                                                     </tr>
                                                 {% endfor %}
@@ -129,16 +105,13 @@
                                                     <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
                                                     </td>
                                                     <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
-                                                        {{ account_data.total_volume|floatformat:2|intcomma }}
+                                                        {{ symbol_data.total_volume|floatformat:2|intcomma }}
                                                     </td>
                                                     <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
-                                                        {{ account_data.total_expected_rebate|floatformat:2|intcomma }}
+                                                        {{ symbol_data.total_market_volume|floatformat:2|intcomma }}
                                                     </td>
                                                     <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
-                                                        {{ account_data.total_rebate|floatformat:2|intcomma }}
-                                                    </td>
-                                                    <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
-                                                        {{ account_data.total_difference|floatformat:2|intcomma }}
+                                                        {{ symbol_data.total_pct|floatformat:2|intcomma }}
                                                     </td>
                                                 </tr>
                                             </tfoot>

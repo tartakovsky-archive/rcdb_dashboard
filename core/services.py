@@ -10,7 +10,7 @@ from django.utils import timezone
 from rcdb_commons.lib.schemas.exchange import AccountType, SymbolEmpty
 from rcdb_commons.lib.stores import CredentialsStore, DataStore, DataType
 
-from .forms import ReportType, RebatesForm
+from .forms import ReportType, RebatesForm, RebateCurrency
 from .models import Bot, BotStatistic, ExchangeCredentials
 
 
@@ -464,6 +464,49 @@ class PairVolumesReport(Report):
                 "timeframe": data['timeframe']
             }
         )
+
+
+class FiatVolumesReport(PairVolumesReport):
+    def generate_report(self) -> dict:
+        volumes = self._fiat_volumes(self.fetch_report_volumes().reset_index())
+        return {
+            'report_data': {
+                fiat_symbol: self._calculate_summary(df)
+                for fiat_symbol, df in df_dict_group(volumes, 'fiat').items()
+            }
+        }
+
+    def _fiat_volumes(self, df: pd.DataFrame) -> pd.DataFrame:
+        fiats = set(RebateCurrency.currencies())
+        df['fiat'] = df.symbol.apply(lambda symbol: self._fiat_currency(symbol, fiats))
+        df = df[~df.fiat.isna()]
+        df['is_base_fiat'] = df.apply(lambda row: row['symbol'].startswith(row['fiat']), axis=1)
+        return df
+
+    @staticmethod
+    def _fiat_currency(symbol: str, fiats: set) -> Optional[str]:
+        base, quote = symbol.split('/')
+        if base in fiats:
+            return base
+
+        if quote in fiats:
+            return quote
+
+        return None
+
+    def _calculate_summary(self, df: pd.DataFrame) -> dict:
+        df.loc[df.is_base_fiat, 'self_volume'] = df.loc[df.is_base_fiat, 'self_volume']
+        df.loc[~df.is_base_fiat, 'self_volume'] = df.loc[~df.is_base_fiat, 'self_volume_quote']
+
+        df.loc[df.is_base_fiat, 'market_volume'] = df.loc[df.is_base_fiat, 'market_volume']
+        df.loc[~df.is_base_fiat, 'market_volume'] = df.loc[~df.is_base_fiat, 'market_volume_quote']
+        summary = super(FiatVolumesReport, self)._calculate_summary(df)
+        summary.pop('data')
+        summary['symbols_data'] = {
+            symbol: super(FiatVolumesReport, self)._calculate_summary(symbol_df)
+            for symbol, symbol_df in df_dict_group(df, 'symbol').items()
+        }
+        return summary
 
 
 class RebateReport(Report):
