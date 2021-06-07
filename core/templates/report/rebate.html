@@ -130,7 +130,7 @@
             hideAllRebatesDetails();
             toggleAccountSelectBlock();
             document.getElementById('id_type').onchange = toggleAccountSelectBlock;
-            Array.from(document.getElementsByClassName('report-summary')).forEach(
+            Array.from(document.getElementsByClassName('rebate-summary')).forEach(
                 (element) => element.onclick = () => toggleRebatesDetails(element.dataset.symbol)
             );
         })();
