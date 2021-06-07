@@ -34,6 +34,10 @@ jobs:
       - name: Remove rcdb_commons/.git
         run: rm -rf rcdb_commons/.git
 
+      - name: Set .env
+        run: |
+          printf $(curl --location --request GET '${{ secrets.CREDENTIAL_STORE_ITEM_URL }}' --header 'Authorization: Bearer ${{ secrets.CREDENTIALSTORE_TOKEN }}' | jq .fields[0].value | tr -d \") > .env
+
       - name: Copy files via SCP
         uses: appleboy/scp-action@master
         env:
