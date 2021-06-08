@@ -585,8 +585,7 @@ class RebateReport(Report):
                 orient='records'
             )
             try:
-                # account_data['exchange_credentials'] = self.exchange_credentials_account_map[account]
-                account_data['exchange_credentials'] = list(self.exchange_credentials_account_map.values())[0]
+                account_data['exchange_credentials'] = self.exchange_credentials_account_map[account]
                 summary['accounts_data'].append(account_data)
             except KeyError:
                 logging.warning(f'No {account} in db')
