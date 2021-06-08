@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/3.0/ref/settings/
 import os
 
 from django.urls import reverse_lazy
+from celery.schedules import crontab
 
 from .sentry import init_sentry
 
@@ -151,6 +152,7 @@ CREDENTIALSTORE_VAULT = os.environ.get('CREDENTIALSTORE_VAULT')
 ###############
 # CELERY CONFIG
 ###############
+BUCKET_NAME = os.environ.get('BUCKET_NAME', 'rcdb-backups')
 CELERY_BROKER_URL = f'redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}'
 CELERY_ENABLE_UTC = True
 CELERY_TASK_ALWAYS_EAGER = False
@@ -170,5 +172,9 @@ CELERY_BEAT_SCHEDULE = {
     'schedule-update-account-statistics': {
         'task': 'core.tasks.t_schedule_update_account_statistics',
         'schedule': 2*60,
+    },
+    'backup-db': {
+        'task': 'core.tasks.t_backup_db',
+        'schedule': crontab(minute=0, hour='*/3'),
     },
 }

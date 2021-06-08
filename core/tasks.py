@@ -7,7 +7,7 @@ from django.conf import settings
 from rcdb_commons.lib.stores import CredentialsStore, DataStore
 
 from .models import Bot, ExchangeCredentials
-from .services import BotStatisticUpdater, snapshot_account_balances, update_account_statistics
+from .services import S3DBDumper, BotStatisticUpdater, snapshot_account_balances, update_account_statistics
 
 
 @shared_task
@@ -99,3 +99,14 @@ def t_update_account_statistics(exchange_credentials_id: int):
         logging.exception(f'<t_update_account_statistics>: unexpected error for {exchange_credentials_id}')
 
     logging.info(f'ended task: <t_update_account_statistics> for {exchange_credentials_id}')
+
+
+@shared_task
+def t_backup_db():
+    logging.info('started task: <t_backup_db>')
+    try:
+        S3DBDumper(bucket_name=settings.BUCKET_NAME).dump()
+    except Exception:
+        logging.exception('<t_backup_db>: unexpected error')
+
+    logging.info('ended task: <t_backup_db>')

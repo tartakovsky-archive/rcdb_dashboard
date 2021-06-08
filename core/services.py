@@ -1,3 +1,4 @@
+import io
 import logging
 import operator
 import datetime
@@ -5,8 +6,10 @@ from typing import Generator, Optional, Dict, List, Tuple, Union, Iterable
 
 import pytz
 import ccxt
+import boto3
 import pandas as pd
 from django.utils import timezone
+from django.core import management
 from rcdb_commons.lib.schemas.exchange import AccountType, SymbolEmpty
 from rcdb_commons.lib.stores import CredentialsStore, DataStore, DataType
 
@@ -582,7 +585,8 @@ class RebateReport(Report):
                 orient='records'
             )
             try:
-                account_data['exchange_credentials'] = self.exchange_credentials_account_map[account]
+                # account_data['exchange_credentials'] = self.exchange_credentials_account_map[account]
+                account_data['exchange_credentials'] = list(self.exchange_credentials_account_map.values())[0]
                 summary['accounts_data'].append(account_data)
             except KeyError:
                 logging.warning(f'No {account} in db')
@@ -621,6 +625,23 @@ class RebateReport(Report):
         )
         summary['data'] = rebates.to_dict(orient='records')
         return summary
+
+
+class S3DBDumper:
+    def __init__(self, bucket_name: str):
+        self.bucket_name = bucket_name
+
+    def get_db_data(self) -> io.BytesIO:
+        buffer = io.StringIO()
+        management.call_command('dumpdata', 'core', 'auth', stdout=buffer)
+        buffer.seek(0)
+        return io.BytesIO(buffer.read().encode('utf-8'))
+
+    def dump(self):
+        buffer = self.get_db_data()
+        s3 = boto3.client('s3')
+        path = f'dashboard-dump/{datetime.datetime.utcnow().isoformat()}.json'
+        s3.upload_fileobj(buffer, self.bucket_name, path)
 
 
 def update_account_statistics(datastore: DataStore, exchange_credentials: ExchangeCredentials):
