@@ -175,6 +175,6 @@ CELERY_BEAT_SCHEDULE = {
     },
     'backup-db': {
         'task': 'core.tasks.t_backup_db',
-        'schedule': crontab(minute=0, hour='*/3'),
+        'schedule': crontab(minute=0, hour=0),
     },
 }
