@@ -426,7 +426,7 @@ class Report:
 
 class PairVolumesReport(Report):
     def generate_report(self) -> dict:
-        volumes = self.fetch_report_volumes().reset_index()
+        volumes = self.fetch_report_volumes(unfilled=False).reset_index()
         return {
             'report_data': {
                 symbol: self._calculate_summary(df)
@@ -453,7 +453,7 @@ class PairVolumesReport(Report):
         summary['data'] = df.to_dict(orient='records')
         return summary
 
-    def fetch_report_volumes(self) -> pd.DataFrame:
+    def fetch_report_volumes(self, unfilled: bool = True) -> pd.DataFrame:
         data = self.report_form.cleaned_data
         return self.data_store.read(
             DataType.report,
@@ -461,14 +461,15 @@ class PairVolumesReport(Report):
                 "report_name": "pair_volumes",
                 "start_datetime": self.report_form.start.isoformat(),
                 "end_datetime": self.report_form.end.isoformat(),
-                "timeframe": data['timeframe']
+                "timeframe": data['timeframe'],
+                "unfilled": unfilled
             }
         )
 
 
 class FiatVolumesReport(PairVolumesReport):
     def generate_report(self) -> dict:
-        volumes = self._fiat_volumes(self.fetch_report_volumes().reset_index())
+        volumes = self._fiat_volumes(self.fetch_report_volumes(unfilled=True).reset_index())
         return {
             'report_data': {
                 fiat_symbol: self._calculate_summary(df)
