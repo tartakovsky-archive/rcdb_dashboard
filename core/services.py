@@ -182,6 +182,7 @@ class BinanceAccountConnector:
         return (
             {'symbol': symbol, 'amount': amount}
             for symbol, amount in self.api.fetch_balance()['total'].items()
+            if amount
         )
 
     def _get_cross_margin_balances(self) -> Generator[dict, None, None]:
@@ -210,11 +211,29 @@ class BinanceAccountConnector:
             for asset in asset_getter(pair_asset)
         )
 
+    def _get_future_balances(self, market_type):
+        options = self.api.options.copy()
+        try:
+            self.api.options = {**options, 'defaultType': market_type}
+            return self._get_spot_balances()
+        except Exception as e:
+            raise e
+        finally:
+            self.api.options = options
+
+    def _get_future_usd_m_balances(self):
+        return self._get_future_balances('future')
+
+    def _get_future_coin_m_balances(self):
+        return self._get_future_balances('delivery')
+
     def get_balance_data(self, type: str) -> Dict[str, Union[List[dict], float]]:
         market_type_method = {
             AccountType.SPOT.value: self._get_spot_balances,
             AccountType.CROSS_MARGIN.value: self._get_cross_margin_balances,
             AccountType.ISOLATED_MARGIN.value: self._get_isolated_margin_balances,
+            AccountType.USDT_M_FUTURES.value: self._get_future_usd_m_balances,
+            AccountType.COIN_M_FUTURES.value: self._get_future_coin_m_balances
         }
         if type not in market_type_method:
             raise self.Exceptions.UnsupportedMarketType(type)

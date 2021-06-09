@@ -25,6 +25,8 @@ class DummyCredentialsStore:
 
 
 class MockBinance:
+    options = {}
+
     def __init__(self, *args, **kwargs):
         pass
 
@@ -134,6 +136,8 @@ def test_snapshot_account_balances_unsupported_exchange(bot: models.Bot):
         AccountType.SPOT,
         AccountType.ISOLATED_MARGIN,
         AccountType.CROSS_MARGIN,
+        AccountType.USDT_M_FUTURES,
+        AccountType.COIN_M_FUTURES
     ]
 )
 def test_snapshot_account_balances(bot: models.Bot, mocker, market_type):
@@ -149,6 +153,14 @@ def test_snapshot_account_balances(bot: models.Bot, mocker, market_type):
     assert timezone.now() - exchange_credentials.balance_snapshot_created <= timedelta(minutes=1)
 
     test_result = {
+        AccountType.COIN_M_FUTURES: (
+            {'symbol': 'USDT', 'amount': 20, 'amount_usd': 20},
+            {'symbol': 'BTC', 'amount': 0.5, 'amount_usd': 10.}
+        ),
+        AccountType.USDT_M_FUTURES: (
+            {'symbol': 'USDT', 'amount': 20, 'amount_usd': 20},
+            {'symbol': 'BTC', 'amount': 0.5, 'amount_usd': 10.}
+        ),
         AccountType.SPOT: (
             {'symbol': 'USDT', 'amount': 20, 'amount_usd': 20},
             {'symbol': 'BTC', 'amount': 0.5, 'amount_usd': 10.}
@@ -186,16 +198,22 @@ def test_snapshot_account_balances(bot: models.Bot, mocker, market_type):
             },
         ),
         'total_usd': {
+            AccountType.COIN_M_FUTURES: 30.,
+            AccountType.USDT_M_FUTURES: 30.,
             AccountType.SPOT: 30.,
             AccountType.CROSS_MARGIN: 41.5,
             AccountType.ISOLATED_MARGIN: 16.
         },
         'borrowed_usd': {
+            AccountType.USDT_M_FUTURES: None,
+            AccountType.COIN_M_FUTURES: None,
             AccountType.SPOT: None,
             AccountType.CROSS_MARGIN: 17.5,
             AccountType.ISOLATED_MARGIN: 2.5
         },
         'interest_usd': {
+            AccountType.USDT_M_FUTURES: None,
+            AccountType.COIN_M_FUTURES: None,
             AccountType.SPOT: None,
             AccountType.CROSS_MARGIN: 0.73,
             AccountType.ISOLATED_MARGIN: 1.33
@@ -208,7 +226,7 @@ def test_snapshot_account_balances(bot: models.Bot, mocker, market_type):
         'borrowed_usd': test_result['borrowed_usd'][market_type],
         'interest_usd': test_result['interest_usd'][market_type]
     }
-    if market_type == AccountType.SPOT:
+    if market_type in {AccountType.SPOT, AccountType.USDT_M_FUTURES, AccountType.COIN_M_FUTURES}:
         del test_snapshot['borrowed_usd']
         del test_snapshot['interest_usd']
         assert exchange_credentials.owner.total_interest is None
@@ -221,11 +239,14 @@ def test_snapshot_account_balances(bot: models.Bot, mocker, market_type):
     assert snapshot == test_snapshot
 
 
+class CustomType:
+    value = 'SOME VALUE'
+
+
 @pytest.mark.parametrize(
     'market_type',
     [
-        AccountType.USDT_M_FUTURES,
-        AccountType.COIN_M_FUTURES
+        CustomType
     ]
 )
 def test_snapshot_account_balances_unsupported_market_type(mocker, market_type):
