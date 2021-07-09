@@ -7,7 +7,8 @@ from django.conf import settings
 from rcdb_commons.lib.stores import CredentialsStore, DataStore
 
 from .models import Bot, ExchangeCredentials
-from .services import S3DBDumper, BotStatisticUpdater, snapshot_account_balances, update_account_statistics
+from .services import S3DBDumper, BotStatisticUpdater, snapshot_account_balances, \
+    update_account_statistics, update_accounts_pnl
 
 
 @shared_task
@@ -99,6 +100,19 @@ def t_update_account_statistics(exchange_credentials_id: int):
         logging.exception(f'<t_update_account_statistics>: unexpected error for {exchange_credentials_id}')
 
     logging.info(f'ended task: <t_update_account_statistics> for {exchange_credentials_id}')
+
+
+@shared_task
+def t_update_accounts_pnl():
+    logging.info('started task: <t_update_accounts_pnl>')
+    try:
+        update_accounts_pnl(DataStore(settings.DATASTORE_URL, settings.DATASTORE_TOKEN))
+    except requests.exceptions.RequestException as e:
+        logging.warning(f'<t_update_accounts_pnl>: request error {e}')
+    except Exception:
+        logging.exception('<t_update_accounts_pnl>: unexpected error')
+
+    logging.info('ended task: <t_update_accounts_pnl>')
 
 
 @shared_task

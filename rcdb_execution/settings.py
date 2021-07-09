@@ -177,4 +177,8 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'core.tasks.t_backup_db',
         'schedule': crontab(minute=0, hour=0),
     },
+    'update-accounts-pnl': {
+        'task': 'core.tasks.t_update_accounts_pnl',
+        'schedule': crontab(minute=0),
+    },
 }

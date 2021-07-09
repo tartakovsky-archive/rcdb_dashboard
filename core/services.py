@@ -667,6 +667,14 @@ def update_account_statistics(datastore: DataStore, exchange_credentials: Exchan
     trades = datastore_manager.get_updated_trades(exchange_credentials)
 
     exchange_credentials.statistics = {
+        **(
+            {
+                k: exchange_credentials.statistics.get(k)
+                for k in ['h1_pnl', 'h1_total_usd', 'h24_pnl', 'h24_total_usd', 'pnl_updated']
+            }
+            if exchange_credentials.statistics else
+            {}
+        ),
         'h1_usd_volume': None,
         'h1_trades_count': None,
         'h24_usd_volume': None,
@@ -682,6 +690,70 @@ def update_account_statistics(datastore: DataStore, exchange_credentials: Exchan
         **(StatisticsCalculator.trades_statistics(trades) if len(trades) else {}),
     }
     exchange_credentials.save()
+
+
+def update_accounts_pnl(datastore: DataStore):
+    df_data = {}
+    hours = [1, 24]
+
+    utc_now = datetime.datetime.utcnow()
+    for hour in hours:
+        print(hour)
+        offset = datetime.timedelta(hours=hour)
+        date_end = utc_now - offset
+        df = datastore.read(
+            DataType.balance,
+            query_params=dict(
+                date_end=date_end.isoformat(),
+                tail=1000
+            )
+        )
+        if not len(df):
+            logging.warning(f'df h{hour} is empty')
+            continue
+
+        deviation = abs(df.index.max() - date_end)
+        deviation_threshold = datetime.timedelta(minutes=10)
+        if deviation > deviation_threshold:
+            logging.error(
+                f'old data deviation from expected too big. deviation: {deviation} max: {deviation_threshold}'
+            )
+            continue
+
+        df_data[f'h{hour}'] = (
+            df[df.index == df.index.max()]
+            .groupby(['name', 'account_type'])
+            .agg({'amount_usd': 'sum'})
+        )
+
+    if not df_data:
+        logging.error('No data were received for pnl')
+
+    pnl_updated_string = timezone.now().strftime('%d/%m/%Y %H:%M:%S')
+
+    for account in ExchangeCredentials.objects.filter(visible=True, ignore_balance=False):
+        print(account, (account.name, account.account_type))
+        account.statistics = (account.statistics or {})
+
+        for hour in hours:
+            df_key = f'h{hour}'
+            account.statistics[f'{df_key}_total_usd'] = None
+            account.statistics[f'{df_key}_pnl'] = None
+            if df_key not in df_data:
+                continue
+
+            df = df_data[df_key]
+            old_balance = df[df.index == (account.name, account.account_type)]
+
+            if len(old_balance) and account.balance_snapshot and 'total_usd' in account.balance_snapshot:
+                old_total_usd = old_balance.amount_usd.values[-1]
+                account.statistics[f'{df_key}_total_usd'] = old_total_usd
+                if old_total_usd != 0:
+                    account.statistics[f'{df_key}_pnl'] = \
+                        (account.balance_snapshot['total_usd'] - old_total_usd) / old_total_usd * 100
+
+        account.statistics['pnl_updated'] = pnl_updated_string
+        account.save()
 
 
 def df_to_list(df: pd.DataFrame) -> List[dict]:
