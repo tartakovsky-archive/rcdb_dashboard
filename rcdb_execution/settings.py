@@ -169,6 +169,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'core.tasks.t_schedule_snapshot_balances',
         'schedule': 60,
     },
+    'snapshot-ascendex-balances': {
+        'task': 'core.tasks.t_snapshot_ascendex_balances',
+        'schedule': 20,
+    },
     'schedule-update-account-statistics': {
         'task': 'core.tasks.t_schedule_update_account_statistics',
         'schedule': 2*60,

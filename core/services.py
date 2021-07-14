@@ -1,11 +1,16 @@
 import io
+import time
+import hmac
+import base64
+import hashlib
 import logging
 import operator
 import datetime
-from typing import Generator, Optional, Dict, List, Tuple, Union, Iterable
+from typing import Optional, Dict, List, Tuple, Union, Iterable
 
 import pytz
 import ccxt
+import ccxtpro
 import boto3
 import pandas as pd
 from django.utils import timezone
@@ -15,6 +20,55 @@ from rcdb_commons.lib.stores import CredentialsStore, DataStore, DataType
 
 from .forms import ReportType, RebatesForm, RebateCurrency
 from .models import Bot, BotStatistic, ExchangeCredentials
+
+
+class Ascendex(ccxtpro.ascendex):
+    def __init__(self, params):
+        self._api_key = params['apiKey']
+        self._secret = params['secret']
+        super(Ascendex, self).__init__(params)
+
+    async def fetch_balance(self, params={}):
+        if params.get('account-category') == 'futures':
+            return await self._fetch_future_balance()
+        return await super().fetch_balance(params)
+
+    async def _fetch_future_balance(self):
+        account_id = (await self.fetch_accounts())[0]['id']
+        api_path = 'v2/futures/position'
+        url = f'https://ascendex.com/{account_id}/api/pro/{api_path}'
+        ts, auth_headers = self.make_auth_headers(api_path)
+        res = await self.fetch(url, headers=auth_headers)
+        return {'info': {'data': res['data']['collaterals']}}
+
+    def make_auth_headers(self, path):
+        ts = int(time.time() * 1000)
+        return ts, self._make_auth_headers(ts, path, self._api_key, self._secret)
+
+    @classmethod
+    def _make_auth_headers(cls, timestamp, path, apikey, secret):
+        # convert timestamp to string
+        if isinstance(timestamp, bytes):
+            timestamp = timestamp.decode("utf-8")
+        elif isinstance(timestamp, int):
+            timestamp = str(timestamp)
+
+        msg = f"{timestamp}+{path}"
+
+        header = {
+            "x-auth-key": apikey,
+            "x-auth-signature": cls._sign(msg, secret),
+            "x-auth-timestamp": timestamp,
+        }
+        return header
+
+    @staticmethod
+    def _sign(msg, secret):
+        msg = bytearray(msg.encode("utf-8"))
+        hmac_key = base64.b64decode(secret)
+        signature = hmac.new(hmac_key, msg, hashlib.sha256)
+        signature_b64 = base64.b64encode(signature.digest()).decode("utf-8")
+        return signature_b64
 
 
 class BotStatisticUpdater:
@@ -116,47 +170,36 @@ class BotStatisticUpdater:
         }
 
 
-class BinanceAccountConnector:
+class AccountConnector:
+    _usd_price_cache: Dict[str, float]
+
     class Exceptions:
         class UnsupportedMarketType(Exception):
             pass
 
-    def __init__(self, credentials: dict, data_store: DataStore):
-        self.api = ccxt.binance(credentials)
-        self.data_store = data_store
-        self._usd_price_cache = {'USDT': 1, 'ETF': 1, 'BUSD': 1}
+    @staticmethod
+    def _sort_balances(balances: Iterable[dict]) -> List[dict]:
+        return sorted(balances, key=lambda x: x['amount_usd'], reverse=True)
 
-    def update_amount_usd(self, data: dict) -> dict:
-        result = data.copy()
+    async def _get_spot_balances(self) -> List[dict]:
+        raise NotImplementedError('method is not implemented')
 
-        for field in ['borrowed', 'interest', 'amount']:
-            field_btc = f'{field}_btc'
-            field_usd = f'{field}_usd'
+    async def _get_cross_margin_balances(self) -> List[dict]:
+        raise NotImplementedError('method is not implemented')
 
-            if field_btc in data:
-                result[field_usd] = data[field_btc] * self.usd_price('BTC')
-            elif field in data:
-                if data[field] == 0:
-                    result[field_usd] = 0.
-                else:
-                    result[field_usd] = data[field] * self.usd_price(data['symbol'])
+    async def _get_isolated_margin_balances(self) -> List[dict]:
+        raise NotImplementedError('method is not implemented')
 
-        return result
+    async def _get_future_usd_m_balances(self) -> List[dict]:
+        raise NotImplementedError('method is not implemented')
 
-    def fetch_price(self, symbol: str) -> Optional[float]:
-        df = self.data_store.read(
-            DataType.ohlcv,
-            query_params=dict(
-                exchange='BINANCE',
-                instrument='SPOT',
-                symbol=symbol
-            )
-        )
-        if len(df):
-            return df.close.values[-1]
-        return None
+    async def _get_future_coin_m_balances(self) -> List[dict]:
+        raise NotImplementedError('method is not implemented')
 
-    def usd_price(self, symbol: str) -> float:
+    async def fetch_price(self, symbol: str) -> Optional[float]:
+        raise NotImplementedError('method is not implemented')
+
+    async def usd_price(self, symbol: str) -> float:
         if symbol not in self._usd_price_cache:
             for pair, is_reversed in [
                 (f'{symbol}/USDT', False),
@@ -164,7 +207,7 @@ class BinanceAccountConnector:
                 (f'{symbol}/BUSD', False),
                 (f'BUSD/{symbol}', True)
             ]:
-                price = self.fetch_price(pair)
+                price = await self.fetch_price(pair)
                 if price is not None:
                     self._usd_price_cache[symbol] = (1 / price) if is_reversed else price
                     break
@@ -174,60 +217,24 @@ class BinanceAccountConnector:
 
         return self._usd_price_cache[symbol]
 
-    @staticmethod
-    def _sort_balances(balances: Iterable[dict]) -> List[dict]:
-        return sorted(balances, key=lambda x: x['amount_usd'], reverse=True)
+    async def update_amount_usd(self, data: dict) -> dict:
+        result = data.copy()
 
-    def _get_spot_balances(self):
-        return (
-            {'symbol': symbol, 'amount': amount}
-            for symbol, amount in self.api.fetch_balance()['total'].items()
-            if amount
-        )
+        for field in ['borrowed', 'interest', 'amount']:
+            field_btc = f'{field}_btc'
+            field_usd = f'{field}_usd'
 
-    def _get_cross_margin_balances(self) -> Generator[dict, None, None]:
-        return (
-            {
-                'symbol': b['asset'],
-                'amount': float(b['netAsset']),
-                'interest': float(b['interest']),
-                'borrowed': float(b['borrowed'])
-            }
-            for b in self.api.sapi_get_margin_account()['userAssets']
-        )
+            if field_btc in data:
+                result[field_usd] = data[field_btc] * await self.usd_price('BTC')
+            elif field in data:
+                if data[field] == 0:
+                    result[field_usd] = 0.
+                else:
+                    result[field_usd] = data[field] * await self.usd_price(data['symbol'])
 
-    def _get_isolated_margin_balances(self) -> Generator[dict, None, None]:
-        asset_getter = operator.itemgetter('baseAsset', 'quoteAsset')
-        return (
-            {
-                'pair_symbol': pair_asset['symbol'],
-                'symbol': asset['asset'],
-                'amount': float(asset['netAsset']),
-                'interest': float(asset['interest']),
-                'borrowed': float(asset['borrowed']),
-                **({} if asset['asset'] in {'USDT', 'BUSD'} else {'amount_btc': float(asset['netAssetOfBtc'])})
-            }
-            for pair_asset in self.api.sapi_get_margin_isolated_account()['assets']
-            for asset in asset_getter(pair_asset)
-        )
+        return result
 
-    def _get_future_balances(self, market_type):
-        options = self.api.options.copy()
-        try:
-            self.api.options = {**options, 'defaultType': market_type}
-            return self._get_spot_balances()
-        except Exception as e:
-            raise e
-        finally:
-            self.api.options = options
-
-    def _get_future_usd_m_balances(self):
-        return self._get_future_balances('future')
-
-    def _get_future_coin_m_balances(self):
-        return self._get_future_balances('delivery')
-
-    def get_balance_data(self, type: str) -> Dict[str, Union[List[dict], float]]:
+    async def get_balance_data(self, type: str) -> Dict[str, Union[List[dict], float]]:
         market_type_method = {
             AccountType.SPOT.value: self._get_spot_balances,
             AccountType.CROSS_MARGIN.value: self._get_cross_margin_balances,
@@ -245,8 +252,10 @@ class BinanceAccountConnector:
                         abs(x.get(k, 0.)) for k in ('amount_usd', 'borrowed_usd', 'interest_usd')
                     ) >= 1.,
                     self._sort_balances(
-                        self.update_amount_usd(data)
-                        for data in market_type_method[type]()
+                        [
+                            await self.update_amount_usd(data)
+                            for data in (await market_type_method[type]())
+                        ]
                     )
                 )
             )
@@ -262,15 +271,123 @@ class BinanceAccountConnector:
         return result
 
 
+class AscendexAccountConnector(AccountConnector):
+    def __init__(self, credentials: dict, *args, **kwargs):
+        self.api = Ascendex(credentials)
+        self._usd_price_cache = {'USDT': 1, 'BUSD': 1}
+
+    async def fetch_price(self, symbol: str) -> Optional[float]:
+        res = await self.api.fetch_ticker(symbol)
+        return res['bid']
+
+    async def _get_spot_balances(self) -> List[dict]:
+        return [
+            {'symbol': symbol, 'amount': amount}
+            for symbol, amount in (await self.api.fetch_balance())['total'].items()
+            if amount
+        ]
+
+    async def _get_cross_margin_balances(self) -> List[dict]:
+        return [
+            {
+                'symbol': b['asset'],
+                'amount': float(b['totalBalance']),
+                'interest': float(b['interest']),
+                'borrowed': float(b['borrowed'])
+            }
+            for b in (await self.api.fetch_balance(params={'account-category': 'margin'}))['info']['data']
+        ]
+
+    async def _get_future_usd_m_balances(self) -> List[dict]:
+        return [
+            {'symbol': b['asset'], 'amount': float(b['balance'])}
+            for b in (await self.api.fetch_balance(params={'account-category': 'futures'}))['info']['data']
+        ]
+
+    async def close(self):
+        await self.api.close()
+
+
+class BinanceAccountConnector(AccountConnector):
+    def __init__(self, credentials: dict, data_store: DataStore):
+        self.api = ccxt.binance(credentials)
+        self.data_store = data_store
+        self._usd_price_cache = {'USDT': 1, 'ETF': 1, 'BUSD': 1}
+
+    async def fetch_price(self, symbol: str) -> Optional[float]:
+        df = self.data_store.read(
+            DataType.ohlcv,
+            query_params=dict(
+                exchange='BINANCE',
+                instrument='SPOT',
+                symbol=symbol
+            )
+        )
+        if len(df):
+            return df.close.values[-1]
+        return None
+
+    async def _get_spot_balances(self) -> List[dict]:
+        return [
+            {'symbol': symbol, 'amount': amount}
+            for symbol, amount in self.api.fetch_balance()['total'].items()
+            if amount
+        ]
+
+    async def _get_cross_margin_balances(self) -> List[dict]:
+        return [
+            {
+                'symbol': b['asset'],
+                'amount': float(b['netAsset']),
+                'interest': float(b['interest']),
+                'borrowed': float(b['borrowed'])
+            }
+            for b in self.api.sapi_get_margin_account()['userAssets']
+        ]
+
+    async def _get_isolated_margin_balances(self) -> List[dict]:
+        asset_getter = operator.itemgetter('baseAsset', 'quoteAsset')
+        return [
+            {
+                'pair_symbol': pair_asset['symbol'],
+                'symbol': asset['asset'],
+                'amount': float(asset['netAsset']),
+                'interest': float(asset['interest']),
+                'borrowed': float(asset['borrowed']),
+                **({} if asset['asset'] in {'USDT', 'BUSD'} else {'amount_btc': float(asset['netAssetOfBtc'])})
+            }
+            for pair_asset in self.api.sapi_get_margin_isolated_account()['assets']
+            for asset in asset_getter(pair_asset)
+        ]
+
+    async def _get_future_balances(self, market_type) -> List[dict]:
+        options = self.api.options.copy()
+        try:
+            self.api.options = {**options, 'defaultType': market_type}
+            return await self._get_spot_balances()
+        except Exception as e:
+            raise e
+        finally:
+            self.api.options = options
+
+    async def _get_future_usd_m_balances(self) -> List[dict]:
+        return await self._get_future_balances('future')
+
+    async def _get_future_coin_m_balances(self) -> List[dict]:
+        return await self._get_future_balances('delivery')
+
+
 EXCHANGE_ACCOUNT_CONNECTOR_MAP = {
-    'binance': BinanceAccountConnector
+    'binance': BinanceAccountConnector,
+    'ascendex': AscendexAccountConnector
 }
 
 
-def snapshot_account_balances(
+async def snapshot_account_balances(
     exchange_credentials: ExchangeCredentials,
     data_store: DataStore,
-    credentials_store: CredentialsStore
+    credentials_store: CredentialsStore,
+    credentials: Optional[dict] = None
 ):
     account_connector_class = EXCHANGE_ACCOUNT_CONNECTOR_MAP.get(exchange_credentials.exchange.slug)
     if not account_connector_class:
@@ -279,19 +396,27 @@ def snapshot_account_balances(
 
     if exchange_credentials.ignore_balance or not exchange_credentials.visible:
         logging.debug(f'Ignore balance for {exchange_credentials}')
-        exchange_credentials.set_balance_snapshot({})
+        # save=False because of async context
+        exchange_credentials.set_balance_snapshot({}, save=False)
         return
 
+    account_connector = None
     try:
-        credentials = credentials_store.get_secret(exchange_credentials.name)
+        if not credentials:
+            credentials = credentials_store.get_secret(exchange_credentials.name)
+
         account_connector = account_connector_class(credentials, data_store)
         exchange_credentials.set_balance_snapshot(
-            account_connector.get_balance_data(exchange_credentials.account_type)
+            await account_connector.get_balance_data(exchange_credentials.account_type),
+            save=False
         )
     except BinanceAccountConnector.Exceptions.UnsupportedMarketType as e:
         logging.error(f"Unsupported market type: {e}")
     except ccxt.errors.AuthenticationError as e:
         logging.error(f"Can't auth to exchange {exchange_credentials}: {e}'")
+    finally:
+        if account_connector and hasattr(account_connector, 'close'):
+            await account_connector.close()
 
 
 def concat_dfs_safe(dfs: List[pd.DataFrame]) -> pd.DataFrame:
@@ -698,7 +823,6 @@ def update_accounts_pnl(datastore: DataStore):
 
     utc_now = datetime.datetime.utcnow()
     for hour in hours:
-        print(hour)
         offset = datetime.timedelta(hours=hour)
         date_end = utc_now - offset
         df = datastore.read(
@@ -731,8 +855,7 @@ def update_accounts_pnl(datastore: DataStore):
 
     pnl_updated_string = timezone.now().strftime('%d/%m/%Y %H:%M:%S')
 
-    for account in ExchangeCredentials.objects.filter(visible=True, ignore_balance=False):
-        print(account, (account.name, account.account_type))
+    for account in ExchangeCredentials.objects.filter(visible=True, ignore_balance=False, exchange__name='binance'):
         account.statistics = (account.statistics or {})
 
         for hour in hours:

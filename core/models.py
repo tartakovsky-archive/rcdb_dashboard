@@ -194,10 +194,11 @@ class ExchangeCredentials(models.Model):
     ignore_balance = models.BooleanField(default=False)
     order_id = models.IntegerField(default=0)
 
-    def set_balance_snapshot(self, snapshot: dict):
+    def set_balance_snapshot(self, snapshot: dict, save: bool = True):
         self.balance_snapshot = snapshot
         self.balance_snapshot_created = timezone.now()
-        self.save()
+        if save:
+            self.save()
 
     @property
     def account_type_label(self) -> Optional[str]:

@@ -25,6 +25,8 @@ jobs:
         env:
           DOCKER_REGISTRY: ${{ secrets.DOCKER_REGISTRY }}
         run: |
+          mkdir .ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > .ssh/gh_rsa
           docker-compose build web nginx
           aws configure set aws_access_key_id "${{ secrets.AWS_ACCESS_KEY_ID }}"
           aws configure set aws_secret_access_key "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
