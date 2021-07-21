@@ -4,6 +4,7 @@ import hmac
 import base64
 import hashlib
 import logging
+import asyncio
 import operator
 import datetime
 from typing import Optional, Dict, List, Tuple, Union, Iterable
@@ -388,7 +389,7 @@ async def snapshot_account_balances(
     data_store: DataStore,
     credentials_store: CredentialsStore,
     credentials: Optional[dict] = None
-):
+) -> Optional[dict]:
     account_connector_class = EXCHANGE_ACCOUNT_CONNECTOR_MAP.get(exchange_credentials.exchange.slug)
     if not account_connector_class:
         logging.error(f'AccountConnector for {exchange_credentials.exchange.slug} is not implemented')
@@ -396,10 +397,7 @@ async def snapshot_account_balances(
 
     if exchange_credentials.ignore_balance or not exchange_credentials.visible:
         logging.debug(f'Ignore balance for {exchange_credentials}')
-        # save=False because of async context
-        exchange_credentials.refresh_from_db()
-        exchange_credentials.set_balance_snapshot({}, save=False)
-        return
+        return {}
 
     account_connector = None
     try:
@@ -407,9 +405,7 @@ async def snapshot_account_balances(
             credentials = credentials_store.get_secret(exchange_credentials.name)
 
         account_connector = account_connector_class(credentials, data_store)
-        balance_data = await account_connector.get_balance_data(exchange_credentials.account_type)
-        exchange_credentials.refresh_from_db()
-        exchange_credentials.set_balance_snapshot(balance_data, save=False)
+        return await account_connector.get_balance_data(exchange_credentials.account_type)
     except BinanceAccountConnector.Exceptions.UnsupportedMarketType as e:
         logging.error(f"Unsupported market type: {e}")
     except ccxt.errors.AuthenticationError as e:
@@ -417,6 +413,47 @@ async def snapshot_account_balances(
     finally:
         if account_connector and hasattr(account_connector, 'close'):
             await account_connector.close()
+
+    return None
+
+
+async def snapshot_ascendex_balances(
+    credentials_store: CredentialsStore,
+    exchange_credentials_list: list
+) -> List[Tuple[ExchangeCredentials, Optional[dict]]]:
+    exchanges_by_name = {}
+    for exchange_credentials in exchange_credentials_list:
+        if exchange_credentials.name not in exchanges_by_name:
+            exchanges_by_name[exchange_credentials.name] = dict(
+                accounts=[],
+                secret=credentials_store.get_secret(exchange_credentials.name),
+            )
+
+        exchanges_by_name[exchange_credentials.name]['accounts'].append(exchange_credentials)
+
+    async def snapshot_balance(
+        exchange_credentials: ExchangeCredentials,
+        secret: dict
+    ) -> Tuple[ExchangeCredentials, Optional[dict]]:
+        try:
+            balance = await snapshot_account_balances(
+                exchange_credentials=exchange_credentials,
+                data_store=None,
+                credentials_store=None,
+                credentials=secret
+            )
+            return exchange_credentials, balance
+        except Exception as e:
+            logging.exception(
+                f'Unexpected error: <t_snapshot_ascendex_balances>'
+                f' {exchange_credentials.name} {exchange_credentials.account_type} : {e}')
+
+    snapshots = await asyncio.gather(*[
+        snapshot_balance(account, account_data['secret'])
+        for account_data in exchanges_by_name.values()
+        for account in account_data['accounts']
+    ])
+    return snapshots
 
 
 def concat_dfs_safe(dfs: List[pd.DataFrame]) -> pd.DataFrame:

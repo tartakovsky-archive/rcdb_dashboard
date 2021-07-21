@@ -143,11 +143,11 @@ def test_snapshot_account_balances_unsupported_exchange(bot: models.Bot):
 )
 def test_snapshot_account_balances(bot: models.Bot, mocker, market_type):
     mocker.patch('core.services.ccxt.binance', MockBinance)
-    exchange_credentials = models.ExchangeCredentials.objects.first()
+    exchange_credentials: models.ExchangeCredentials = models.ExchangeCredentials.objects.first()
     exchange_credentials.account_type = market_type.value
     assert exchange_credentials.exchange.slug
-    asyncio.run(snapshot_account_balances(exchange_credentials, DummyDataStore(), DummyCredentialsStore()))
-    exchange_credentials.save()
+    snapshot = asyncio.run(snapshot_account_balances(exchange_credentials, DummyDataStore(), DummyCredentialsStore()))
+    exchange_credentials.set_balance_snapshot(snapshot)
     snapshot = exchange_credentials.balance_snapshot
     snapshot['balances'] = tuple(snapshot['balances'])
     assert timezone.now() - exchange_credentials.balance_snapshot_created <= timedelta(minutes=1)

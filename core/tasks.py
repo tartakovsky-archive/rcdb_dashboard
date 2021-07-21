@@ -9,7 +9,7 @@ from rcdb_commons.lib.stores import CredentialsStore, DataStore
 
 from .models import Bot, ExchangeCredentials
 from .services import S3DBDumper, BotStatisticUpdater, snapshot_account_balances, \
-    update_account_statistics, update_accounts_pnl
+    update_account_statistics, update_accounts_pnl, snapshot_ascendex_balances
 
 
 @shared_task
@@ -47,44 +47,13 @@ def t_schedule_snapshot_balances():
     logging.info('ended task: <t_schedule_snapshot_balances>')
 
 
-async def snapshot_ascendex_balances(credentials_store: CredentialsStore, exchange_credentials_list: list):
-    exchanges_by_name = {}
-    for exchange_credentials in exchange_credentials_list:
-        if exchange_credentials.name not in exchanges_by_name:
-            exchanges_by_name[exchange_credentials.name] = dict(
-                accounts=[],
-                secret=credentials_store.get_secret(exchange_credentials.name),
-            )
-
-        exchanges_by_name[exchange_credentials.name]['accounts'].append(exchange_credentials)
-
-    async def snapshot_balance(exchange_credentials: ExchangeCredentials, secret: dict):
-        try:
-            await snapshot_account_balances(
-                exchange_credentials=exchange_credentials,
-                data_store=None,
-                credentials_store=None,
-                credentials=secret
-            )
-        except Exception as e:
-            logging.exception(
-                f'Unexpected error: <t_snapshot_ascendex_balances>'
-                f' {exchange_credentials.name} {exchange_credentials.account_type} : {e}')
-
-    await asyncio.gather(*[
-        snapshot_balance(account, account_data['secret'])
-        for account_data in exchanges_by_name.values()
-        for account in account_data['accounts']
-    ])
-
-
 @shared_task(time_limit=59)
 def t_snapshot_ascendex_balances():
     logging.info('started task: <t_snapshot_ascendex_balances>')
     exchange_credentials_list = \
         list(ExchangeCredentials.objects.select_related('exchange').filter(exchange__name='ascendex'))
 
-    asyncio.run(
+    snapshots = asyncio.run(
         snapshot_ascendex_balances(
             CredentialsStore(
                 settings.CREDENTIALSTORE_URL,
@@ -94,8 +63,12 @@ def t_snapshot_ascendex_balances():
             exchange_credentials_list
         )
     )
-    for exchange_credentials in exchange_credentials_list:
-        exchange_credentials.save()
+
+    exchange_credential: ExchangeCredentials
+    for exchange_credential, snapshot in snapshots:
+        if snapshot is not None:
+            exchange_credential.refresh_from_db()
+            exchange_credential.set_balance_snapshot(snapshot)
     logging.info('ended task: <t_snapshot_ascendex_balances>')
 
 
@@ -103,7 +76,12 @@ def t_snapshot_ascendex_balances():
 def t_snapshot_exchange_credentials_balances(exchange_credentials_id: int):
     logging.info(f'started task: <t_snapshot_exchange_credentials_balances> for {exchange_credentials_id}')
     try:
-        exchange_credentials = ExchangeCredentials.objects.select_related('exchange').get(pk=exchange_credentials_id)
+        exchange_credentials: ExchangeCredentials = (
+            ExchangeCredentials
+            .objects
+            .select_related('exchange')
+            .get(pk=exchange_credentials_id)
+        )
         coroutine = snapshot_account_balances(
             exchange_credentials,
             DataStore(settings.DATASTORE_URL, settings.DATASTORE_TOKEN),
@@ -113,8 +91,11 @@ def t_snapshot_exchange_credentials_balances(exchange_credentials_id: int):
                 settings.CREDENTIALSTORE_VAULT
             )
         )
-        asyncio.run(coroutine)
-        exchange_credentials.save()
+        exchange_credentials, snapshot = asyncio.run(coroutine)
+        if snapshot is not None:
+            exchange_credentials.refresh_from_db()
+            exchange_credentials.set_balance_snapshot(snapshot)
+
     except ExchangeCredentials.DoesNotExist:
         logging.warning(
             f'<t_snapshot_exchange_credentials_balances>: instance with id: {exchange_credentials_id} does not exist'
