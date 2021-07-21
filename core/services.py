@@ -397,6 +397,7 @@ async def snapshot_account_balances(
     if exchange_credentials.ignore_balance or not exchange_credentials.visible:
         logging.debug(f'Ignore balance for {exchange_credentials}')
         # save=False because of async context
+        exchange_credentials.refresh_from_db()
         exchange_credentials.set_balance_snapshot({}, save=False)
         return
 
@@ -406,10 +407,9 @@ async def snapshot_account_balances(
             credentials = credentials_store.get_secret(exchange_credentials.name)
 
         account_connector = account_connector_class(credentials, data_store)
-        exchange_credentials.set_balance_snapshot(
-            await account_connector.get_balance_data(exchange_credentials.account_type),
-            save=False
-        )
+        balance_data = await account_connector.get_balance_data(exchange_credentials.account_type)
+        exchange_credentials.refresh_from_db()
+        exchange_credentials.set_balance_snapshot(balance_data, save=False)
     except BinanceAccountConnector.Exceptions.UnsupportedMarketType as e:
         logging.error(f"Unsupported market type: {e}")
     except ccxt.errors.AuthenticationError as e:
@@ -791,7 +791,7 @@ def update_account_statistics(datastore: DataStore, exchange_credentials: Exchan
     datastore_manager = DataStoreDataSynchronizer(datastore)
     trades = datastore_manager.get_updated_trades(exchange_credentials)
 
-    exchange_credentials.statistics = {
+    statistics = {
         **(
             {
                 k: exchange_credentials.statistics.get(k)
@@ -810,10 +810,12 @@ def update_account_statistics(datastore: DataStore, exchange_credentials: Exchan
         'trades': [],
     }
 
-    exchange_credentials.statistics = {
-        **exchange_credentials.statistics,
+    statistics = {
+        **statistics,
         **(StatisticsCalculator.trades_statistics(trades) if len(trades) else {}),
     }
+    exchange_credentials.refresh_from_db()
+    exchange_credentials.statistics = statistics
     exchange_credentials.save()
 
 
@@ -856,12 +858,12 @@ def update_accounts_pnl(datastore: DataStore):
     pnl_updated_string = timezone.now().strftime('%d/%m/%Y %H:%M:%S')
 
     for account in ExchangeCredentials.objects.filter(visible=True, ignore_balance=False, exchange__name='binance'):
-        account.statistics = (account.statistics or {})
+        statistics = (account.statistics or {})
 
         for hour in hours:
             df_key = f'h{hour}'
-            account.statistics[f'{df_key}_total_usd'] = None
-            account.statistics[f'{df_key}_pnl'] = None
+            statistics[f'{df_key}_total_usd'] = None
+            statistics[f'{df_key}_pnl'] = None
             if df_key not in df_data:
                 continue
 
@@ -870,12 +872,14 @@ def update_accounts_pnl(datastore: DataStore):
 
             if len(old_balance) and account.balance_snapshot and 'total_usd' in account.balance_snapshot:
                 old_total_usd = old_balance.amount_usd.values[-1]
-                account.statistics[f'{df_key}_total_usd'] = old_total_usd
+                statistics[f'{df_key}_total_usd'] = old_total_usd
                 if old_total_usd != 0:
-                    account.statistics[f'{df_key}_pnl'] = \
+                    statistics[f'{df_key}_pnl'] = \
                         (account.balance_snapshot['total_usd'] - old_total_usd) / old_total_usd * 100
 
-        account.statistics['pnl_updated'] = pnl_updated_string
+        statistics['pnl_updated'] = pnl_updated_string
+        account.refresh_from_db()
+        account.statistics = statistics
         account.save()
 
 
