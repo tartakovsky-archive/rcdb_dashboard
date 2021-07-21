@@ -82,16 +82,17 @@ def t_snapshot_exchange_credentials_balances(exchange_credentials_id: int):
             .select_related('exchange')
             .get(pk=exchange_credentials_id)
         )
-        coroutine = snapshot_account_balances(
-            exchange_credentials,
-            DataStore(settings.DATASTORE_URL, settings.DATASTORE_TOKEN),
-            CredentialsStore(
-                settings.CREDENTIALSTORE_URL,
-                settings.CREDENTIALSTORE_TOKEN,
-                settings.CREDENTIALSTORE_VAULT
+        snapshot = asyncio.run(
+            snapshot_account_balances(
+                exchange_credentials,
+                DataStore(settings.DATASTORE_URL, settings.DATASTORE_TOKEN),
+                CredentialsStore(
+                    settings.CREDENTIALSTORE_URL,
+                    settings.CREDENTIALSTORE_TOKEN,
+                    settings.CREDENTIALSTORE_VAULT
+                )
             )
         )
-        exchange_credentials, snapshot = asyncio.run(coroutine)
         if snapshot is not None:
             exchange_credentials.refresh_from_db()
             exchange_credentials.set_balance_snapshot(snapshot)

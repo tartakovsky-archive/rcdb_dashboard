@@ -116,6 +116,8 @@ services:
       options:
         max-size: "512m"
         max-file: "2"
+    ports:
+      - 6379:6379
 
 volumes:
   db_data:
