@@ -447,6 +447,7 @@ async def snapshot_ascendex_balances(
             logging.exception(
                 f'Unexpected error: <t_snapshot_ascendex_balances>'
                 f' {exchange_credentials.name} {exchange_credentials.account_type} : {e}')
+            return exchange_credentials, None
 
     snapshots = await asyncio.gather(*[
         snapshot_balance(account, account_data['secret'])
