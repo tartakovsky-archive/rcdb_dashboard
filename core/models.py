@@ -192,6 +192,11 @@ class ExchangeCredentials(models.Model):
 
     visible = models.BooleanField(default=True)
     ignore_balance = models.BooleanField(default=False)
+    ignore_datapipes = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text='Disables a collecting data for the account'
+    )
     order_id = models.IntegerField(default=0)
 
     def set_balance_snapshot(self, snapshot: dict, save: bool = True):

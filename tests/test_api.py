@@ -72,3 +72,11 @@ def test_get_exchange_credentials(auth_client_token, bot: models.Bot):
             'meta': {}
         },
     )
+
+
+@use_db
+def test_get_exchange_credentials_ignore_pipes(auth_client_token, bot: models.Bot):
+    assert models.ExchangeCredentials.objects.count() == 1
+    models.ExchangeCredentials.objects.update(ignore_datapipes=True)
+    response = auth_client_token.get('/api/exchange-credentials')
+    assert len(response.json()) == 0
