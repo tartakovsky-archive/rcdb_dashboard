@@ -83,14 +83,14 @@
                                             </td>
                                             <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
                                                  {% if not creds.ignore_balance %}
-                                                    <span class="hint--top" aria-label="Updated: {{ creds.statistics.pnl_updated }} Prev: {{ creds.statistics.h1_total_usd }}$">
+                                                    <span class="hint--top" aria-label="Updated: {{ creds.statistics.pnl_updated }} Prev: {{ creds.statistics.h1_total_usd|floatformat:2 }} In: {{ creds.statistics.h1_transfers_in_volume|floatformat:2 }} Out: {{ creds.statistics.h1_transfers_out_volume|floatformat:2 }}">
                                                         {{ creds.statistics.h1_pnl|floatformat:1|intcomma|default_if_none:'' }}{% if creds.statistics.h1_pnl is not None %}%{% endif %}
                                                     </span>
                                                 {% else %}-{% endif %}
                                             </td>
                                             <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
                                                 {% if not creds.ignore_balance %}
-                                                    <span class="hint--top" aria-label="Updated: {{ creds.statistics.pnl_updated  }} Prev: {{ creds.statistics.h24_total_usd }}$">
+                                                    <span class="hint--top" aria-label="Updated: {{ creds.statistics.pnl_updated  }} Prev: {{ creds.statistics.h24_total_usd|floatformat:2 }} In: {{ creds.statistics.h24_transfers_in_volume|floatformat:2 }} Out: {{ creds.statistics.h24_transfers_out_volume|floatformat:2 }}">
                                                         {{ creds.statistics.h24_pnl|floatformat:1|intcomma|default_if_none:'' }}{% if creds.statistics.h24_pnl is not None %}%{% endif %}
                                                     </span>
                                                 {% else %}-{% endif %}
