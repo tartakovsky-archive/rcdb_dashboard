@@ -16,7 +16,7 @@ import boto3
 import pandas as pd
 from django.utils import timezone
 from django.core import management
-from rcdb_commons.lib.schemas.exchange import AccountType, SymbolEmpty
+from rcdb_commons.lib.schemas.exchange import AccountType, SymbolEmpty, TransferType
 from rcdb_commons.lib.stores import CredentialsStore, DataStore, DataType
 
 from .forms import ReportType, RebatesForm, RebateCurrency
@@ -833,7 +833,11 @@ def update_account_statistics(datastore: DataStore, exchange_credentials: Exchan
         **(
             {
                 k: exchange_credentials.statistics.get(k)
-                for k in ['h1_pnl', 'h1_total_usd', 'h24_pnl', 'h24_total_usd', 'pnl_updated']
+                for k in [
+                    'h1_pnl', 'h1_total_usd', 'h24_pnl', 'h24_total_usd', 'pnl_updated',
+                    'h24_transfers_in_volume', 'h1_transfers_in_volume',
+                    'h24_transfers_out_volume', 'h1_transfers_out_volume',
+                ]
             }
             if exchange_credentials.statistics else
             {}
@@ -860,11 +864,13 @@ def update_account_statistics(datastore: DataStore, exchange_credentials: Exchan
 def update_accounts_pnl(datastore: DataStore):
     df_data = {}
     hours = [1, 24]
+    date_ends = {}
 
     utc_now = datetime.datetime.utcnow()
     for hour in hours:
         offset = datetime.timedelta(hours=hour)
         date_end = utc_now - offset
+        date_ends[hour] = date_end
         df = datastore.read(
             DataType.balance,
             query_params=dict(
@@ -893,15 +899,17 @@ def update_accounts_pnl(datastore: DataStore):
     if not df_data:
         logging.error('No data were received for pnl')
 
+    grouped_transfers = get_transfers_grouped_by_account_name(datastore)
     pnl_updated_string = timezone.now().strftime('%d/%m/%Y %H:%M:%S')
 
     for account in ExchangeCredentials.objects.filter(visible=True, ignore_balance=False, exchange__name='binance'):
         statistics = (account.statistics or {})
-
         for hour in hours:
             df_key = f'h{hour}'
             statistics[f'{df_key}_total_usd'] = None
             statistics[f'{df_key}_pnl'] = None
+            statistics[f'{df_key}_transfers_in_volume'] = 0
+            statistics[f'{df_key}_transfers_out_volume'] = 0
             if df_key not in df_data:
                 continue
 
@@ -912,13 +920,95 @@ def update_accounts_pnl(datastore: DataStore):
                 old_total_usd = old_balance.amount_usd.values[-1]
                 statistics[f'{df_key}_total_usd'] = old_total_usd
                 if old_total_usd != 0:
+                    pnl_subtrahend, transfers_in_volume, transfers_out_volume = transfers_volume(
+                        grouped_transfers.get(account.name, pd.DataFrame([])),
+                        account,
+                        date_ends[hour]
+                    )
+                    statistics[f'{df_key}_transfers_in_volume'] = transfers_in_volume
+                    statistics[f'{df_key}_transfers_out_volume'] = transfers_out_volume
                     statistics[f'{df_key}_pnl'] = \
-                        (account.balance_snapshot['total_usd'] - old_total_usd) / old_total_usd * 100
+                        (account.balance_snapshot['total_usd'] - old_total_usd - pnl_subtrahend) / old_total_usd * 100
 
         statistics['pnl_updated'] = pnl_updated_string
         account.refresh_from_db()
         account.statistics = statistics
         account.save()
+
+
+def transfer_types_prepare(filter_func):
+    return list(
+        map(
+            lambda _type: _type.value,
+            filter(filter_func, TransferType)
+        )
+    )
+
+
+ACCOUNT_TYPE_TO_TRANSFER_OPERATIONS = {
+    AccountType.SPOT: {
+        'in': transfer_types_prepare(lambda _type: _type.value.endswith('_MAIN') or _type == TransferType.MAIN_DEPOSIT),
+        'out': transfer_types_prepare(lambda _type: _type.value.startswith('MAIN_'))
+    },
+    AccountType.CROSS_MARGIN: {
+        'in': transfer_types_prepare(lambda _type: _type.value.endswith('_MARGIN')),
+        'out': transfer_types_prepare(lambda _type: _type.value.startswith('MARGIN_'))
+    },
+    AccountType.COIN_M_FUTURES: {
+        'in': transfer_types_prepare(lambda _type: _type.value.endswith('_CMFUTURE')),
+        'out': transfer_types_prepare(lambda _type: _type.value.startswith('CMFUTURE_'))
+    },
+    AccountType.USDT_M_FUTURES: {
+        'in': transfer_types_prepare(lambda _type: _type.value.endswith('_UMFUTURE')),
+        'out': transfer_types_prepare(lambda _type: _type.value.startswith('UMFUTURE_'))
+    }
+}
+
+
+def get_transfers_grouped_by_account_name(datastore: DataStore):
+    df = datastore.read(
+        DataType.transfers,
+        query_params=dict(
+            start_date=datetime.datetime.utcnow() - datetime.timedelta(hours=24),
+            tail=35_000
+        )
+    )
+    if not len(df):
+        return {}
+
+    return df_dict_group(df, 'name')
+
+
+def transfers_volume(
+    account_transfers: pd.DataFrame,
+    exchange_credentials: ExchangeCredentials,
+    date_end: datetime.datetime
+) -> Tuple[float, float, float]:
+    """
+    returns transfers_volume, transfers_in_volume, transfers_out_volume
+    :param account_transfers:
+    :param exchange_credentials:
+    :param date_end:
+    :return:
+    """
+    if not len(account_transfers):
+        return 0., 0., 0.
+
+    account_transfers = account_transfers[account_transfers.index >= date_end].copy()
+    if not len(account_transfers):
+        return 0., 0., 0.
+
+    transfers = ACCOUNT_TYPE_TO_TRANSFER_OPERATIONS[AccountType[exchange_credentials.account_type]]
+    account_transfers['direction'] = account_transfers.transfer_type.apply(
+        lambda ttype: ('in' if ttype in transfers['in'] else ('out' if ttype in transfers['out'] else None))
+    )
+    account_transfers = account_transfers[~account_transfers.direction.isna()]
+    account_transfers.loc[account_transfers.direction == 'out', 'amount_usd'] *= -1
+    return (
+        account_transfers.amount_usd.sum(),
+        account_transfers[account_transfers.direction == 'in'].amount_usd.sum(),
+        account_transfers[account_transfers.direction == 'out'].amount_usd.sum()
+    )
 
 
 def df_to_list(df: pd.DataFrame) -> List[dict]:

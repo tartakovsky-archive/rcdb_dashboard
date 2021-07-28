@@ -223,7 +223,7 @@ class ExchangeCredentials(models.Model):
             return AccountType[self.account_type] in {AccountType.CROSS_MARGIN, AccountType.ISOLATED_MARGIN}
 
     def __str__(self):
-        return f"{self.name} for {self.exchange}"
+        return f"{self.name} for {self.exchange} {self.account_type}"
 
 
 class Bot(models.Model):
