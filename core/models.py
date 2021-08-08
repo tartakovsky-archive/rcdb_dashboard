@@ -203,7 +203,7 @@ class ExchangeCredentials(models.Model):
         self.balance_snapshot = snapshot
         self.balance_snapshot_created = timezone.now()
         if save:
-            self.save()
+            self.save(update_fields=['balance_snapshot', 'balance_snapshot_created'])
 
     @property
     def account_type_label(self) -> Optional[str]:

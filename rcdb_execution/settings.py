@@ -20,6 +20,7 @@ from .sentry import init_sentry
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+os.environ.setdefault('DJANGO_ALLOW_ASYNC_UNSAFE', 'true')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.0/howto/deployment/checklist/
@@ -148,6 +149,7 @@ UPDATE_BOT_STATISTIC_INTERVAL = int(os.environ.get('UPDATE_BOT_STATISTIC_INTERVA
 CREDENTIALSTORE_URL = os.environ.get('CREDENTIALSTORE_URL')
 CREDENTIALSTORE_TOKEN = os.environ.get('CREDENTIALSTORE_TOKEN')
 CREDENTIALSTORE_VAULT = os.environ.get('CREDENTIALSTORE_VAULT')
+BINANCE_PROXIES = os.environ['BINANCE_PROXIES'].split(',') if os.environ.get('BINANCE_PROXIES') else None
 
 ###############
 # CELERY CONFIG
@@ -165,16 +167,12 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'core.tasks.t_schedule_update_bot_statistic',
         'schedule': 25,
     },
-    'schedule-snapshot-balances': {
-        'task': 'core.tasks.t_schedule_snapshot_balances',
-        'schedule': 60,
-    },
-    'snapshot-ascendex-balances': {
-        'task': 'core.tasks.t_snapshot_ascendex_balances',
-        'schedule': 20,
-    },
     'schedule-update-account-statistics': {
         'task': 'core.tasks.t_schedule_update_account_statistics',
+        'schedule': 2*60,
+    },
+    'update-balances': {
+        'task': 'core.tasks.t_balance_updater',
         'schedule': 2*60,
     },
     'backup-db': {

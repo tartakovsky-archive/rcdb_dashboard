@@ -7,7 +7,7 @@ import logging
 import asyncio
 import operator
 import datetime
-from typing import Optional, Dict, List, Tuple, Union, Iterable
+from typing import Optional, Dict, List, Tuple, Union, Iterable, Callable
 
 import pytz
 import ccxt
@@ -16,6 +16,7 @@ import boto3
 import pandas as pd
 from django.utils import timezone
 from django.core import management
+from rcdb_commons.lib.helpers.graceful_killer import GracefulKiller
 from rcdb_commons.lib.schemas.exchange import AccountType, SymbolEmpty, TransferType
 from rcdb_commons.lib.stores import CredentialsStore, DataStore, DataType
 
@@ -182,6 +183,9 @@ class AccountConnector:
     def _sort_balances(balances: Iterable[dict]) -> List[dict]:
         return sorted(balances, key=lambda x: x['amount_usd'], reverse=True)
 
+    def set_usd_price_cache(self):
+        raise NotImplementedError('method is not implemented')
+
     async def _get_spot_balances(self) -> List[dict]:
         raise NotImplementedError('method is not implemented')
 
@@ -271,10 +275,16 @@ class AccountConnector:
         result['total_usd'] = sum(map(operator.itemgetter('amount_usd'), result['balances']))
         return result
 
+    async def close(self):
+        raise NotImplementedError('method is not implemented')
+
 
 class AscendexAccountConnector(AccountConnector):
     def __init__(self, credentials: dict, *args, **kwargs):
         self.api = Ascendex(credentials)
+        self.set_usd_price_cache()
+
+    def set_usd_price_cache(self):
         self._usd_price_cache = {'USDT': 1, 'BUSD': 1}
 
     async def fetch_price(self, symbol: str) -> Optional[float]:
@@ -314,8 +324,13 @@ class AscendexAccountConnector(AccountConnector):
 
 class BinanceAccountConnector(AccountConnector):
     def __init__(self, credentials: dict, data_store: DataStore):
-        self.api = ccxt.binance(credentials)
+        self.api = ccxtpro.binance(credentials)
         self.data_store = data_store
+        self.set_usd_price_cache()
+
+        self._spot_lock = asyncio.Lock()
+
+    def set_usd_price_cache(self):
         self._usd_price_cache = {'USDT': 1, 'ETF': 1, 'BUSD': 1}
 
     async def fetch_price(self, symbol: str) -> Optional[float]:
@@ -332,9 +347,13 @@ class BinanceAccountConnector(AccountConnector):
         return None
 
     async def _get_spot_balances(self) -> List[dict]:
+        async with self._spot_lock:
+            return await self._get_spot_like_balances()
+
+    async def _get_spot_like_balances(self) -> List[dict]:
         return [
             {'symbol': symbol, 'amount': amount}
-            for symbol, amount in self.api.fetch_balance()['total'].items()
+            for symbol, amount in (await self.api.fetch_balance())['total'].items()
             if amount
         ]
 
@@ -346,7 +365,7 @@ class BinanceAccountConnector(AccountConnector):
                 'interest': float(b['interest']),
                 'borrowed': float(b['borrowed'])
             }
-            for b in self.api.sapi_get_margin_account()['userAssets']
+            for b in (await self.api.sapi_get_margin_account())['userAssets']
         ]
 
     async def _get_isolated_margin_balances(self) -> List[dict]:
@@ -360,7 +379,7 @@ class BinanceAccountConnector(AccountConnector):
                 'borrowed': float(asset['borrowed']),
                 **({} if asset['asset'] in {'USDT', 'BUSD'} else {'amount_btc': float(asset['netAssetOfBtc'])})
             }
-            for pair_asset in self.api.sapi_get_margin_isolated_account()['assets']
+            for pair_asset in (await self.api.sapi_get_margin_isolated_account())['assets']
             for asset in asset_getter(pair_asset)
         ]
 
@@ -368,17 +387,37 @@ class BinanceAccountConnector(AccountConnector):
         options = self.api.options.copy()
         try:
             self.api.options = {**options, 'defaultType': market_type}
-            return await self._get_spot_balances()
+            return await self._get_spot_like_balances()
         except Exception as e:
             raise e
         finally:
             self.api.options = options
 
     async def _get_future_usd_m_balances(self) -> List[dict]:
-        return await self._get_future_balances('future')
+        async with self._spot_lock:
+            return await self._get_future_balances('future')
 
     async def _get_future_coin_m_balances(self) -> List[dict]:
-        return await self._get_future_balances('delivery')
+        async with self._spot_lock:
+            return await self._get_future_balances('delivery')
+
+    async def close(self):
+        await self.api.close()
+
+
+class RedisSimpleLock:
+    def __init__(self, redis, key):
+        self.redis = redis
+        self.key = key
+
+    def lock(self, expires=60*5):
+        self.redis.set(self.key, '1', ex=expires)
+
+    def release(self):
+        self.redis.delete(self.key)
+
+    def is_locked(self):
+        return self.redis.exists(self.key) != 0
 
 
 EXCHANGE_ACCOUNT_CONNECTOR_MAP = {
@@ -387,77 +426,127 @@ EXCHANGE_ACCOUNT_CONNECTOR_MAP = {
 }
 
 
+async def balance_updater(
+    credentials_store: CredentialsStore,
+    data_store: DataStore,
+    graceful_killer: GracefulKiller,
+    binance_proxies: list = None,
+    sleep_between_rounds: int = 5,
+    price_cache_clear_interval: int = 60,
+    healthcheck: Optional[Callable] = None
+):
+    connector_by_name: Dict[str, AccountConnector] = {}
+
+    last_cache_clear = time.time()
+    while not graceful_killer.kill_now:
+        logging.info('Start snapshot balances')
+        exchange_credentials_list: List[ExchangeCredentials] = (
+            ExchangeCredentials
+            .objects
+            .select_related('exchange')
+            .order_by('exchange')
+            .all()
+        )
+
+        async def dummy():
+            return None
+
+        ex: ExchangeCredentials
+        for i, ex in enumerate(exchange_credentials_list):
+            if ex.name not in connector_by_name:
+                logging.info(f'Getting credentials for {ex.name}')
+                secret = credentials_store.get_secret(ex.name)
+                account_connector_class = EXCHANGE_ACCOUNT_CONNECTOR_MAP.get(ex.exchange.slug)
+                if binance_proxies and account_connector_class is BinanceAccountConnector:
+                    secret['aiohttp_proxy'] = binance_proxies[i % len(binance_proxies)]
+
+                connector_by_name[ex.name] = account_connector_class(secret, data_store)
+
+        tasks = []
+        for ex in exchange_credentials_list:
+            account_connector = connector_by_name.get(ex.name)
+            if not account_connector:
+                logging.error(f'No connector for {ex}')
+                tasks.append(dummy())
+            else:
+                tasks.append(
+                    snapshot_account_balances(
+                        exchange_credentials=ex,
+                        data_store=data_store,
+                        credentials_store=None,
+                        account_connector=account_connector
+                    )
+                )
+        logging.info('Waiting snapshots')
+        results = await asyncio.gather(*tasks)
+        for ex, snapshot in zip(exchange_credentials_list, results):
+            if snapshot is not None:
+                logging.info(f'Set snapshot for {ex} {snapshot}')
+                ex.set_balance_snapshot(snapshot)
+
+        logging.info('End snapshots round')
+        if healthcheck:
+            healthcheck()
+
+        if graceful_killer.kill_now:
+            break
+
+        await asyncio.sleep(sleep_between_rounds)
+
+        if time.time() - last_cache_clear > price_cache_clear_interval:
+            logging.info('balance_updater price cache clear')
+            for connector in connector_by_name.values():
+                connector.set_usd_price_cache()
+            last_cache_clear = time.time()
+
+    await asyncio.gather(*[connector.close() for connector in connector_by_name.values()])
+
+
 async def snapshot_account_balances(
     exchange_credentials: ExchangeCredentials,
     data_store: DataStore,
     credentials_store: CredentialsStore,
-    credentials: Optional[dict] = None
+    credentials: Optional[dict] = None,
+    account_connector: Optional[AccountConnector] = None,
 ) -> Optional[dict]:
-    account_connector_class = EXCHANGE_ACCOUNT_CONNECTOR_MAP.get(exchange_credentials.exchange.slug)
-    if not account_connector_class:
-        logging.error(f'AccountConnector for {exchange_credentials.exchange.slug} is not implemented')
-        return
-
     if exchange_credentials.ignore_balance or not exchange_credentials.visible:
         logging.debug(f'Ignore balance for {exchange_credentials}')
         return {}
 
-    account_connector = None
     try:
-        if not credentials:
-            credentials = credentials_store.get_secret(exchange_credentials.name)
+        if not account_connector:
+            account_connector_class = EXCHANGE_ACCOUNT_CONNECTOR_MAP.get(exchange_credentials.exchange.slug)
+            if not account_connector_class:
+                logging.error(f'AccountConnector for {exchange_credentials.exchange.slug} is not implemented')
+                return
 
-        account_connector = account_connector_class(credentials, data_store)
-        return await account_connector.get_balance_data(exchange_credentials.account_type)
+            if not credentials:
+                credentials = credentials_store.get_secret(exchange_credentials.name)
+
+            account_connector = account_connector_class(credentials, data_store)
+
+        res = await account_connector.get_balance_data(exchange_credentials.account_type)
+        if hasattr(account_connector, 'api') and isinstance(account_connector, BinanceAccountConnector):
+            logging.info(f'{exchange_credentials.account_type} {get_weight_str(account_connector.api)}')
+        return res
     except BinanceAccountConnector.Exceptions.UnsupportedMarketType as e:
         logging.error(f"Unsupported market type: {e}")
     except ccxt.errors.AuthenticationError as e:
         logging.error(f"Can't auth to exchange {exchange_credentials}: {e}'")
-    finally:
-        if account_connector and hasattr(account_connector, 'close'):
-            await account_connector.close()
+    except Exception as e:
+        logging.exception(f'snapshot_account_balances: unexpected error for {exchange_credentials}: {e}')
 
     return None
 
 
-async def snapshot_ascendex_balances(
-    credentials_store: CredentialsStore,
-    exchange_credentials_list: list
-) -> List[Tuple[ExchangeCredentials, Optional[dict]]]:
-    exchanges_by_name = {}
-    for exchange_credentials in exchange_credentials_list:
-        if exchange_credentials.name not in exchanges_by_name:
-            exchanges_by_name[exchange_credentials.name] = dict(
-                accounts=[],
-                secret=credentials_store.get_secret(exchange_credentials.name),
-            )
+def get_weight_str(api):
+    headers = {k: v for k, v in api.last_response_headers.items() if 'weight' in k.lower()}
+    proxy = api.aiohttp_proxy
+    return f'{proxy} {headers}'
 
-        exchanges_by_name[exchange_credentials.name]['accounts'].append(exchange_credentials)
 
-    async def snapshot_balance(
-        exchange_credentials: ExchangeCredentials,
-        secret: dict
-    ) -> Tuple[ExchangeCredentials, Optional[dict]]:
-        try:
-            balance = await snapshot_account_balances(
-                exchange_credentials=exchange_credentials,
-                data_store=None,
-                credentials_store=None,
-                credentials=secret
-            )
-            return exchange_credentials, balance
-        except Exception as e:
-            logging.exception(
-                f'Unexpected error: <t_snapshot_ascendex_balances>'
-                f' {exchange_credentials.name} {exchange_credentials.account_type} : {e}')
-            return exchange_credentials, None
-
-    snapshots = await asyncio.gather(*[
-        snapshot_balance(account, account_data['secret'])
-        for account_data in exchanges_by_name.values()
-        for account in account_data['accounts']
-    ])
-    return snapshots
+def print_api_weight(api):
+    print(get_weight_str(api))
 
 
 def concat_dfs_safe(dfs: List[pd.DataFrame]) -> pd.DataFrame:

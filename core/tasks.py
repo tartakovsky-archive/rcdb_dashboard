@@ -1,15 +1,16 @@
 import asyncio
 import logging
 
-import ccxt
 import requests
+from redis import StrictRedis
 from celery import shared_task
 from django.conf import settings
+from rcdb_commons.lib.helpers.graceful_killer import GracefulKiller
 from rcdb_commons.lib.stores import CredentialsStore, DataStore
 
 from .models import Bot, ExchangeCredentials
-from .services import S3DBDumper, BotStatisticUpdater, snapshot_account_balances, \
-    update_account_statistics, update_accounts_pnl, snapshot_ascendex_balances
+from .services import S3DBDumper, BotStatisticUpdater, update_account_statistics, \
+    update_accounts_pnl, balance_updater, RedisSimpleLock
 
 
 @shared_task
@@ -40,78 +41,6 @@ def t_update_bot_statistic(bot_id: int):
 
 
 @shared_task
-def t_schedule_snapshot_balances():
-    logging.info('started task: <t_schedule_snapshot_balances>')
-    for exchange_credentials in ExchangeCredentials.objects.filter(exchange__name='binance'):
-        t_snapshot_exchange_credentials_balances.delay(exchange_credentials.id)
-    logging.info('ended task: <t_schedule_snapshot_balances>')
-
-
-@shared_task(time_limit=59)
-def t_snapshot_ascendex_balances():
-    logging.info('started task: <t_snapshot_ascendex_balances>')
-    exchange_credentials_list = \
-        list(ExchangeCredentials.objects.select_related('exchange').filter(exchange__name='ascendex'))
-
-    snapshots = asyncio.run(
-        snapshot_ascendex_balances(
-            CredentialsStore(
-                settings.CREDENTIALSTORE_URL,
-                settings.CREDENTIALSTORE_TOKEN,
-                settings.CREDENTIALSTORE_VAULT
-            ),
-            exchange_credentials_list
-        )
-    )
-
-    exchange_credential: ExchangeCredentials
-    for exchange_credential, snapshot in snapshots:
-        if snapshot is not None:
-            exchange_credential.refresh_from_db()
-            exchange_credential.set_balance_snapshot(snapshot)
-    logging.info('ended task: <t_snapshot_ascendex_balances>')
-
-
-@shared_task
-def t_snapshot_exchange_credentials_balances(exchange_credentials_id: int):
-    logging.info(f'started task: <t_snapshot_exchange_credentials_balances> for {exchange_credentials_id}')
-    try:
-        exchange_credentials: ExchangeCredentials = (
-            ExchangeCredentials
-            .objects
-            .select_related('exchange')
-            .get(pk=exchange_credentials_id)
-        )
-        snapshot = asyncio.run(
-            snapshot_account_balances(
-                exchange_credentials,
-                DataStore(settings.DATASTORE_URL, settings.DATASTORE_TOKEN),
-                CredentialsStore(
-                    settings.CREDENTIALSTORE_URL,
-                    settings.CREDENTIALSTORE_TOKEN,
-                    settings.CREDENTIALSTORE_VAULT
-                )
-            )
-        )
-        if snapshot is not None:
-            exchange_credentials.refresh_from_db()
-            exchange_credentials.set_balance_snapshot(snapshot)
-
-    except ExchangeCredentials.DoesNotExist:
-        logging.warning(
-            f'<t_snapshot_exchange_credentials_balances>: instance with id: {exchange_credentials_id} does not exist'
-        )
-    except ccxt.errors.NetworkError as e:
-        logging.error(
-            f'<t_snapshot_exchange_credentials_balances>: instance with id: {exchange_credentials_id} NetworkError {e}'
-        )
-    except Exception:
-        logging.exception(f'<t_snapshot_exchange_credentials_balances>: unexpected error for {exchange_credentials_id}')
-
-    logging.info(f'ended task: <t_snapshot_exchange_credentials_balances> for {exchange_credentials_id}')
-
-
-@shared_task
 def t_schedule_update_account_statistics():
     logging.info('started task: <t_schedule_update_account_statistics>')
     for exchange_credentials in ExchangeCredentials.objects.filter(exchange__name='binance'):
@@ -138,6 +67,48 @@ def t_update_account_statistics(exchange_credentials_id: int):
         logging.exception(f'<t_update_account_statistics>: unexpected error for {exchange_credentials_id}')
 
     logging.info(f'ended task: <t_update_account_statistics> for {exchange_credentials_id}')
+
+
+@shared_task
+def t_balance_updater():
+    logging.info('started task: <t_balance_updater>')
+
+    lock = RedisSimpleLock(
+        StrictRedis(settings.REDIS_HOST, settings.REDIS_PORT, password=settings.REDIS_PASSWORD),
+        't_balance_updater_lock'
+    )
+
+    if lock.is_locked():
+        logging.info('<t_balance_updater> already running')
+        return
+
+    lock.lock()
+
+    try:
+        data_store = DataStore(settings.DATASTORE_URL, settings.DATASTORE_TOKEN)
+        credentials_store = CredentialsStore(
+            settings.CREDENTIALSTORE_URL,
+            settings.CREDENTIALSTORE_TOKEN,
+            settings.CREDENTIALSTORE_VAULT,
+        )
+
+        asyncio.run(
+            balance_updater(
+                credentials_store,
+                data_store,
+                healthcheck=lock.lock,
+                binance_proxies=settings.BINANCE_PROXIES,
+                graceful_killer=GracefulKiller()
+            )
+        )
+    except Exception as e:
+        logging.exception(f'<t_balance_updater>: unexpected error {e}')
+
+    finally:
+        lock.release()
+        logging.info('<t_balance_updater>: released')
+
+    logging.info('ended task: <t_balance_updater>')
 
 
 @shared_task
