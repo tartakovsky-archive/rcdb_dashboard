@@ -995,7 +995,19 @@ def update_accounts_pnl(datastore: DataStore):
     grouped_transfers = get_transfers_grouped_by_account_name(datastore)
     pnl_updated_string = timezone.now().strftime('%d/%m/%Y %H:%M:%S')
 
-    for account in ExchangeCredentials.objects.filter(visible=True, ignore_balance=False, exchange__name='binance'):
+    accounts = (
+        ExchangeCredentials
+        .objects
+        .filter(
+            visible=True,
+            ignore_balance=False,
+            exchange__name='binance',
+        )
+        .exclude(
+            account_type=AccountType.ISOLATED_MARGIN.value
+        )
+    )
+    for account in accounts:
         statistics = (account.statistics or {})
         for hour in hours:
             df_key = f'h{hour}'
