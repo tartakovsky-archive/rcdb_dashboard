@@ -325,7 +325,7 @@ class AscendexAccountConnector(AccountConnector):
 
 class BinanceAccountConnector(AccountConnector):
     def __init__(self, credentials: dict, data_store: DataStore):
-        self.api = ccxtpro.binance(credentials)
+        self.api = ccxtpro.binance(self._set_adjust_for_time_difference(credentials))
         self.data_store = data_store
         self.set_usd_price_cache()
 
