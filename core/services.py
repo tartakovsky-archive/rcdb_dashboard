@@ -289,10 +289,11 @@ class AscendexAccountConnector(AccountConnector):
 
     async def fetch_price(self, symbol: str) -> Optional[float]:
         res = await self.api.fetch_ticker(symbol)
-        if 'xdai' in symbol.lower() and res['bid'] < 0.1:
-            logging.error(f"low xdai: {res['bid']} {res}")
+        price = res['bid'] if res['bid'] else res['close']
 
-        return res['bid']
+        assert price > 0, f'Low price ascendex {res}'
+
+        return price
 
     async def _get_spot_balances(self) -> List[dict]:
         return [
