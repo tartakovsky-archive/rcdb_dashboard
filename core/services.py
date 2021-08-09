@@ -325,11 +325,21 @@ class AscendexAccountConnector(AccountConnector):
 
 class BinanceAccountConnector(AccountConnector):
     def __init__(self, credentials: dict, data_store: DataStore):
-        self.api = ccxtpro.binance(credentials)
+        self.api = ccxtpro.binance(self._set_adjust_for_time_difference(credentials))
         self.data_store = data_store
         self.set_usd_price_cache()
 
         self._spot_lock = asyncio.Lock()
+
+    @staticmethod
+    def _set_adjust_for_time_difference(credentials: dict) -> dict:
+        credentials = credentials.copy()
+        credentials['enableRateLimit'] = True
+        if 'options' not in credentials:
+            credentials['options'] = {}
+
+        credentials['options']['adjustForTimeDifference'] = True
+        return credentials
 
     def set_usd_price_cache(self):
         self._usd_price_cache = {'USDT': 1, 'ETF': 1, 'BUSD': 1}
