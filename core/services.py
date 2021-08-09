@@ -442,7 +442,7 @@ async def balance_updater(
     data_store: DataStore,
     graceful_killer: GracefulKiller,
     binance_proxies: list = None,
-    sleep_between_rounds: int = 5,
+    sleep_between_rounds: int = 10,
     price_cache_clear_interval: int = 60,
     healthcheck: Optional[Callable] = None
 ):
