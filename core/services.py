@@ -959,9 +959,8 @@ def update_account_statistics(datastore: DataStore, exchange_credentials: Exchan
         **statistics,
         **(StatisticsCalculator.trades_statistics(trades) if len(trades) else {}),
     }
-    exchange_credentials.refresh_from_db()
     exchange_credentials.statistics = statistics
-    exchange_credentials.save()
+    exchange_credentials.save(update_fields=['statistics'])
 
 
 def update_accounts_pnl(datastore: DataStore):
@@ -1046,9 +1045,8 @@ def update_accounts_pnl(datastore: DataStore):
                         (account.balance_snapshot['total_usd'] - old_total_usd - pnl_subtrahend) / old_total_usd * 100
 
         statistics['pnl_updated'] = pnl_updated_string
-        account.refresh_from_db()
         account.statistics = statistics
-        account.save()
+        account.save(update_fields=['statistics'])
 
 
 def transfer_types_prepare(filter_func):
