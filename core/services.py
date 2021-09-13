@@ -1061,7 +1061,9 @@ def transfer_types_prepare(filter_func):
 ACCOUNT_TYPE_TO_TRANSFER_OPERATIONS = {
     AccountType.SPOT: {
         'in': transfer_types_prepare(lambda _type: _type.value.endswith('_MAIN') or _type == TransferType.MAIN_DEPOSIT),
-        'out': transfer_types_prepare(lambda _type: _type.value.startswith('MAIN_'))
+        'out': transfer_types_prepare(
+            lambda _type: _type.value.startswith('MAIN_') and _type != TransferType.MAIN_DEPOSIT
+        )
     },
     AccountType.CROSS_MARGIN: {
         'in': transfer_types_prepare(lambda _type: _type.value.endswith('_MARGIN')),
@@ -1072,8 +1074,12 @@ ACCOUNT_TYPE_TO_TRANSFER_OPERATIONS = {
         'out': transfer_types_prepare(lambda _type: _type.value.startswith('CMFUTURE_'))
     },
     AccountType.USDT_M_FUTURES: {
-        'in': transfer_types_prepare(lambda _type: _type.value.endswith('_UMFUTURE')),
-        'out': transfer_types_prepare(lambda _type: _type.value.startswith('UMFUTURE_'))
+        'in': transfer_types_prepare(
+            lambda _type: _type.value.endswith('_UMFUTURE') or _type == TransferType.UMFUTURE_DEPOSIT
+        ),
+        'out': transfer_types_prepare(
+            lambda _type: _type.value.startswith('UMFUTURE_') and _type != TransferType.UMFUTURE_DEPOSIT
+        )
     }
 }
 
