@@ -338,7 +338,8 @@ class BinanceAccountConnector(AccountConnector):
         if 'options' not in credentials:
             credentials['options'] = {}
 
-        credentials['options']['adjustForTimeDifference'] = True
+        # credentials['options']['adjustForTimeDifference'] = True
+        credentials['options']['recvWindow'] = 10000000
         return credentials
 
     def set_usd_price_cache(self):
