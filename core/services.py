@@ -446,7 +446,7 @@ class CredentialsRotator:
         self,
         credentials_store: CredentialsStore,
         graceful_killer: GracefulKiller,
-        recheck_interval: int = 10
+        recheck_interval: int = 30
     ):
         self._credentials_store = credentials_store
         self._credentials: Dict[str, str] = {}
