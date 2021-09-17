@@ -1,4 +1,6 @@
 import io
+import json
+import threading
 import time
 import hmac
 import base64
@@ -288,12 +290,15 @@ class AscendexAccountConnector(AccountConnector):
         self._usd_price_cache = {'USDT': 1, 'BUSD': 1}
 
     async def fetch_price(self, symbol: str) -> Optional[float]:
-        res = await self.api.fetch_ticker(symbol)
-        price = res['bid'] if res['bid'] else res['close']
+        try:
+            res = await self.api.fetch_ticker(symbol)
+            price = res['bid'] if res['bid'] else res['close']
 
-        assert price > 0, f'Low price ascendex {res}'
+            assert price > 0, f'Low price ascendex {res}'
 
-        return price
+            return price
+        except ccxtpro.base.errors.BadSymbol:
+            return None
 
     async def _get_spot_balances(self) -> List[dict]:
         return [
@@ -346,17 +351,15 @@ class BinanceAccountConnector(AccountConnector):
         self._usd_price_cache = {'USDT': 1, 'ETF': 1, 'BUSD': 1}
 
     async def fetch_price(self, symbol: str) -> Optional[float]:
-        df = self.data_store.read(
-            DataType.ohlcv,
-            query_params=dict(
-                exchange='BINANCE',
-                instrument='SPOT',
-                symbol=symbol
-            )
-        )
-        if len(df):
-            return df.close.values[-1]
-        return None
+        try:
+            res = await self.api.fetch_ticker(symbol)
+            price = res['bid'] if res['bid'] else res['close']
+
+            assert price > 0, f'Low price binance {res}'
+
+            return price
+        except ccxtpro.base.errors.BadSymbol:
+            return None
 
     async def _get_spot_balances(self) -> List[dict]:
         async with self._spot_lock:
@@ -438,15 +441,76 @@ EXCHANGE_ACCOUNT_CONNECTOR_MAP = {
 }
 
 
+class CredentialsRotator:
+    def __init__(
+        self,
+        credentials_store: CredentialsStore,
+        graceful_killer: GracefulKiller,
+        recheck_interval: int = 10
+    ):
+        self._credentials_store = credentials_store
+        self._credentials: Dict[str, str] = {}
+        self._recheck_interval = recheck_interval
+        self._graceful_killer = graceful_killer
+        self._rotated_names = []
+        self._lock = threading.Lock()
+        self._thread = None
+
+    def get_secret(self, name: str) -> dict:
+        if name not in self._credentials:
+            with self._lock:
+                self._credentials[name] = self._credentials_store.get_secret(name, raw=True)
+        return json.loads(self._credentials[name])
+
+    def enable_rotation(self):
+        if not self._thread:
+            self._thread = threading.Thread(target=self._rotate, daemon=True)
+            self._thread.start()
+        else:
+            logging.warning('Rotation already enabled')
+
+    def get_rotated_names(self) -> List[str]:
+        with self._lock:
+            names = self._rotated_names
+            self._rotated_names = []
+        return names
+
+    def _rotate(self):
+        while not self._graceful_killer.kill_now:
+            logging.info('Start credentials rotations')
+            for name in list(self._credentials.keys()):
+                try:
+                    logging.info(f'Start credentials rotation for {name}')
+                    raw_credentials = self._credentials_store.get_secret(name, raw=True)
+                    if raw_credentials != self._credentials[name]:
+                        logging.info(f'credentials changed for {name}')
+                        with self._lock:
+                            self._credentials[name] = raw_credentials
+                            self._rotated_names.append(name)
+                except Exception as e:
+                    logging.exception(f'credentials rotator: unexpected error: {e}')
+
+            self._sleep(self._recheck_interval)
+
+    def _sleep(self, seconds: int, sleep_interval: float = 0.1):
+        end_ts = time.time() + seconds
+        for _ in range(int(seconds / sleep_interval)):
+            if self._graceful_killer.kill_now or time.time() >= end_ts:
+                return
+            time.sleep(sleep_interval)
+
+
 async def balance_updater(
     credentials_store: CredentialsStore,
     data_store: DataStore,
     graceful_killer: GracefulKiller,
-    binance_proxies: list = None,
+    binance_proxies: Optional[list] = None,
     sleep_between_rounds: int = 10,
     price_cache_clear_interval: int = 60,
     healthcheck: Optional[Callable] = None
 ):
+    credentials_rotator = CredentialsRotator(credentials_store, graceful_killer, recheck_interval=10)
+    credentials_rotator.enable_rotation()
     connector_by_name: Dict[str, AccountConnector] = {}
 
     last_cache_clear = time.time()
@@ -464,10 +528,12 @@ async def balance_updater(
             return None
 
         ex: ExchangeCredentials
+        rotated_names = set(credentials_rotator.get_rotated_names())
         for i, ex in enumerate(exchange_credentials_list):
-            if ex.name not in connector_by_name:
+            if ex.name not in connector_by_name or ex.name in rotated_names:
+                rotated_names.discard(ex.name)
                 logging.info(f'Getting credentials for {ex.name}')
-                secret = credentials_store.get_secret(ex.name)
+                secret = credentials_rotator.get_secret(ex.name)
                 account_connector_class = EXCHANGE_ACCOUNT_CONNECTOR_MAP.get(ex.exchange.slug)
                 if binance_proxies and account_connector_class is BinanceAccountConnector:
                     secret['aiohttp_proxy'] = binance_proxies[i % len(binance_proxies)]
@@ -517,7 +583,7 @@ async def balance_updater(
 async def snapshot_account_balances(
     exchange_credentials: ExchangeCredentials,
     data_store: DataStore,
-    credentials_store: CredentialsStore,
+    credentials_store: Optional[CredentialsStore] = None,
     credentials: Optional[dict] = None,
     account_connector: Optional[AccountConnector] = None,
 ) -> Optional[dict]:
