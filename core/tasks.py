@@ -85,7 +85,6 @@ def t_balance_updater():
     lock.lock()
 
     try:
-        data_store = DataStore(settings.DATASTORE_URL, settings.DATASTORE_TOKEN)
         credentials_store = CredentialsStore(
             settings.CREDENTIALSTORE_URL,
             settings.CREDENTIALSTORE_TOKEN,
@@ -95,7 +94,6 @@ def t_balance_updater():
         asyncio.run(
             balance_updater(
                 credentials_store,
-                data_store,
                 healthcheck=lock.lock,
                 binance_proxies=settings.BINANCE_PROXIES,
                 graceful_killer=GracefulKiller()

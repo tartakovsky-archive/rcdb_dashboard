@@ -329,9 +329,9 @@ class AscendexAccountConnector(AccountConnector):
 
 
 class BinanceAccountConnector(AccountConnector):
-    def __init__(self, credentials: dict, data_store: DataStore):
+    def __init__(self, credentials: dict, price_api: ccxtpro.binance):
         self.api = ccxtpro.binance(self._set_adjust_for_time_difference(credentials))
-        self.data_store = data_store
+        self._price_api = price_api
         self.set_usd_price_cache()
 
         self._spot_lock = asyncio.Lock()
@@ -352,7 +352,7 @@ class BinanceAccountConnector(AccountConnector):
 
     async def fetch_price(self, symbol: str) -> Optional[float]:
         try:
-            res = await self.api.fetch_ticker(symbol)
+            res = await self._price_api.fetch_ticker(symbol)
             price = res['bid'] if res['bid'] else res['close']
 
             assert price > 0, f'Low price binance {res}'
@@ -417,7 +417,7 @@ class BinanceAccountConnector(AccountConnector):
             return await self._get_future_balances('delivery')
 
     async def close(self):
-        await self.api.close()
+        await asyncio.gather(self.api.close(), self._price_api.close())
 
 
 class RedisSimpleLock:
@@ -502,7 +502,6 @@ class CredentialsRotator:
 
 async def balance_updater(
     credentials_store: CredentialsStore,
-    data_store: DataStore,
     graceful_killer: GracefulKiller,
     binance_proxies: Optional[list] = None,
     sleep_between_rounds: int = 10,
@@ -510,6 +509,11 @@ async def balance_updater(
     healthcheck: Optional[Callable] = None
 ):
     credentials_rotator = CredentialsRotator(credentials_store, graceful_killer, recheck_interval=10)
+    binance_price_api = ccxtpro.binance(
+        BinanceAccountConnector._set_adjust_for_time_difference(
+            {'aiohttp_proxy': binance_proxies[-1]} if binance_proxies else {}
+        )
+    )
     credentials_rotator.enable_rotation()
     connector_by_name: Dict[str, AccountConnector] = {}
 
@@ -538,7 +542,7 @@ async def balance_updater(
                 if binance_proxies and account_connector_class is BinanceAccountConnector:
                     secret['aiohttp_proxy'] = binance_proxies[i % len(binance_proxies)]
 
-                connector_by_name[ex.name] = account_connector_class(secret, data_store)
+                connector_by_name[ex.name] = account_connector_class(secret, price_api=binance_price_api)
 
         tasks = []
         for ex in exchange_credentials_list:
@@ -550,7 +554,7 @@ async def balance_updater(
                 tasks.append(
                     snapshot_account_balances(
                         exchange_credentials=ex,
-                        data_store=data_store,
+                        price_api=binance_price_api,
                         credentials_store=None,
                         account_connector=account_connector
                     )
@@ -582,7 +586,7 @@ async def balance_updater(
 
 async def snapshot_account_balances(
     exchange_credentials: ExchangeCredentials,
-    data_store: DataStore,
+    price_api: ccxtpro.Exchange,
     credentials_store: Optional[CredentialsStore] = None,
     credentials: Optional[dict] = None,
     account_connector: Optional[AccountConnector] = None,
@@ -601,7 +605,7 @@ async def snapshot_account_balances(
             if not credentials:
                 credentials = credentials_store.get_secret(exchange_credentials.name)
 
-            account_connector = account_connector_class(credentials, data_store)
+            account_connector = account_connector_class(credentials, price_api=price_api)
 
         res = await account_connector.get_balance_data(exchange_credentials.account_type)
         if hasattr(account_connector, 'api') and isinstance(account_connector, BinanceAccountConnector):
