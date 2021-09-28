@@ -353,7 +353,12 @@ class BinanceAccountConnector(AccountConnector):
     async def fetch_price(self, symbol: str) -> Optional[float]:
         try:
             res = await self._price_api.fetch_ticker(symbol)
-            price = res['bid'] if res['bid'] else res['close']
+            if res['bid'] > 0:
+                price = res['bid']
+            elif res['close'] > 0:
+                price = res['close']
+            else:
+                price = res['previousClose']
 
             assert price > 0, f'Low price binance {res}'
 
