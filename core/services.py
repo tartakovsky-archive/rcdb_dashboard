@@ -188,6 +188,9 @@ class AccountConnector:
     def set_usd_price_cache(self):
         raise NotImplementedError('method is not implemented')
 
+    async def _get_main_balances(self) -> List[dict]:
+        raise NotImplementedError('method is not implemented')
+
     async def _get_spot_balances(self) -> List[dict]:
         raise NotImplementedError('method is not implemented')
 
@@ -243,6 +246,7 @@ class AccountConnector:
 
     async def get_balance_data(self, type: str) -> Dict[str, Union[List[dict], float]]:
         market_type_method = {
+            AccountType.MAIN.value: self._get_main_balances,
             AccountType.SPOT.value: self._get_spot_balances,
             AccountType.CROSS_MARGIN.value: self._get_cross_margin_balances,
             AccountType.ISOLATED_MARGIN.value: self._get_isolated_margin_balances,
@@ -425,6 +429,51 @@ class BinanceAccountConnector(AccountConnector):
         await asyncio.gather(self.api.close(), self._price_api.close())
 
 
+class KucoinAccountConnector(AccountConnector):
+    def __init__(self, credentials: dict, *args, **kwargs):
+        self.api = ccxtpro.kucoin(credentials)
+        self.set_usd_price_cache()
+
+    def set_usd_price_cache(self):
+        self._usd_price_cache = {'USDT': 1, 'USDC': 1, 'BUSD': 1}
+
+    async def fetch_price(self, symbol: str) -> Optional[float]:
+        try:
+            res = await self.api.fetch_ticker(symbol)
+            price = res['bid'] if res['bid'] else res['close']
+
+            assert price > 0, f'Low price kucoin {res}'
+
+            return price
+        except ccxtpro.base.errors.BadSymbol:
+            return None
+
+    async def _fetch_balance(self, params):
+        return [
+            {'symbol': symbol, 'amount': amount}
+            for symbol, amount in (await self.api.fetch_balance(params))['total'].items()
+            if amount
+        ]
+
+    async def _get_main_balances(self) -> List[dict]:
+        return await self._fetch_balance({'type': 'main'})
+
+    async def _get_spot_balances(self) -> List[dict]:
+        return await self._fetch_balance({'type': 'trade'})
+
+    async def _get_cross_margin_balances(self) -> List[dict]:
+        return [{**data, 'interest': 0, 'borrowed': 0} for data in (await self._fetch_balance({'type': 'margin'}))]
+
+    async def _get_future_usd_m_balances(self) -> List[dict]:
+        return await self._fetch_balance({'type': 'contract', 'currency': 'USDT'})
+
+    async def _get_future_coin_m_balances(self) -> List[dict]:
+        res = []
+        for currency in ['BTC', 'ETH', 'DOT', 'XRP']:
+            res += await self._fetch_balance({'type': 'contract', 'currency': currency})
+        return res
+
+
 class RedisSimpleLock:
     def __init__(self, redis, key):
         self.redis = redis
@@ -442,7 +491,8 @@ class RedisSimpleLock:
 
 EXCHANGE_ACCOUNT_CONNECTOR_MAP = {
     'binance': BinanceAccountConnector,
-    'ascendex': AscendexAccountConnector
+    'ascendex': AscendexAccountConnector,
+    'kucoin': KucoinAccountConnector
 }
 
 
