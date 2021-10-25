@@ -1196,8 +1196,12 @@ ACCOUNT_TYPE_TO_TRANSFER_OPERATIONS = {
         'out': transfer_types_prepare(lambda _type: _type.value.startswith('MARGIN_'))
     },
     AccountType.COIN_M_FUTURES: {
-        'in': transfer_types_prepare(lambda _type: _type.value.endswith('_CMFUTURE')),
-        'out': transfer_types_prepare(lambda _type: _type.value.startswith('CMFUTURE_'))
+        'in': transfer_types_prepare(
+            lambda _type: _type.value.endswith('_CMFUTURE') or _type == TransferType.CMFUTURE_DEPOSIT
+        ),
+        'out': transfer_types_prepare(
+            lambda _type: _type.value.startswith('CMFUTURE_') or _type == TransferType.CMFUTURE_WITHDRAWAL
+        )
     },
     AccountType.USDT_M_FUTURES: {
         'in': transfer_types_prepare(
