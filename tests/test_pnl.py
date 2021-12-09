@@ -64,7 +64,7 @@ class DummyDataStore:
                         'timestamp': NOW - datetime.timedelta(hours=23),
                         'symbol': 'USDT',
                         'name': 'Creds',
-                        'transfer_type': TransferType.C2C_MARGIN.value,
+                        'transfer_type': TransferType.FUNDING_MARGIN.value,
                         'amount': 5,
                         'amount_usd': 5
                     },
@@ -91,7 +91,7 @@ class DummyDataStore:
                         'timestamp': NOW - datetime.timedelta(minutes=30),
                         'symbol': 'USDT',
                         'name': 'Creds',
-                        'transfer_type': TransferType.C2C_MARGIN.value,
+                        'transfer_type': TransferType.FUNDING_MARGIN.value,
                         'amount': 2.5,
                         'amount_usd': 2.5
                     },
