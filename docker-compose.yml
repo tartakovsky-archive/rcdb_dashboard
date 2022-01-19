@@ -112,8 +112,6 @@ services:
     volumes:
       - redis_data:/data
     restart: always
-    ports:
-      - 6379:6379
     logging:
       driver: "json-file"
       options:
