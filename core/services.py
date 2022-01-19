@@ -574,7 +574,7 @@ async def balance_updater(
 
     last_cache_clear = time.time()
 
-    i = 0
+    skip_asc = False
     while not graceful_killer.kill_now:
         logging.info('Start snapshot balances')
         exchange_credentials_list: List[ExchangeCredentials] = (
@@ -607,7 +607,7 @@ async def balance_updater(
             if not account_connector:
                 logging.error(f'No connector for {ex}')
                 tasks.append(dummy())
-            elif isinstance(account_connector, AscendexAccountConnector) and i != 0:  # update ascendex every 30 seconds
+            elif isinstance(account_connector, AscendexAccountConnector) and skip_asc:
                 tasks.append(dummy())
             else:
                 tasks.append(
@@ -634,11 +634,9 @@ async def balance_updater(
 
         await asyncio.sleep(sleep_between_rounds)
 
-        i += 1
-        if i == 2:
-            i = 0
-
+        skip_asc = True
         if time.time() - last_cache_clear > price_cache_clear_interval:
+            skip_asc = False
             logging.info('balance_updater price cache clear')
             for connector in connector_by_name.values():
                 connector.set_usd_price_cache()
