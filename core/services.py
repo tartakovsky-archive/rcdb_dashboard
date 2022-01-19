@@ -558,7 +558,7 @@ class CredentialsRotator:
 async def balance_updater(
     credentials_store: CredentialsStore,
     graceful_killer: GracefulKiller,
-    binance_proxies: Optional[list] = None,
+    proxies: Optional[list] = None,
     sleep_between_rounds: int = 10,
     price_cache_clear_interval: int = 60,
     healthcheck: Optional[Callable] = None
@@ -566,7 +566,7 @@ async def balance_updater(
     credentials_rotator = CredentialsRotator(credentials_store, graceful_killer, recheck_interval=10)
     binance_price_api = ccxtpro.binance(
         BinanceAccountConnector._set_adjust_for_time_difference(
-            {'aiohttp_proxy': binance_proxies[-1]} if binance_proxies else {}
+            {'aiohttp_proxy': proxies[-1]} if proxies else {}
         )
     )
     credentials_rotator.enable_rotation()
@@ -594,8 +594,8 @@ async def balance_updater(
                 logging.info(f'Getting credentials for {ex.name}')
                 secret = credentials_rotator.get_secret(ex.name)
                 account_connector_class = EXCHANGE_ACCOUNT_CONNECTOR_MAP.get(ex.exchange.slug)
-                if binance_proxies and account_connector_class is BinanceAccountConnector:
-                    secret['aiohttp_proxy'] = binance_proxies[i % len(binance_proxies)]
+                if proxies and account_connector_class in {BinanceAccountConnector, AscendexAccountConnector}:
+                    secret['aiohttp_proxy'] = proxies[i % len(proxies)]
 
                 connector_by_name[ex.name] = account_connector_class(secret, price_api=binance_price_api)
 

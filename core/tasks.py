@@ -95,7 +95,7 @@ def t_balance_updater():
             balance_updater(
                 credentials_store,
                 healthcheck=lock.lock,
-                binance_proxies=settings.BINANCE_PROXIES,
+                proxies=settings.BINANCE_PROXIES,
                 graceful_killer=GracefulKiller()
             )
         )
