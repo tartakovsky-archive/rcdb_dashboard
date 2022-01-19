@@ -607,7 +607,7 @@ async def balance_updater(
             if not account_connector:
                 logging.error(f'No connector for {ex}')
                 tasks.append(dummy())
-            elif isinstance(account_connector, AscendexAccountConnector) and i != 0: # update ascendex every 30 seconds
+            elif isinstance(account_connector, AscendexAccountConnector) and i != 0:  # update ascendex every 30 seconds
                 tasks.append(dummy())
             else:
                 tasks.append(
