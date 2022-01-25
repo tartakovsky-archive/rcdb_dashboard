@@ -150,6 +150,8 @@ CREDENTIALSTORE_URL = os.environ.get('CREDENTIALSTORE_URL')
 CREDENTIALSTORE_TOKEN = os.environ.get('CREDENTIALSTORE_TOKEN')
 CREDENTIALSTORE_VAULT = os.environ.get('CREDENTIALSTORE_VAULT')
 BINANCE_PROXIES = os.environ['BINANCE_PROXIES'].split(',') if os.environ.get('BINANCE_PROXIES') else None
+SLACK_TOKEN = os.environ['SLACK_TOKEN']
+SLACK_CHANNEL = os.environ['SLACK_CHANNEL']
 
 ###############
 # CELERY CONFIG
@@ -181,6 +183,11 @@ CELERY_BEAT_SCHEDULE = {
     },
     'update-accounts-pnl': {
         'task': 'core.tasks.t_update_accounts_pnl',
+        'schedule': 5*60,
+    },
+    'volumes-notify': {
+        'task': 'core.tasks.t_volumes_notify',
+        # 'schedule': crontab(minute=0)
         'schedule': 5*60,
     },
 }

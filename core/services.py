@@ -16,13 +16,14 @@ import ccxt
 import ccxtpro
 import boto3
 import pandas as pd
+import requests
 from django.utils import timezone
 from django.core import management
 from rcdb_commons.lib.helpers.graceful_killer import GracefulKiller
 from rcdb_commons.lib.schemas.exchange import AccountType, SymbolEmpty, TransferType
 from rcdb_commons.lib.stores import CredentialsStore, DataStore, DataType
 
-from .forms import ReportType, RebatesForm, RebateCurrency
+from .forms import ReportType, RebatesForm, RebateCurrency, TimeframeForm
 from .models import Bot, BotStatistic, ExchangeCredentials
 
 
@@ -1300,3 +1301,102 @@ def df_dict_group(
     df = df.copy()
     df['x'] = df[column_names].apply(tuple, axis=1)
     return {group: df[df.x == group].drop('x', axis=1) for group in sorted(df.x.unique())}
+
+
+class VolumeNotificator:
+    def __init__(self, token, channel, datastore):
+        self.token = token
+        self.channel = channel
+        self.datastore = datastore
+
+    def post_message_to_slack(self, blocks):
+        return requests.post('https://slack.com/api/chat.postMessage', {
+            'token': self.token,
+            'channel': self.channel,
+            'blocks': json.dumps(blocks) if blocks else None
+        }).json()
+
+    @staticmethod
+    def start_of_week(dt: datetime.datetime):
+        start = dt - datetime.timedelta(days=dt.weekday())
+        return start.replace(hour=0, minute=0, second=0)
+
+    @staticmethod
+    def end_of_week(dt: datetime.datetime):
+        end = dt + datetime.timedelta(days=6 - dt.weekday())
+        return end.replace(hour=23, minute=59, second=59)
+
+    def report(self):
+        mm_symbols = [
+            'ENJ/EUR',
+            'XLM/EUR',
+            'CHZ/TRY',
+            'LAZIO/TRY',
+            'LINK/GBP',
+            'MATIC/GBP',
+            'LUNA/AUD',
+            'MATIC/AUD',
+            'DOT/BRL',
+            'FTM/BRL',
+            'BNB/RUB',
+            'LTC/RUB',
+            'BNB/UAH',
+            'LTC/UAH',
+        ]
+
+        now = datetime.datetime.utcnow()
+        start = self.start_of_week(now)
+        end = self.end_of_week(now)
+        form = TimeframeForm({
+            'start_date': start.date(),
+            'start_time': start.time(),
+            'end_date': end.date(),
+            'end_time': end.time(),
+            'timeframe': 'W',
+        })
+        assert form.is_valid()
+
+        pair_volumes_report = PairVolumesReport(form, self.datastore)
+        report = pair_volumes_report.generate_report()
+
+        blocks = [{
+            'type': 'section',
+            'fields': [
+                {
+                    'type': 'mrkdwn',
+                    'text': '*Volume*',
+                },
+                {
+                    'type': 'mrkdwn',
+                    'text': '*Market Volume*',
+                }
+            ]
+        }]
+
+        for symbol in mm_symbols:
+            data = report['report_data'].get(symbol)
+            if data is None:
+                data = {
+                    'total_volume': 0,
+                    'total_market_volume': 0,
+                    'total_pct': 0,
+                }
+            blocks.append({'type': 'divider'})
+            blocks.append({
+                'type': 'section',
+                'text': {
+                    'text': f'{symbol}\t\t{data["total_pct"]:.3f}% {":exclamation:" if not data["total_pct"] else ""}',
+                    'type': 'mrkdwn',
+                },
+                'fields': [
+                    {
+                        'type': 'mrkdwn',
+                        'text': f'*{data["total_volume"]:,.2f}*',
+                    },
+                    {
+                        'type': 'mrkdwn',
+                        'text': f'*{data["total_market_volume"]:,.2f}*',
+                    }
+                ]
+            })
+        self.post_message_to_slack(blocks)

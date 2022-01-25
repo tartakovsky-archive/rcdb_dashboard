@@ -10,7 +10,7 @@ from rcdb_commons.lib.stores import CredentialsStore, DataStore
 
 from .models import Bot, ExchangeCredentials
 from .services import S3DBDumper, BotStatisticUpdater, update_account_statistics, \
-    update_accounts_pnl, balance_updater, RedisSimpleLock
+    update_accounts_pnl, balance_updater, RedisSimpleLock, VolumeNotificator
 
 
 @shared_task
@@ -131,3 +131,16 @@ def t_backup_db():
         logging.exception('<t_backup_db>: unexpected error')
 
     logging.info('ended task: <t_backup_db>')
+
+
+@shared_task
+def t_volumes_notify():
+    logging.info('started task: <t_volumes_notify>')
+    try:
+        datastore = DataStore(settings.DATASTORE_URL, settings.DATASTORE_TOKEN)
+        volume_notificator = VolumeNotificator(settings.SLACK_TOKEN, settings.SLACK_CHANNEL, datastore)
+        volume_notificator.report()
+    except Exception:
+        logging.exception('<t_volumes_notify>: unexpected error')
+
+    logging.info('ended task: <t_volumes_notify>')
