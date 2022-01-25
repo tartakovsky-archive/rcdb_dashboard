@@ -150,8 +150,8 @@ CREDENTIALSTORE_URL = os.environ.get('CREDENTIALSTORE_URL')
 CREDENTIALSTORE_TOKEN = os.environ.get('CREDENTIALSTORE_TOKEN')
 CREDENTIALSTORE_VAULT = os.environ.get('CREDENTIALSTORE_VAULT')
 BINANCE_PROXIES = os.environ['BINANCE_PROXIES'].split(',') if os.environ.get('BINANCE_PROXIES') else None
-SLACK_TOKEN = os.environ['SLACK_TOKEN']
-SLACK_CHANNEL = os.environ['SLACK_CHANNEL']
+SLACK_TOKEN = os.environ.get('SLACK_TOKEN')
+SLACK_CHANNEL = os.environ.get('SLACK_CHANNEL')
 
 ###############
 # CELERY CONFIG
@@ -165,29 +165,29 @@ CELERY_TIMEZONE = 'UTC'
 CELERY_WORKER_HIJACK_ROOT_LOGGER = False
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_BEAT_SCHEDULE = {
-    'schedule-update-bot-statistic': {
-        'task': 'core.tasks.t_schedule_update_bot_statistic',
-        'schedule': 25,
-    },
-    'schedule-update-account-statistics': {
-        'task': 'core.tasks.t_schedule_update_account_statistics',
-        'schedule': 2*60,
-    },
-    'update-balances': {
-        'task': 'core.tasks.t_balance_updater',
-        'schedule': 2*60,
-    },
-    'backup-db': {
-        'task': 'core.tasks.t_backup_db',
-        'schedule': crontab(minute=0, hour=0),
-    },
-    'update-accounts-pnl': {
-        'task': 'core.tasks.t_update_accounts_pnl',
-        'schedule': 5*60,
-    },
+    # 'schedule-update-bot-statistic': {
+    #     'task': 'core.tasks.t_schedule_update_bot_statistic',
+    #     'schedule': 25,
+    # },
+    # 'schedule-update-account-statistics': {
+    #     'task': 'core.tasks.t_schedule_update_account_statistics',
+    #     'schedule': 2*60,
+    # },
+    # 'update-balances': {
+    #     'task': 'core.tasks.t_balance_updater',
+    #     'schedule': 2*60,
+    # },
+    # 'backup-db': {
+    #     'task': 'core.tasks.t_backup_db',
+    #     'schedule': crontab(minute=0, hour=0),
+    # },
+    # 'update-accounts-pnl': {
+    #     'task': 'core.tasks.t_update_accounts_pnl',
+    #     'schedule': 5*60,
+    # },
     'volumes-notify': {
         'task': 'core.tasks.t_volumes_notify',
         # 'schedule': crontab(minute=0)
-        'schedule': 5*60,
+        'schedule': 2*60,
     },
 }
