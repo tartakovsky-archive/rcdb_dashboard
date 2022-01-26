@@ -1316,6 +1316,14 @@ class VolumeNotificator:
             'blocks': json.dumps(blocks) if blocks else None
         }).json()
 
+    def update_slack_message(self, blocks, ts):
+        return requests.post('https://slack.com/api/chat.update', {
+            'token': self.token,
+            'channel': self.channel,
+            'ts': ts,
+            'blocks': json.dumps(blocks) if blocks else None
+        }).json()
+
     @staticmethod
     def start_of_week(dt: datetime.datetime):
         start = dt - datetime.timedelta(days=dt.weekday())
@@ -1326,7 +1334,7 @@ class VolumeNotificator:
         end = dt + datetime.timedelta(days=6 - dt.weekday())
         return end.replace(hour=23, minute=59, second=59)
 
-    def report(self):
+    def report(self, ts=None):
         mm_symbols = [
             'ENJ/EUR',
             'XLM/EUR',
@@ -1359,19 +1367,25 @@ class VolumeNotificator:
         pair_volumes_report = PairVolumesReport(form, self.datastore)
         report = pair_volumes_report.generate_report()
 
-        blocks = [{
-            'type': 'section',
-            'fields': [
-                {
+        blocks = [
+            {
+                'type': 'section',
+                'text': {
+                    'text': (
+                        f'{start.strftime("%m/%d/%Y")} - {end.strftime("%m/%d/%Y")},'
+                        f' updated: {now.strftime("%m/%d/%Y %H:%M")}'
+                    ),
                     'type': 'mrkdwn',
-                    'text': '*Volume*',
-                },
-                {
-                    'type': 'mrkdwn',
-                    'text': '*Market Volume*',
                 }
-            ]
-        }]
+            },
+            {
+                'type': 'section',
+                'text': {
+                    'text': '',
+                    'type': 'mrkdwn',
+                },
+            },
+        ]
 
         for symbol in mm_symbols:
             data = report['report_data'].get(symbol)
@@ -1381,22 +1395,15 @@ class VolumeNotificator:
                     'total_market_volume': 0,
                     'total_pct': 0,
                 }
-            blocks.append({'type': 'divider'})
-            blocks.append({
-                'type': 'section',
-                'text': {
-                    'text': f'{symbol}\t\t{data["total_pct"]:.3f}% {":exclamation:" if not data["total_pct"] else ""}',
-                    'type': 'mrkdwn',
-                },
-                'fields': [
-                    {
-                        'type': 'mrkdwn',
-                        'text': f'*{data["total_volume"]:,.2f}*',
-                    },
-                    {
-                        'type': 'mrkdwn',
-                        'text': f'*{data["total_market_volume"]:,.2f}*',
-                    }
-                ]
-            })
-        self.post_message_to_slack(blocks)
+            pct = f'{data["total_pct"]:.3f}%'
+            blocks[1]['text']['text'] += (
+                f'\n{":exclamation:" if data["total_pct"] < 1 else ":grey_exclamation:"}{symbol:<15}'
+                f'{pct:<10} '
+                f'{data["total_volume"]:<15,.2f}'
+            )
+        res = {}
+        if ts is not None:
+            res = self.update_slack_message(blocks, ts)
+        if not res.get('ok', True) or ts is None:
+            res = self.post_message_to_slack(blocks)
+        return res['ts']

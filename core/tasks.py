@@ -136,10 +136,12 @@ def t_backup_db():
 @shared_task
 def t_volumes_notify():
     logging.info('started task: <t_volumes_notify>')
+    key = 'slack_message_ts'
     try:
+        r = StrictRedis(settings.REDIS_HOST, settings.REDIS_PORT, password=settings.REDIS_PASSWORD)
         datastore = DataStore(settings.DATASTORE_URL, settings.DATASTORE_TOKEN)
         volume_notificator = VolumeNotificator(settings.SLACK_TOKEN, settings.SLACK_CHANNEL, datastore)
-        volume_notificator.report()
+        r.set(key, volume_notificator.report(ts=r.get(key)))
     except Exception:
         logging.exception('<t_volumes_notify>: unexpected error')
 
