@@ -1372,8 +1372,8 @@ class VolumeNotificator:
                 'type': 'section',
                 'text': {
                     'text': (
-                        f'{start.strftime("%m/%d/%Y")} - {end.strftime("%m/%d/%Y")},'
-                        f' updated: {now.strftime("%m/%d/%Y %H:%M")}'
+                        f'{start.strftime("%d/%m/%Y")} - {end.strftime("%d/%m/%Y")},'
+                        f' updated: {now.strftime("%d/%m/%Y %H:%M")}'
                     ),
                     'type': 'mrkdwn',
                 }
