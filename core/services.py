@@ -747,7 +747,7 @@ class DataStoreDataSynchronizer:
         return df
 
     @staticmethod
-    def concat_dfs_safe_with_cut_history(dfs: List[pd.DataFrame], td=datetime.timedelta(days=30)) -> pd.DataFrame:
+    def concat_dfs_safe_with_cut_history(dfs: List[pd.DataFrame], td=datetime.timedelta(days=7)) -> pd.DataFrame:
         df = concat_dfs_safe(dfs)
         if len(df):
             df = df[df.timestamp >= (datetime.datetime.utcnow() - td)]

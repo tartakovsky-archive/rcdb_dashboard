@@ -165,10 +165,10 @@ CELERY_TIMEZONE = 'UTC'
 CELERY_WORKER_HIJACK_ROOT_LOGGER = False
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_BEAT_SCHEDULE = {
-    'schedule-update-bot-statistic': {
-        'task': 'core.tasks.t_schedule_update_bot_statistic',
-        'schedule': 25,
-    },
+    # 'schedule-update-bot-statistic': {
+    #     'task': 'core.tasks.t_schedule_update_bot_statistic',
+    #     'schedule': 25,
+    # },
     'schedule-update-account-statistics': {
         'task': 'core.tasks.t_schedule_update_account_statistics',
         'schedule': 2*60,
