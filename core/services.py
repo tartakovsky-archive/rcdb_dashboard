@@ -297,7 +297,7 @@ class AscendexAccountConnector(AccountConnector):
     async def fetch_price(self, symbol: str) -> Optional[float]:
         try:
             res = await self.api.fetch_ticker(symbol)
-            price = res['bid'] if res['bid'] else res['close']
+            price = float(res['bid'] if res['bid'] else res['close'])
 
             assert price > 0, f'Low price ascendex {res}'
 
@@ -358,12 +358,12 @@ class BinanceAccountConnector(AccountConnector):
     async def fetch_price(self, symbol: str) -> Optional[float]:
         try:
             res = await self._price_api.fetch_ticker(symbol)
-            if res['bid'] > 0:
-                price = res['bid']
-            elif res['close'] > 0:
-                price = res['close']
+            if float(res['bid']) > 0:
+                price = float(res['bid'])
+            elif float(res['close']) > 0:
+                price = float(res['close'])
             else:
-                price = res['previousClose']
+                price = float(res['previousClose'])
 
             assert price > 0, f'Low price binance {res}'
 
@@ -441,7 +441,7 @@ class KucoinAccountConnector(AccountConnector):
     async def fetch_price(self, symbol: str) -> Optional[float]:
         try:
             res = await self.api.fetch_ticker(symbol)
-            price = res['bid'] if res['bid'] else res['close']
+            price = float(res['bid'] if res['bid'] else res['close'])
 
             assert price > 0, f'Low price kucoin {res}'
 
