@@ -584,6 +584,7 @@ async def balance_updater(
             .select_related('exchange')
             .order_by('exchange')
             .all()
+            .defer('statistics', 'statistics_clean', 'meta')
         )
 
         async def dummy():
@@ -942,7 +943,7 @@ class RebateReport(Report):
                 id__in=list(
                     map(operator.attrgetter('id'), form_data['excluded_exchange_credentials'])
                 )
-            )
+            ).defer('statistics', 'balance_snapshot', 'statistics_clean', 'balance_snapshot_clean', 'meta')
         )
         self.exchange_credentials_account_map = {
             (ex.name, ex.account_type): ex for ex in self.exchange_credentials_list
@@ -1092,8 +1093,7 @@ def update_account_statistics(datastore: DataStore, exchange_credentials: Exchan
         **statistics,
         **(StatisticsCalculator.trades_statistics(trades) if len(trades) else {}),
     }
-    exchange_credentials.statistics = statistics
-    exchange_credentials.save(update_fields=['statistics'])
+    exchange_credentials.set_statistics(statistics)
 
 
 def update_accounts_pnl(datastore: DataStore):
@@ -1178,8 +1178,7 @@ def update_accounts_pnl(datastore: DataStore):
                         (account.balance_snapshot['total_usd'] - old_total_usd - pnl_subtrahend) / old_total_usd * 100
 
         statistics['pnl_updated'] = pnl_updated_string
-        account.statistics = statistics
-        account.save(update_fields=['statistics'])
+        account.set_statistics(statistics)
 
 
 def transfer_types_prepare(filter_func):

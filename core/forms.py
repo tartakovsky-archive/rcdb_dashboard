@@ -91,13 +91,16 @@ class TimeframeForm(forms.Form):
 
 class RebatesForm(TimeframeForm):
     type = forms.ChoiceField(label='Type', choices=ReportType.choices, initial=ReportType.BY_ACCOUNT.value)
+    queryset = ExchangeCredentials.objects.all().defer(
+        'statistics', 'statistics_clean', 'balance_snapshot', 'balance_snapshot_clean', 'meta'
+    )
     exchange_credentials = ExchangeCredentialsChoiceField(
         label='Exchange credentials',
-        queryset=ExchangeCredentials.objects.all(),
+        queryset=queryset,
         required=False
     )
     excluded_exchange_credentials = ExchangeCredentialsMultipleChoiceField(
-        queryset=ExchangeCredentials.objects.all(),
+        queryset=queryset,
         widget=forms.CheckboxSelectMultiple(),
         required=False
     )

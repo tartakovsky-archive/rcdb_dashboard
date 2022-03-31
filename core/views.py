@@ -68,7 +68,9 @@ class ExchangeBalancesDetailView(OwnerUserPermissionFilterMixin, LoginRequiredMi
     context_object_name = 'creds'
 
     def get_queryset(self):
-        return self.filter_by_user(super().get_queryset())
+        return self.filter_by_user(super().get_queryset()).defer(
+            'statistics', 'statistics_clean', 'balance_snapshot_clean'
+        )
 
 
 class ReportView(LoginRequiredMixin, FormView):

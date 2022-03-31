@@ -28,18 +28,25 @@ class Owner(models.Model):
     user = models.ForeignKey(User, verbose_name='Associated user', null=True, blank=True, on_delete=models.SET_NULL)
     order_id = models.IntegerField(default=0)
 
+    _totals = None
+
     def get_exchange_credentials_balances(self):
         return (
             self
             .exchangecredentials_set
             .filter(visible=True)
             .order_by('order_id', 'name')
+            .defer('balance_snapshot', 'statistics', 'meta')
         )
 
     def has_visible_exchange_credentials(self) -> bool:
         return self.exchangecredentials_set.filter(visible=True).exists()
 
-    def _get_total_sum_accounts_value(self, field: str, table_field: str = 'balance_snapshot'):
+    def _owner_totals(self):
+        aggs = {
+            'balance_snapshot': ['total_usd', 'borrowed_usd', 'interest_usd'],
+            'statistics': ['h1_usd_volume', 'h24_usd_volume', 'd7_usd_volume']
+        }
         return (
             self
             .exchangecredentials_set
@@ -48,62 +55,31 @@ class Owner(models.Model):
                 ignore_balance=False,
             )
             .annotate(
-                agg_value=Cast(
-                    KeyTextTransform(field, table_field),
-                    models.FloatField()
-                )
-            )
-            .filter(
-                agg_value__isnull=False
+                **{
+                    field: Cast(
+                        KeyTextTransform(field, table_field),
+                        models.FloatField()
+                    )
+                    for table_field, fields in aggs.items()
+                    for field in fields
+                }
             )
             .aggregate(
-                value=models.Sum('agg_value')
+                **{
+                    f'agg__{field}': models.Sum(field)
+                    for fields in aggs.values()
+                    for field in fields
+                }
             )
-            .get('value')
         )
 
     @property
-    def total_balance(self):
-        return self._get_total_sum_accounts_value('total_usd')
-
-    @property
-    def total_borrowed(self):
-        return self._get_total_sum_accounts_value('borrowed_usd')
-
-    @property
-    def total_interest(self):
-        return self._get_total_sum_accounts_value('interest_usd')
-
-    @property
-    def borrowed_interest_sum(self) -> Optional[float]:
-        borrowed = self.total_borrowed
-        interest = self.total_interest
-        if borrowed is not None and interest is not None:
-            return borrowed + interest
-
-    @property
-    def h1_usd_volume(self):
-        return self._get_total_sum_accounts_value('h1_usd_volume', 'statistics')
-
-    @property
-    def h1_trades_count(self):
-        return self._get_total_sum_accounts_value('h1_trades_count', 'statistics')
-
-    @property
-    def h24_usd_volume(self):
-        return self._get_total_sum_accounts_value('h24_usd_volume', 'statistics')
-
-    @property
-    def h24_trades_count(self):
-        return self._get_total_sum_accounts_value('h24_trades_count', 'statistics')
-
-    @property
-    def d7_usd_volume(self):
-        return self._get_total_sum_accounts_value('d7_usd_volume', 'statistics')
-
-    @property
-    def d7_trades_count(self):
-        return self._get_total_sum_accounts_value('d7_trades_count', 'statistics')
+    def totals(self):
+        if not self._totals:
+            self._totals = {k[len('agg__'):]: v for k, v in self._owner_totals().items()}
+            self._totals['borrowed_interest_sum'] = \
+                (self._totals.get('interest_usd') or 0) + (self._totals.get('borrowed_usd') or 0)
+        return self._totals
 
     def __str__(self):
         return self.name
@@ -186,9 +162,11 @@ class ExchangeCredentials(models.Model):
     meta = models.JSONField(default=dict, null=True, blank=True)
 
     balance_snapshot = models.JSONField(null=True, blank=True)
+    balance_snapshot_clean = models.JSONField(null=True, blank=True)
     balance_snapshot_created = models.DateTimeField(null=True, blank=True)
 
     statistics = models.JSONField(null=True, blank=True, encoder=CustomDjangoJSONEncoder)
+    statistics_clean = models.JSONField(null=True, blank=True, encoder=CustomDjangoJSONEncoder)
 
     visible = models.BooleanField(default=True)
     ignore_balance = models.BooleanField(default=False)
@@ -201,9 +179,16 @@ class ExchangeCredentials(models.Model):
 
     def set_balance_snapshot(self, snapshot: dict, save: bool = True):
         self.balance_snapshot = snapshot
+        self.balance_snapshot_clean = {k: v for k, v in snapshot.items() if k != 'balances'}
         self.balance_snapshot_created = timezone.now()
         if save:
             self.save(update_fields=['balance_snapshot', 'balance_snapshot_created'])
+
+    def set_statistics(self, statistics: dict, save: bool = True):
+        self.statistics = statistics
+        self.statistics_clean = {k: v for k, v in statistics.items() if k != 'trades'}
+        if save:
+            self.save(update_fields=['statistics', 'statistics_clean'])
 
     @property
     def account_type_label(self) -> Optional[str]:
@@ -213,9 +198,9 @@ class ExchangeCredentials(models.Model):
 
     @property
     def borrowed_interest_sum(self):
-        if self.is_margin and self.balance_snapshot \
-                and 'borrowed_usd' in self.balance_snapshot and 'interest_usd' in self.balance_snapshot:
-            return self.balance_snapshot['borrowed_usd'] + self.balance_snapshot['interest_usd']
+        if self.is_margin and self.balance_snapshot_clean \
+                and 'borrowed_usd' in self.balance_snapshot_clean and 'interest_usd' in self.balance_snapshot_clean:
+            return self.balance_snapshot_clean['borrowed_usd'] + self.balance_snapshot_clean['interest_usd']
 
     @property
     def is_margin(self) -> bool:

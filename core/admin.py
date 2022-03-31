@@ -68,7 +68,12 @@ class InstrumentAdmin(admin.ModelAdmin):
 class ExchangeCredentialsAdmin(admin.ModelAdmin):
     list_display = ('name', 'label', 'account_type', 'visible', 'ignore_balance', 'ignore_datapipes', 'order_id')
     list_editable = ('label', 'account_type', 'visible', 'ignore_balance', 'ignore_datapipes', 'order_id')
-    exclude = ('balance_snapshot', 'balance_snapshot_created', 'statistics')
+    exclude = (
+        'balance_snapshot', 'balance_snapshot_created', 'statistics', 'statistics_clean', 'balance_snapshot_clean'
+    )
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).defer(*self.exclude)
 
 
 @admin.register(models.Owner)

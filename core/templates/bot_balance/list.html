@@ -66,32 +66,32 @@
                                             </td>
                                             <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
                                                 <a href="{% url "balances_detail" creds.pk %}">
-                                                    {% if not creds.ignore_balance %}{{ creds.balance_snapshot.total_usd|floatformat:0|intcomma }}{% else %}-{% endif %}
+                                                    {% if not creds.ignore_balance %}{{ creds.balance_snapshot_clean.total_usd|floatformat:0|intcomma }}{% else %}-{% endif %}
                                                 </a>
                                             </td>
                                             <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
                                                 {% if not creds.ignore_balance %}{{ creds.borrowed_interest_sum|floatformat:0|intcomma }}{% else %}-{% endif %}
                                             </td>
                                             <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
-                                                {{ creds.statistics.h1_usd_volume|floatformat:0|intcomma|default_if_none:'' }}
+                                                {{ creds.statistics_clean.h1_usd_volume|floatformat:0|intcomma|default_if_none:'' }}
                                             </td>
                                             <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
-                                                {{ creds.statistics.h24_usd_volume|floatformat:0|intcomma|default_if_none:'' }}
+                                                {{ creds.statistics_clean.h24_usd_volume|floatformat:0|intcomma|default_if_none:'' }}
                                             </td>
                                             <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
-                                                {{ creds.statistics.d7_usd_volume|floatformat:0|intcomma|default_if_none:'' }}
+                                                {{ creds.statistics_clean.d7_usd_volume|floatformat:0|intcomma|default_if_none:'' }}
                                             </td>
                                             <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
                                                  {% if not creds.ignore_balance %}
-                                                    <span class="hint--top" aria-label="Updated: {{ creds.statistics.pnl_updated }} Prev: {{ creds.statistics.h1_total_usd|floatformat:2 }} In: {{ creds.statistics.h1_transfers_in_volume|floatformat:2 }} Out: {{ creds.statistics.h1_transfers_out_volume|floatformat:2 }}">
-                                                        {{ creds.statistics.h1_pnl|floatformat:1|intcomma|default_if_none:'' }}{% if creds.statistics.h1_pnl is not None %}%{% endif %}
+                                                    <span class="hint--top" aria-label="Updated: {{ creds.statistics_clean.pnl_updated }} Prev: {{ creds.statistics_clean.h1_total_usd|floatformat:2 }} In: {{ creds.statistics_clean.h1_transfers_in_volume|floatformat:2 }} Out: {{ creds.statistics_clean.h1_transfers_out_volume|floatformat:2 }}">
+                                                        {{ creds.statistics_clean.h1_pnl|floatformat:1|intcomma|default_if_none:'' }}{% if creds.statistics_clean.h1_pnl is not None %}%{% endif %}
                                                     </span>
                                                 {% else %}-{% endif %}
                                             </td>
                                             <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs text-gray-900">
                                                 {% if not creds.ignore_balance %}
-                                                    <span class="hint--top" aria-label="Updated: {{ creds.statistics.pnl_updated  }} Prev: {{ creds.statistics.h24_total_usd|floatformat:2 }} In: {{ creds.statistics.h24_transfers_in_volume|floatformat:2 }} Out: {{ creds.statistics.h24_transfers_out_volume|floatformat:2 }}">
-                                                        {{ creds.statistics.h24_pnl|floatformat:1|intcomma|default_if_none:'' }}{% if creds.statistics.h24_pnl is not None %}%{% endif %}
+                                                    <span class="hint--top" aria-label="Updated: {{ creds.statistics_clean.pnl_updated  }} Prev: {{ creds.statistics_clean.h24_total_usd|floatformat:2 }} In: {{ creds.statistics_clean.h24_transfers_in_volume|floatformat:2 }} Out: {{ creds.statistics_clean.h24_transfers_out_volume|floatformat:2 }}">
+                                                        {{ creds.statistics_clean.h24_pnl|floatformat:1|intcomma|default_if_none:'' }}{% if creds.statistics_clean.h24_pnl is not None %}%{% endif %}
                                                     </span>
                                                 {% else %}-{% endif %}
                                             </td>
@@ -113,19 +113,19 @@
 
                                             </td>
                                             <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
-                                                {{ owner.total_balance|floatformat:0|intcomma }}
+                                                {{ owner.totals.total_usd|floatformat:0|intcomma }}
                                             </td>
                                             <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
-                                                {{ owner.borrowed_interest_sum|floatformat:0|intcomma }}
+                                                {{ owner.totals.borrowed_interest_sum|floatformat:0|intcomma }}
                                             </td>
                                             <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
-                                                {{ owner.h1_usd_volume|floatformat:0|intcomma|default_if_none:'' }}
+                                                {{ owner.totals.h1_usd_volume|floatformat:0|intcomma|default_if_none:'' }}
                                             </td>
                                             <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
-                                                {{ owner.h24_usd_volume|floatformat:0|intcomma|default_if_none:'' }}
+                                                {{ owner.totals.h24_usd_volume|floatformat:0|intcomma|default_if_none:'' }}
                                             </td>
                                             <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-bold text-gray-900">
-                                                {{ owner.d7_usd_volume|floatformat:0|intcomma|default_if_none:'' }}
+                                                {{ owner.totals.d7_usd_volume|floatformat:0|intcomma|default_if_none:'' }}
                                             </td>
                                             <td class="px-3 xl:px-6 py-2 xl:py-4 whitespace-nowrap text-xs font-medium text-gray-900">
 

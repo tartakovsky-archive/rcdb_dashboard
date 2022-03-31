@@ -188,11 +188,8 @@ def test_update_account_statistics(bot: Bot, mocker, mocked_dt, results, df, ini
     assert exchange_credentials.statistics['d7_usd_volume'] == results['d7_usd_volume']
     assert exchange_credentials.statistics['d7_trades_count'] == results['d7_trades_count']
 
-    assert exchange_credentials.owner.h1_usd_volume == results['h1_usd_volume']
-    assert exchange_credentials.owner.h1_trades_count == results['h1_trades_count']
-    assert exchange_credentials.owner.h24_usd_volume == results['h24_usd_volume']
-    assert exchange_credentials.owner.h24_trades_count == results['h24_trades_count']
-    assert exchange_credentials.owner.d7_usd_volume == results['d7_usd_volume']
-    assert exchange_credentials.owner.d7_trades_count == results['d7_trades_count']
+    assert exchange_credentials.owner.totals['h1_usd_volume'] == results['h1_usd_volume']
+    assert exchange_credentials.owner.totals['h24_usd_volume'] == results['h24_usd_volume']
+    assert exchange_credentials.owner.totals['d7_usd_volume'] == results['d7_usd_volume']
 
     assert tuple(results['trades']) == tuple(exchange_credentials.statistics['trades'])

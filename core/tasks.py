@@ -43,7 +43,7 @@ def t_update_bot_statistic(bot_id: int):
 @shared_task
 def t_schedule_update_account_statistics():
     logging.info('started task: <t_schedule_update_account_statistics>')
-    for exchange_credentials in ExchangeCredentials.objects.filter(exchange__name='binance'):
+    for exchange_credentials in ExchangeCredentials.objects.filter(exchange__name='binance').only('id', 'meta'):
         if exchange_credentials.meta:
             t_update_account_statistics.delay(exchange_credentials.id)
     logging.info('ended task: <t_schedule_update_account_statistics>')
@@ -55,7 +55,9 @@ def t_update_account_statistics(exchange_credentials_id: int):
     try:
         update_account_statistics(
             DataStore(settings.DATASTORE_URL, settings.DATASTORE_TOKEN),
-            ExchangeCredentials.objects.get(pk=exchange_credentials_id)
+            ExchangeCredentials.objects.get(pk=exchange_credentials_id).defer(
+                'balance_snapshot', 'balance_snapshot_clean', 'statistics_clean'
+            )
         )
     except ExchangeCredentials.DoesNotExist:
         logging.warning(

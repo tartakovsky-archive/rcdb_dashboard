@@ -11,6 +11,8 @@ while test $# -gt 0; do
       echo "Starting migration"
       docker-compose run web bash -c "./manage.py migrate"
       docker-compose down
+      docker-compose run web bash -c "./manage.py migrateclears"
+      docker-compose down
       break
       ;;
     esac
