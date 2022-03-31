@@ -182,7 +182,7 @@ class ExchangeCredentials(models.Model):
         self.balance_snapshot_clean = {k: v for k, v in snapshot.items() if k != 'balances'}
         self.balance_snapshot_created = timezone.now()
         if save:
-            self.save(update_fields=['balance_snapshot', 'balance_snapshot_created'])
+            self.save(update_fields=['balance_snapshot', 'balance_snapshot_created', 'balance_snapshot_clean'])
 
     def set_statistics(self, statistics: dict, save: bool = True):
         self.statistics = statistics
