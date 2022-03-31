@@ -55,9 +55,9 @@ def t_update_account_statistics(exchange_credentials_id: int):
     try:
         update_account_statistics(
             DataStore(settings.DATASTORE_URL, settings.DATASTORE_TOKEN),
-            ExchangeCredentials.objects.get(pk=exchange_credentials_id).defer(
+            ExchangeCredentials.objects.filter(id=exchange_credentials_id).defer(
                 'balance_snapshot', 'balance_snapshot_clean', 'statistics_clean'
-            )
+            ).first()
         )
     except ExchangeCredentials.DoesNotExist:
         logging.warning(
