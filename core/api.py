@@ -1,4 +1,5 @@
 import os
+from collections import defaultdict
 from typing import List
 
 import jwt
@@ -10,6 +11,7 @@ from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import models as auth_models
 from rcdb_commons.lib.schemas import strategy_configs
+from rcdb_commons.lib.schemas.exchange import AccountType
 
 from . import models, schemas
 
@@ -81,6 +83,44 @@ def get_auth_token(request):
 )
 def get_exchange_credentials(request):
     return models.ExchangeCredentials.objects.filter(ignore_datapipes=False)
+
+
+@api.post(
+    '/meta-markets',
+    auth=AuthBearer(),
+    response=schemas.AccountsMarketsMetaResponse,
+    description='Updates accounts markets'
+)
+def update_meta_markets(request, payload: schemas.AccountsMarketsMeta):
+    errors = []
+    metas = defaultdict(list)
+    for accs in payload.data.values():
+        for acc in accs:
+            metas[acc.account_name].append(acc.symbol)
+
+    for name, symbs in metas.items():
+        symbs = list(set(symbs))
+        meta = {'markets': symbs}
+        label = f"arb: {', '.join(symbs)}"
+        label_future = 'hedge'
+
+        spot_updated = (
+            models.ExchangeCredentials.objects
+            .filter(name=name, account_type=AccountType.SPOT.value)
+            .update(meta=meta, label=label)
+        )
+        fut_updated = (
+            models.ExchangeCredentials.objects
+            .filter(name=name, account_type=AccountType.USDT_M_FUTURES.value)
+            .update(label=label_future)
+        )
+        if not spot_updated:
+            errors.append([name, AccountType.SPOT.value, 'not updated'])
+
+        if not fut_updated:
+            errors.append([name, AccountType.USDT_M_FUTURES.value, 'not updated'])
+
+    return schemas.AccountsMarketsMetaResponse(errors=errors, success=not errors)
 
 
 @api.get('', tags=['Documentation'])

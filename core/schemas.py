@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Dict, List, Tuple
 
 from ninja import Schema
 
@@ -19,3 +19,17 @@ class ExchangeCredentials(Schema):
     label: str
     account_type: str
     meta: Optional[dict]
+
+
+class AccountMarketsMeta(Schema):
+    account_name: str
+    symbol: str
+
+
+class AccountsMarketsMeta(Schema):
+    data: Dict[str, List[AccountMarketsMeta]]
+
+
+class AccountsMarketsMetaResponse(Schema):
+    success: bool
+    errors: List[Tuple[str, str, str]]
