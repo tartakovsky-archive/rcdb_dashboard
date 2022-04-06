@@ -82,7 +82,12 @@ def get_auth_token(request):
     description='Returns exchange credentials'
 )
 def get_exchange_credentials(request):
-    return models.ExchangeCredentials.objects.filter(ignore_datapipes=False)
+    return (
+        models.ExchangeCredentials.objects
+        .filter(ignore_datapipes=False)
+        .select_related('exchange')
+        .only('exchange', 'name', 'label', 'account_type', 'meta')
+    )
 
 
 @api.post(
