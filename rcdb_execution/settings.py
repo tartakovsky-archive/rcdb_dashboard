@@ -135,6 +135,8 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+TRADES_ROOT = os.path.join(BASE_DIR, 'trades')
+os.makedirs(TRADES_ROOT, exist_ok=True)
 
 REDIS_HOST = os.environ.get('REDIS_HOST', 'redis')
 REDIS_PORT = os.environ.get('REDIS_PORT', '6379')

@@ -1,8 +1,12 @@
+import os
+import logging
 from typing import Optional
 
 import numpy as np
+import pandas as pd
 import pydantic
 from django.db import models
+from django.conf import settings
 from django.utils import timezone
 from django.db.models.functions import Cast
 from django.db.models.fields.json import KeyTextTransform
@@ -176,6 +180,25 @@ class ExchangeCredentials(models.Model):
         help_text='Disables a collecting data for the account'
     )
     order_id = models.IntegerField(default=0)
+
+    def set_trades(self, df: pd.DataFrame):
+        try:
+            df.to_hdf(self._get_trades_path(), key='table', mode='w')
+        except Exception:
+            logging.exception(f"Can't write trades {self._get_trades_path()}")
+
+    def get_trades(self) -> pd.DataFrame:
+        try:
+            path = self._get_trades_path()
+            if os.path.exists(path):
+                return pd.read_hdf(path, key='table')
+        except Exception:
+            logging.exception(f"Can't read trades {self._get_trades_path()}")
+
+        return pd.DataFrame([])
+
+    def _get_trades_path(self):
+        return os.path.join(settings.TRADES_ROOT, f'{self.id}_{self.name}_{self.account_type}.hdf')
 
     def set_balance_snapshot(self, snapshot: dict, save: bool = True):
         self.balance_snapshot = snapshot

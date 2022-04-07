@@ -53,6 +53,7 @@ services:
         max-file: "2"
     volumes:
       - static-content:/app/static
+      - trades-data:/app/trades
     depends_on:
       - db
       - redis
@@ -71,6 +72,8 @@ services:
       options:
         max-size: "512m"
         max-file: "2"
+    volumes:
+      - trades-data:/app/trades
     depends_on:
       - db
       - redis
@@ -124,3 +127,4 @@ volumes:
   db_data:
   redis_data:
   static-content:
+  trades-data:

@@ -91,8 +91,6 @@ ADDITIONAL_DF = pd.DataFrame([
 def test_df_from_to_list():
     data = df_to_list(TEST_DF)
     df = df_from_list(data)
-    print(df)
-    print(TEST_DF)
     assert TEST_DF.equals(df)
 
 
@@ -112,7 +110,6 @@ def test_update_account_statistics_no_markets(bot: Bot, mocker):
     assert exchange_credentials.statistics['h24_trades_count'] is None
     assert exchange_credentials.statistics['d7_usd_volume'] is None
     assert exchange_credentials.statistics['d7_trades_count'] is None
-    assert len(exchange_credentials.statistics['trades']) == 0
 
 
 @pytest.fixture
@@ -165,7 +162,9 @@ def test_update_account_statistics(bot: Bot, mocker, mocked_dt, results, df, ini
     exchange_credentials = ExchangeCredentials.objects.first()
     exchange_credentials.meta = {'markets': ['BTC/USDT']}
     if init_trades is not None:
-        exchange_credentials.statistics = {'trades': init_trades}
+        exchange_credentials.get_trades = lambda *args: df_from_list(init_trades)
+    else:
+        exchange_credentials.get_trades = lambda *args: pd.DataFrame([])
     exchange_credentials.save()
 
     class DummyDatastore:
@@ -191,5 +190,3 @@ def test_update_account_statistics(bot: Bot, mocker, mocked_dt, results, df, ini
     assert exchange_credentials.owner.totals['h1_usd_volume'] == results['h1_usd_volume']
     assert exchange_credentials.owner.totals['h24_usd_volume'] == results['h24_usd_volume']
     assert exchange_credentials.owner.totals['d7_usd_volume'] == results['d7_usd_volume']
-
-    assert tuple(results['trades']) == tuple(exchange_credentials.statistics['trades'])

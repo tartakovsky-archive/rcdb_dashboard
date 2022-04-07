@@ -707,14 +707,14 @@ class DataStoreDataSynchronizer:
         self.datastore = datastore
 
     def get_updated_trades(self, exchange_credentials: ExchangeCredentials) -> pd.DataFrame:
-        df_local = self.get_df_statistics(exchange_credentials, 'trades')
+        df_local = exchange_credentials.get_trades()
         markets_data = [
             self.fetch_from_datastore(
                 data_type=DataType.account_trades,
                 since=(
                     df_local[df_local.symbol == market].timestamp.max().to_pydatetime()
                     if len(df_local) and (df_local.symbol == market).any() else
-                    (datetime.datetime.utcnow() - datetime.timedelta(days=30))
+                    (datetime.datetime.utcnow() - datetime.timedelta(days=8))
                 ),
                 name=exchange_credentials.name,
                 symbol=market,
@@ -779,7 +779,6 @@ class StatisticsCalculator:
             statistics[f'{key}_trades_count'] = int(
                 (data.trades_count_buy + data.trades_count_sell).sum()
             )
-        statistics['trades'] = df_to_list(trades)
         return statistics
 
 
@@ -1086,7 +1085,6 @@ def update_account_statistics(datastore: DataStore, exchange_credentials: Exchan
         'd7_usd_volume': None,
         'd7_trades_count': None,
         'updated': timezone.now().strftime('%d/%m/%Y %H:%M:%S'),
-        'trades': [],
     }
 
     statistics = {
@@ -1094,6 +1092,7 @@ def update_account_statistics(datastore: DataStore, exchange_credentials: Exchan
         **(StatisticsCalculator.trades_statistics(trades) if len(trades) else {}),
     }
     exchange_credentials.set_statistics(statistics)
+    exchange_credentials.set_trades(trades)
 
 
 def update_accounts_pnl(datastore: DataStore):
