@@ -65,7 +65,7 @@ services:
       dockerfile: ./.packaging/Dockerfile
     environment:
       <<: *env-vars
-    command: celery -A rcdb_execution.celery.celery worker -l info -c 5 -E --max-tasks-per-child 5 -Q ${CELERY_QUEUE:-default}
+    command: celery -A rcdb_execution.celery.celery worker -l info -c 8 -E --max-tasks-per-child 5 -Q ${CELERY_QUEUE:-default}
     restart: always
     logging:
       driver: "json-file"
