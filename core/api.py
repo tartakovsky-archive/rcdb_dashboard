@@ -9,6 +9,7 @@ from ninja.openapi import views as oa_views
 from ninja.security import HttpBearer, django_auth
 from django.conf import settings
 from django.shortcuts import get_object_or_404
+from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import models as auth_models
 from rcdb_commons.lib.schemas import strategy_configs
 from rcdb_commons.lib.schemas.exchange import AccountType
@@ -94,8 +95,9 @@ def get_exchange_credentials(request):
     '/meta-markets',
     auth=AuthBearer(),
     response=schemas.AccountsMarketsMetaResponse,
-    description='Updates accounts markets'
+    description='Updates accounts markets',
 )
+@csrf_exempt
 def update_meta_markets(request, payload: schemas.AccountsMarketsMeta):
     errors = []
     metas = defaultdict(list)
