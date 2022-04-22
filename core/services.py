@@ -512,10 +512,14 @@ class CredentialsRotator:
         self._lock = threading.Lock()
         self._thread = None
 
-    def get_secret(self, name: str) -> dict:
+    def get_secret(self, name: str) -> Optional[dict]:
         if name not in self._credentials:
             with self._lock:
-                self._credentials[name] = self._credentials_store.get_secret(name, raw=True)
+                try:
+                    self._credentials[name] = self._credentials_store.get_secret(name, raw=True)
+                except Exception as e:
+                    logging.exception(f'Creds {name} error:{e}')
+                    return None
         return json.loads(self._credentials[name])
 
     def enable_rotation(self):
@@ -597,6 +601,8 @@ async def balance_updater(
                 rotated_names.discard(ex.name)
                 logging.info(f'Getting credentials for {ex.name}')
                 secret = credentials_rotator.get_secret(ex.name)
+                if not secret:
+                    continue
                 account_connector_class = EXCHANGE_ACCOUNT_CONNECTOR_MAP.get(ex.exchange.slug)
                 if proxies and account_connector_class in {BinanceAccountConnector, AscendexAccountConnector}:
                     secret['aiohttp_proxy'] = proxies[i % len(proxies)]
