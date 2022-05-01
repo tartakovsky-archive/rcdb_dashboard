@@ -101,15 +101,21 @@ def get_exchange_credentials(request):
 def update_meta_markets(request, payload: schemas.AccountsMarketsMeta):
     errors = []
     metas = defaultdict(list)
-    for accs in payload.data.values():
+    for account_name, accs in payload.data.items():
         for acc in accs:
             metas[acc.account_name].append(acc.symbol)
+        if not accs:
+            metas[account_name] = []
 
     for name, symbs in metas.items():
         symbs = list(set(symbs))
         meta = {'markets': symbs}
-        label = f"arb: {', '.join(symbs)}"
-        label_future = 'hedge'
+        if symbs:
+            label = f"arb: {', '.join(symbs)}"
+            label_future = 'hedge'
+        else:
+            label = ''
+            label_future = ''
 
         spot_updated = (
             models.ExchangeCredentials.objects
