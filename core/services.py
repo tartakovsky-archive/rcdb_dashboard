@@ -1123,7 +1123,7 @@ def update_accounts_pnl(datastore: DataStore):
             continue
 
         deviation = abs(df.index.max() - date_end)
-        deviation_threshold = datetime.timedelta(minutes={1: 1, 24: 30}[hour])
+        deviation_threshold = datetime.timedelta(minutes={1: 10, 24: 30}[hour])
         if deviation > deviation_threshold:
             logging.error(
                 f'old data deviation from expected too big. deviation: {deviation} max: {deviation_threshold}'
