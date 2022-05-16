@@ -3,7 +3,7 @@ import logging
 
 import requests
 from redis import StrictRedis
-from celery import shared_task
+from celery import shared_task, group
 from django.conf import settings
 from rcdb_commons.lib.helpers.graceful_killer import GracefulKiller
 from rcdb_commons.lib.stores import CredentialsStore, DataStore
@@ -11,6 +11,13 @@ from rcdb_commons.lib.stores import CredentialsStore, DataStore
 from .models import Bot, ExchangeCredentials
 from .services import S3DBDumper, BotStatisticUpdater, update_account_statistics, \
     update_accounts_pnl, balance_updater, RedisSimpleLock, VolumeNotificator
+
+
+def get_lock(name: str) -> RedisSimpleLock:
+    return RedisSimpleLock(
+        StrictRedis(settings.REDIS_HOST, settings.REDIS_PORT, password=settings.REDIS_PASSWORD),
+        name
+    )
 
 
 @shared_task
@@ -40,13 +47,32 @@ def t_update_bot_statistic(bot_id: int):
     logging.info(f'ended task: <t_update_bot_statistic> for {bot_id}')
 
 
+LOCK_SCHEDULE_UPDATE_STATISTIC = 'lock_t_schedule_update_account_statistics'
+
+
 @shared_task
 def t_schedule_update_account_statistics():
     logging.info('started task: <t_schedule_update_account_statistics>')
-    for exchange_credentials in ExchangeCredentials.objects.filter(exchange__name='binance').only('id', 'meta'):
-        if exchange_credentials.meta:
-            t_update_account_statistics.delay(exchange_credentials.id)
+    lock = get_lock(LOCK_SCHEDULE_UPDATE_STATISTIC)
+    if not lock.is_locked():
+        lock.lock(10*60)
+        workflow = group(
+            t_update_account_statistics.s(exchange_credentials.id)
+            for exchange_credentials in ExchangeCredentials.objects.filter(exchange__name='binance').only('id', 'meta')
+            if exchange_credentials.meta
+        ) | t_unlock_schedule_update_account_statistics.s()
+        workflow.delay()
+        logging.info('<t_schedule_update_account_statistics>: workflow scheduled')
+    else:
+        logging.info('<t_schedule_update_account_statistics>: locked')
     logging.info('ended task: <t_schedule_update_account_statistics>')
+
+
+@shared_task
+def t_unlock_schedule_update_account_statistics():
+    logging.info('started task: <t_unlock_schedule_update_account_statistics>')
+    get_lock(LOCK_SCHEDULE_UPDATE_STATISTIC).release()
+    logging.info('ended task: <t_unlock_schedule_update_account_statistics>')
 
 
 @shared_task
@@ -74,11 +100,7 @@ def t_update_account_statistics(exchange_credentials_id: int):
 @shared_task
 def t_balance_updater():
     logging.info('started task: <t_balance_updater>')
-
-    lock = RedisSimpleLock(
-        StrictRedis(settings.REDIS_HOST, settings.REDIS_PORT, password=settings.REDIS_PASSWORD),
-        't_balance_updater_lock'
-    )
+    lock = get_lock('t_balance_updater_lock')
 
     if lock.is_locked():
         logging.info('<t_balance_updater> already running')
