@@ -183,7 +183,12 @@ class ExchangeCredentials(models.Model):
 
     def set_trades(self, df: pd.DataFrame):
         try:
-            df.to_hdf(self._get_trades_path(), key='table', mode='w')
+            path = self._get_trades_path()
+            if not len(df):
+                if os.path.exists(path):
+                    os.remove(path)
+            else:
+                df.to_feather(path)
         except Exception:
             logging.exception(f"Can't write trades {self._get_trades_path()}")
 
@@ -191,14 +196,14 @@ class ExchangeCredentials(models.Model):
         try:
             path = self._get_trades_path()
             if os.path.exists(path):
-                return pd.read_hdf(path, key='table')
+                return pd.read_feather(path)
         except Exception:
             logging.exception(f"Can't read trades {self._get_trades_path()}")
 
         return pd.DataFrame([])
 
     def _get_trades_path(self):
-        return os.path.join(settings.TRADES_ROOT, f'{self.id}_{self.name}_{self.account_type}.hdf')
+        return os.path.join(settings.TRADES_ROOT, f'{self.id}_{self.name}_{self.account_type}.feather')
 
     def set_balance_snapshot(self, snapshot: dict, save: bool = True):
         self.balance_snapshot = snapshot

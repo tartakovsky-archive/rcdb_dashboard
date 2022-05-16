@@ -718,7 +718,10 @@ class DataStoreDataSynchronizer:
             self.fetch_from_datastore(
                 data_type=DataType.account_trades,
                 since=(
-                    df_local[df_local.symbol == market].timestamp.max().to_pydatetime()
+                    max(
+                        df_local[df_local.symbol == market].timestamp.max().to_pydatetime(),
+                        datetime.datetime.utcnow() - datetime.timedelta(days=8)
+                    )
                     if len(df_local) and (df_local.symbol == market).any() else
                     (datetime.datetime.utcnow() - datetime.timedelta(days=8))
                 ),
