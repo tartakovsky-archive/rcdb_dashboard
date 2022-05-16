@@ -188,7 +188,7 @@ class ExchangeCredentials(models.Model):
                 if os.path.exists(path):
                     os.remove(path)
             else:
-                df.reset_index().to_feather(path)
+                df.reset_index(drop=True).to_feather(path)
         except Exception:
             logging.exception(f"Can't write trades {self._get_trades_path()}")
 
