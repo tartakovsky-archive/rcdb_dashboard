@@ -60,7 +60,7 @@ def t_schedule_update_account_statistics():
             t_update_account_statistics.s(exchange_credentials.id)
             for exchange_credentials in ExchangeCredentials.objects.filter(exchange__name='binance').only('id', 'meta')
             if exchange_credentials.meta
-        ) | t_unlock_schedule_update_account_statistics.s()
+        ) | t_unlock_schedule_update_account_statistics.si()
         workflow.delay()
         logging.info('<t_schedule_update_account_statistics>: workflow scheduled')
     else:
