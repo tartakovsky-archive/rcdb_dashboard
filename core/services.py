@@ -1349,7 +1349,7 @@ class VolumeNotificator:
             'LAZIO/TRY',
             'LINK/GBP',
             'MATIC/GBP',
-            'LUNA/AUD',
+            'GMT/AUD',
             'MATIC/AUD',
             'DOT/BRL',
             'FTM/BRL',
