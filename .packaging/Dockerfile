@@ -8,6 +8,6 @@ RUN chmod 600 /root/.ssh/id_rsa && \
 COPY requirements.txt /app/
 COPY rcdb_commons/requirements.txt /app/requirements.rcdb_commons.txt
 WORKDIR /app
-RUN pip install -r requirements.txt -r requirements.rcdb_commons.txt
+RUN pip install --upgrade importlib-metadata && pip install -r requirements.txt -r requirements.rcdb_commons.txt
 COPY . /app/
 RUN ./manage.py collectstatic --noinput
