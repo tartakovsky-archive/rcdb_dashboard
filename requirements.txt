@@ -22,3 +22,4 @@ tables==3.6.1
 uvicorn==0.13.4
 uvloop==0.15.2
 whitenoise==5.2.0
+importlib-metadata==4.13.0
