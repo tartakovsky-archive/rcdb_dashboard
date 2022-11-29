@@ -16,6 +16,7 @@ import ccxt.async_support as ccxt
 import boto3
 import pandas as pd
 import requests
+from ccxt import BadSymbol, AuthenticationError
 from django.utils import timezone
 from django.core import management
 from rcdb_commons.lib.helpers.graceful_killer import GracefulKiller
@@ -308,7 +309,7 @@ class AscendexAccountConnector(AccountConnector):
             assert price > 0, f'Low price ascendex {res}'
 
             return price
-        except ccxt.base.errors.BadSymbol:
+        except BadSymbol:
             return None
 
     async def _get_spot_balances(self) -> List[dict]:
@@ -375,7 +376,7 @@ class BinanceAccountConnector(AccountConnector):
             assert price > 0, f'Low price binance {res}'
 
             return price
-        except ccxt.base.errors.BadSymbol:
+        except BadSymbol:
             return None
 
     async def _get_spot_balances(self) -> List[dict]:
@@ -454,7 +455,7 @@ class KucoinAccountConnector(AccountConnector):
             assert price > 0, f'Low price kucoin {res}'
 
             return price
-        except ccxt.base.errors.BadSymbol:
+        except BadSymbol:
             return None
 
     async def _fetch_balance(self, params):
@@ -693,7 +694,7 @@ async def snapshot_account_balances(
         return res
     except BinanceAccountConnector.Exceptions.UnsupportedMarketType as e:
         logging.error(f"Unsupported market type: {e}")
-    except ccxt.errors.AuthenticationError as e:
+    except AuthenticationError as e:
         logging.error(f"Can't auth to exchange {exchange_credentials}: {e}'")
     except Exception as e:
         logging.exception(f'snapshot_account_balances: unexpected error for {exchange_credentials}: {e}')
