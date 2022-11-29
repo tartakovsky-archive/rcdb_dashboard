@@ -12,8 +12,7 @@ import datetime
 from typing import Optional, Dict, List, Tuple, Union, Iterable, Callable
 
 import pytz
-import ccxt
-import ccxtpro
+import ccxt.async_support as ccxt
 import boto3
 import pandas as pd
 import requests
@@ -27,7 +26,7 @@ from .forms import ReportType, RebatesForm, RebateCurrency, TimeframeForm
 from .models import Bot, BotStatistic, ExchangeCredentials
 
 
-class Ascendex(ccxtpro.ascendex):
+class Ascendex(ccxt.ascendex):
     def __init__(self, params):
         self._api_key = params['apiKey']
         self._secret = params['secret']
@@ -177,10 +176,14 @@ class BotStatisticUpdater:
 
 class AccountConnector:
     _usd_price_cache: Dict[str, float]
+    _account_name: str
 
     class Exceptions:
         class UnsupportedMarketType(Exception):
             pass
+
+    def __init__(self, account_name: str):
+        self._account_name = account_name
 
     @staticmethod
     def _sort_balances(balances: Iterable[dict]) -> List[dict]:
@@ -257,6 +260,8 @@ class AccountConnector:
         if type not in market_type_method:
             raise self.Exceptions.UnsupportedMarketType(type)
 
+        raw_res = await market_type_method[type]()
+        logging.info(f'Raw balance for {self._account_name} {type}: {raw_res}')
         result = {
             'balances': list(
                 filter(
@@ -266,7 +271,7 @@ class AccountConnector:
                     self._sort_balances(
                         [
                             await self.update_amount_usd(data)
-                            for data in (await market_type_method[type]())
+                            for data in raw_res
                         ]
                     )
                 )
@@ -287,7 +292,8 @@ class AccountConnector:
 
 
 class AscendexAccountConnector(AccountConnector):
-    def __init__(self, credentials: dict, *args, **kwargs):
+    def __init__(self, credentials: dict, account_name: str, *args, **kwargs):
+        super().__init__(account_name)
         self.api = Ascendex(credentials)
         self.set_usd_price_cache()
 
@@ -302,7 +308,7 @@ class AscendexAccountConnector(AccountConnector):
             assert price > 0, f'Low price ascendex {res}'
 
             return price
-        except ccxtpro.base.errors.BadSymbol:
+        except ccxt.base.errors.BadSymbol:
             return None
 
     async def _get_spot_balances(self) -> List[dict]:
@@ -334,8 +340,9 @@ class AscendexAccountConnector(AccountConnector):
 
 
 class BinanceAccountConnector(AccountConnector):
-    def __init__(self, credentials: dict, price_api: ccxtpro.binance):
-        self.api = ccxtpro.binance(self._set_adjust_for_time_difference(credentials))
+    def __init__(self, credentials: dict, price_api: ccxt.binance, account_name: str):
+        super().__init__(account_name)
+        self.api = ccxt.binance(self._set_adjust_for_time_difference(credentials))
         self._price_api = price_api
         self.set_usd_price_cache()
 
@@ -368,7 +375,7 @@ class BinanceAccountConnector(AccountConnector):
             assert price > 0, f'Low price binance {res}'
 
             return price
-        except ccxtpro.base.errors.BadSymbol:
+        except ccxt.base.errors.BadSymbol:
             return None
 
     async def _get_spot_balances(self) -> List[dict]:
@@ -431,8 +438,9 @@ class BinanceAccountConnector(AccountConnector):
 
 
 class KucoinAccountConnector(AccountConnector):
-    def __init__(self, credentials: dict, *args, **kwargs):
-        self.api = ccxtpro.kucoin(credentials)
+    def __init__(self, credentials: dict, account_name: str, *args, **kwargs):
+        super().__init__(account_name)
+        self.api = ccxt.kucoin(credentials)
         self.set_usd_price_cache()
 
     def set_usd_price_cache(self):
@@ -446,7 +454,7 @@ class KucoinAccountConnector(AccountConnector):
             assert price > 0, f'Low price kucoin {res}'
 
             return price
-        except ccxtpro.base.errors.BadSymbol:
+        except ccxt.base.errors.BadSymbol:
             return None
 
     async def _fetch_balance(self, params):
@@ -569,7 +577,7 @@ async def balance_updater(
     healthcheck: Optional[Callable] = None
 ):
     credentials_rotator = CredentialsRotator(credentials_store, graceful_killer, recheck_interval=10)
-    binance_price_api = ccxtpro.binance(
+    binance_price_api = ccxt.binance(
         BinanceAccountConnector._set_adjust_for_time_difference(
             {'aiohttp_proxy': proxies[-1]} if proxies else {}
         )
@@ -607,7 +615,9 @@ async def balance_updater(
                 if proxies and account_connector_class in {BinanceAccountConnector, AscendexAccountConnector}:
                     secret['aiohttp_proxy'] = proxies[i % len(proxies)]
 
-                connector_by_name[ex.name] = account_connector_class(secret, price_api=binance_price_api)
+                connector_by_name[ex.name] = account_connector_class(
+                    secret, price_api=binance_price_api, account_name=ex.name
+                )
 
         tasks = []
         for ex in exchange_credentials_list:
@@ -655,7 +665,7 @@ async def balance_updater(
 
 async def snapshot_account_balances(
     exchange_credentials: ExchangeCredentials,
-    price_api: ccxtpro.Exchange,
+    price_api: ccxt.Exchange,
     credentials_store: Optional[CredentialsStore] = None,
     credentials: Optional[dict] = None,
     account_connector: Optional[AccountConnector] = None,
@@ -674,7 +684,8 @@ async def snapshot_account_balances(
             if not credentials:
                 credentials = credentials_store.get_secret(exchange_credentials.name)
 
-            account_connector = account_connector_class(credentials, price_api=price_api)
+            account_connector = account_connector_class(
+                credentials, price_api=price_api, account_name=exchange_credentials.name)
 
         res = await account_connector.get_balance_data(exchange_credentials.account_type)
         if hasattr(account_connector, 'api') and isinstance(account_connector, BinanceAccountConnector):
