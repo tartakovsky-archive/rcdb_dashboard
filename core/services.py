@@ -575,6 +575,7 @@ async def balance_updater(
     proxies: Optional[list] = None,
     sleep_between_rounds: int = 10,
     price_cache_clear_interval: int = 60,
+    api_instance_rotation_interval: int = 5 * 60,
     healthcheck: Optional[Callable] = None
 ):
     credentials_rotator = CredentialsRotator(credentials_store, graceful_killer, recheck_interval=10)
@@ -585,6 +586,7 @@ async def balance_updater(
     )
     credentials_rotator.enable_rotation()
     connector_by_name: Dict[str, AccountConnector] = {}
+    connector_rotation_time: Dict[str, float] = {}
 
     last_cache_clear = time.time()
 
@@ -606,7 +608,11 @@ async def balance_updater(
         ex: ExchangeCredentials
         rotated_names = set(credentials_rotator.get_rotated_names())
         for i, ex in enumerate(exchange_credentials_list):
-            if ex.name not in connector_by_name or ex.name in rotated_names:
+            if (
+                ex.name not in connector_by_name or
+                ex.name in rotated_names or
+                connector_rotation_time[ex.name] > time.time()
+            ):
                 rotated_names.discard(ex.name)
                 logging.info(f'Getting credentials for {ex.name}')
                 secret = credentials_rotator.get_secret(ex.name)
@@ -619,6 +625,7 @@ async def balance_updater(
                 connector_by_name[ex.name] = account_connector_class(
                     secret, price_api=binance_price_api, account_name=ex.name
                 )
+                connector_rotation_time[ex.name] = time.time() + api_instance_rotation_interval
 
         tasks = []
         for ex in exchange_credentials_list:
