@@ -609,11 +609,10 @@ async def balance_updater(
 
         ex: ExchangeCredentials
         rotated_names = set(credentials_rotator.get_rotated_names())
+        ts = time.time()
         for i, ex in enumerate(exchange_credentials_list):
             if (
-                ex.name not in connector_by_name or
-                ex.name in rotated_names or
-                connector_rotation_time[ex.name] > time.time()
+                ex.name not in connector_by_name or ex.name in rotated_names or connector_rotation_time[ex.name] > ts
             ):
                 rotated_names.discard(ex.name)
                 logging.info(f'Getting credentials for {ex.name}')
