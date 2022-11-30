@@ -234,6 +234,8 @@ class AccountConnector:
 
     async def update_amount_usd(self, data: dict) -> dict:
         result = data.copy()
+        if 'amount_usd' in result:
+            return result
 
         for field in ['borrowed', 'interest', 'amount']:
             field_btc = f'{field}_btc'
@@ -420,7 +422,14 @@ class BinanceAccountConnector(AccountConnector):
         options = self.api.options.copy()
         try:
             self.api.options = {**options, 'defaultType': market_type}
-            return await self._get_spot_like_balances()
+            positions = []
+            for pos in (await self.api.fetch_positions()):
+                notional = pos['notional']
+                if notional > 0:
+                    positions.append(
+                        {'symbol': f"Position {pos['symbol']}", 'amount': notional, 'amount_usd': notional}
+                    )
+            return positions + (await self._get_spot_like_balances())
         except Exception as e:
             raise e
         finally:
