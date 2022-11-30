@@ -622,6 +622,8 @@ async def balance_updater(
                 account_connector_class = EXCHANGE_ACCOUNT_CONNECTOR_MAP.get(ex.exchange.slug)
                 if proxies and account_connector_class in {BinanceAccountConnector, AscendexAccountConnector}:
                     secret['aiohttp_proxy'] = proxies[i % len(proxies)]
+                if ex.name in connector_by_name and hasattr(connector_by_name[ex.name], 'api'):
+                    await connector_by_name[ex.name].api.close()
 
                 connector_by_name[ex.name] = account_connector_class(
                     secret, price_api=binance_price_api, account_name=ex.name
