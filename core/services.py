@@ -385,12 +385,21 @@ class BinanceAccountConnector(AccountConnector):
         async with self._spot_lock:
             return await self._get_spot_like_balances()
 
-    async def _get_spot_like_balances(self) -> List[dict]:
-        return [
+    async def _get_spot_like_balances(self, fetch_positions: bool = False) -> List[dict]:
+        res = await self.api.fetch_balance()
+        balances = [
             {'symbol': symbol, 'amount': amount}
-            for symbol, amount in (await self.api.fetch_balance())['total'].items()
+            for symbol, amount in res['total'].items()
             if amount
         ]
+        if fetch_positions:
+            for pos in res['info']['positions']:
+                notional = float(pos['notional'])
+                if notional > 0:
+                    balances.append(
+                        {'symbol': f"Position {pos['symbol']}", 'amount': notional, 'amount_usd': notional}
+                    )
+        return balances
 
     async def _get_cross_margin_balances(self) -> List[dict]:
         return [
@@ -422,14 +431,7 @@ class BinanceAccountConnector(AccountConnector):
         options = self.api.options.copy()
         try:
             self.api.options = {**options, 'defaultType': market_type}
-            positions = []
-            for pos in (await self.api.fetch_positions()):
-                notional = pos['notional']
-                if notional > 0:
-                    positions.append(
-                        {'symbol': f"Position {pos['symbol']}", 'amount': notional, 'amount_usd': notional}
-                    )
-            return positions + (await self._get_spot_like_balances())
+            return await self._get_spot_like_balances(True)
         except Exception as e:
             raise e
         finally:
