@@ -2,9 +2,11 @@ from django.views.generic import ListView, DetailView, FormView
 from django.db.models import Count, Sum, Q
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.conf import settings
+from django.views.generic.edit import ModelFormMixin
+
 from rcdb_commons.lib.stores import DataStore
 
-from .models import Owner, ExchangeCredentials
+from .models import Owner, ExchangeCredentials, TradingStatus
 from .forms import TimeframeForm, RebatesForm, ReportType
 from .services import FiatVolumesReport, PairVolumesReport, RebateReport, Report
 
@@ -123,3 +125,19 @@ class PairVolumesReportView(ReportView):
 
 class FiatVolumesReportView(PairVolumesReportView):
     report_class = FiatVolumesReport
+
+
+class TradingStatusFormView(OwnerUserPermissionFilterMixin, LoginRequiredMixin, ModelFormMixin, FormView):
+    model = TradingStatus
+    fields = ['is_trading_allowed']
+    template_name = 'trading_status/index.html'
+
+    success_url = '/'
+
+    @property
+    def object(self):
+        return TradingStatus.get_instance()
+
+    @object.setter
+    def object(self, value):
+        pass

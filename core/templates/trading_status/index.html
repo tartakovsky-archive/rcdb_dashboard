@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block title %}Trading status{% endblock %}
+
+{% block body %}
+    <div class="pt-8 pb-8">
+        <div class="mx-8">
+            <div class="bg-white shadow overflow-hidden sm:rounded-md">
+                <form action="" method="post" onsubmit="return confirm('Are you sure you want to toggle the execution engine?');">
+                    {% csrf_token %}
+                    <div class="px-4 py-4 sm:px-6">
+                        <label class="block text-sm font-medium text-gray-700">
+                            Is Trading Allowed:
+                        </label>
+                        <div class="pt-1 flex space-x-4">
+                            {{ form.is_trading_allowed }}
+                        </div>
+                    </div>
+                    <div class="pb-4 px-4 flex">
+                        <button
+                                type="submit"
+                                class="self-end py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                        >
+                            Submit
+                        </button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+
+    </div>
+{% endblock %}

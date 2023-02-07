@@ -11,6 +11,8 @@ from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import models as auth_models
+from ninja.security.http import HttpAuthBase
+
 from rcdb_commons.lib.schemas import strategy_configs
 from rcdb_commons.lib.schemas.exchange import AccountType
 
@@ -44,6 +46,12 @@ class AuthBearer(HttpBearer):
     @staticmethod
     def decode_token(token: str) -> dict:
         return jwt.decode(token, settings.SECRET_KEY, algorithms='HS256')
+
+
+class NoAuth(HttpAuthBase):
+
+    def __call__(self, request):
+        return True
 
 
 api = NinjaAPI(auth=django_auth, csrf=True, docs_url=None, openapi_url=None)
@@ -150,3 +158,8 @@ def get_protected_docs(request):
 @api.get('/openapi.json', tags=['Documentation'])
 def get_protected_openapi(request):
     return oa_views.openapi_json(request, api)
+
+
+@api.get('/trading-status', description='Shows current trading status', auth=NoAuth())
+def get_trading_status(request):
+    return {'isTradingAllowed': models.TradingStatus.get_instance().is_trading_allowed}

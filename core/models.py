@@ -294,3 +294,13 @@ class BotStatistic(models.Model):
             return upside_dev if upside_dev > 0 else downside_dev
         except ZeroDivisionError:
             return None
+
+
+class TradingStatus(models.Model):
+    is_trading_allowed = models.BooleanField(default=True)
+
+    @classmethod
+    def get_instance(cls) -> 'TradingStatus':
+        if not cls.objects.filter(id=0).exists():
+            cls.objects.create(id=0)
+        return cls.objects.get(id=0)

@@ -35,9 +35,9 @@
                     {% endif %}
 
                     {% if user.is_authenticated %}
-                        <a href="{% url 'statistic' %}"
+                        <a href="{% url 'trading-status' %}"
                            class="{% if '/' == request.path %}border-indigo-500 text-indigo-600{% else %}border-transparent text-gray-900 hover:text-gray-700 hover:border-gray-300{% endif %} whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-md">
-                            Stats
+                            Trading Status
                         </a>
                         <a href="{% url 'balances' %}"
                            class="{% if 'balances' in request.path %}border-indigo-500 text-indigo-600{% else %}border-transparent text-gray-900 hover:text-gray-700 hover:border-gray-300{% endif %} whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-md"
