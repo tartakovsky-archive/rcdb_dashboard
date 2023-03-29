@@ -1,3 +1,4 @@
+import datetime
 from typing import Optional, Dict, List, Tuple
 
 from ninja import Schema
@@ -19,6 +20,7 @@ class ExchangeCredentials(Schema):
     label: str
     account_type: str
     meta: Optional[dict]
+    fallback_since: datetime.datetime
 
 
 class AccountMarketsMeta(Schema):

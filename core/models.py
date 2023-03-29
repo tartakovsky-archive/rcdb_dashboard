@@ -1,3 +1,4 @@
+import datetime
 import os
 import logging
 from typing import Optional
@@ -150,6 +151,10 @@ class Instrument(models.Model):
         return f"{self.symbol} - {self.type} on {self.exchange}"
 
 
+def fallback_since_default():
+    return datetime.datetime.utcnow().replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+
+
 class ExchangeCredentials(models.Model):
     class Meta:
         verbose_name_plural = 'ExchangeCredentials'
@@ -180,6 +185,10 @@ class ExchangeCredentials(models.Model):
         help_text='Disables a collecting data for the account'
     )
     order_id = models.IntegerField(default=0)
+    fallback_since = models.DateTimeField(
+        default=fallback_since_default,
+        help_text='Fallback since date for trades datapipe'
+    )
 
     def set_trades(self, df: pd.DataFrame):
         try:

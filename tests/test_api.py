@@ -4,6 +4,7 @@ from importlib import resources
 import pytest
 
 from core import models
+from core.models import fallback_since_default
 
 use_db = pytest.mark.django_db
 
@@ -69,7 +70,8 @@ def test_get_exchange_credentials(auth_client_token, bot: models.Bot):
             'account_type': 'CROSS_MARGIN',
             'name': 'Creds',
             'label': '',
-            'meta': {}
+            'meta': {},
+            'fallback_since': fallback_since_default().replace(tzinfo=None).isoformat() + 'Z'
         },
     )
 

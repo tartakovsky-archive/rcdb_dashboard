@@ -95,7 +95,7 @@ def get_exchange_credentials(request):
         models.ExchangeCredentials.objects
         .filter(ignore_datapipes=False)
         .select_related('exchange')
-        .only('exchange', 'name', 'label', 'account_type', 'meta')
+        .only('exchange', 'name', 'label', 'account_type', 'meta', 'fallback_since')
     )
 
 
