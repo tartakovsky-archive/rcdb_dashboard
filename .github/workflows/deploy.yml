@@ -41,7 +41,7 @@ jobs:
           python -c "print($(curl --location --request GET '${{ secrets.CREDENTIAL_STORE_ITEM_URL }}' --header 'Authorization: Bearer ${{ secrets.CREDENTIALSTORE_TOKEN }}')['fields'][0]['value'])" > .env
 
       - name: Copy files via SCP
-        uses: appleboy/scp-action@master
+        uses: appleboy/scp-action@v0.1.4
         env:
           KEY: ${{ secrets.SSH_KEY }}
           HOST: ${{ secrets.SSH_HOST }}
@@ -51,7 +51,7 @@ jobs:
           target: "/home/ubuntu/dashboard"
 
       - name: Up app
-        uses: appleboy/ssh-action@master
+        uses: appleboy/ssh-action@v0.1.10
         env:
           KEY: ${{ secrets.SSH_KEY }}
           HOST: ${{ secrets.SSH_HOST }}
