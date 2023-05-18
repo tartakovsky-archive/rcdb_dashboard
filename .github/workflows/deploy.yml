@@ -51,7 +51,7 @@ jobs:
           target: "/home/ubuntu/dashboard"
 
       - name: Up app
-        uses: appleboy/ssh-action@v0.1.10
+        uses: appleboy/ssh-action@v0.1.9
         env:
           KEY: ${{ secrets.SSH_KEY }}
           HOST: ${{ secrets.SSH_HOST }}
