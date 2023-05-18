@@ -392,13 +392,6 @@ class BinanceAccountConnector(AccountConnector):
             for symbol, amount in res['total'].items()
             if amount
         ]
-        if fetch_positions:
-            for pos in res['info']['positions']:
-                notional = float(pos['notional'])
-                if notional > 0:
-                    balances.append(
-                        {'symbol': f"Position {pos['symbol']}", 'amount': notional, 'amount_usd': notional}
-                    )
         return balances
 
     async def _get_cross_margin_balances(self) -> List[dict]:
