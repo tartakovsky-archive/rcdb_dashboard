@@ -368,14 +368,16 @@ class BinanceAccountConnector(AccountConnector):
     async def fetch_price(self, symbol: str) -> Optional[float]:
         try:
             res = await self._price_api.fetch_ticker(symbol)
-            if float(res['bid']) > 0:
-                price = float(res['bid'])
-            elif float(res['close']) > 0:
-                price = float(res['close'])
-            else:
-                price = float(res['previousClose'])
 
-            assert price > 0, f'Low price binance {res}'
+            if res.get('bid') and res.get('ask') and float(res['bid']) > 0:
+                price = (float(res['bid']) + float(res['ask'])) / 2
+            elif res.get('close') and float(res['close']) > 0:
+                price = float(res['close'])
+            elif res.get('previousClose') and float(res['previousClose']) > 0:
+                price = float(res['previousClose'])
+            else:
+                logging.warning(f"Invalid ticker {symbol}: {res}")
+                return None
 
             return price
         except BadSymbol:
