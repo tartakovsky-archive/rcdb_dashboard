@@ -6,7 +6,9 @@ from sentry_sdk.integrations.celery import CeleryIntegration
 IGNORED_STRINGS = [
     'Django can only handle ASGI/HTTP connections, not lifespan.',
     'System is under maintenance',
-    'Timeout waiting for response from backend server'
+    'Timeout waiting for response from backend server',
+    'RequestTimeout',
+    'ExchangeNotAvailable'
 ]
 
 
