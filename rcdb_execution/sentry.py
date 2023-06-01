@@ -1,3 +1,5 @@
+import logging
+
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 from sentry_sdk.integrations.celery import CeleryIntegration
@@ -20,6 +22,8 @@ def before_send(event, hint):
     if 'exc_info' in hint:
         _, exc_value, _ = hint['exc_info']
         check_strings.add(str(exc_value))
+
+    logging.warning(f"before_send: {check_strings} {event} {hint}")
 
     if check_strings and any(
         ignore_pattern in check_string
