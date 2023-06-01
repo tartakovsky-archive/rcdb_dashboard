@@ -703,7 +703,7 @@ async def snapshot_account_balances(
     except AuthenticationError as e:
         logging.error(f"Can't auth to exchange {exchange_credentials}: {e}'")
     except Exception as e:
-        logging.exception(f'snapshot_account_balances: unexpected error for {exchange_credentials}: {e}')
+        logging.exception(f'snapshot_account_balances: unexpected error for {exchange_credentials}: {type(e)} {e}')
 
     return None
 
