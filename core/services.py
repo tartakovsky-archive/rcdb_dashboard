@@ -1146,7 +1146,7 @@ def update_accounts_pnl(datastore: DataStore):
         deviation = abs(df.index.max() - date_end)
         deviation_threshold = datetime.timedelta(minutes={1: 10, 24: 30}[hour])
         if deviation > deviation_threshold:
-            logging.error(
+            logging.warning(
                 f'old data deviation from expected too big. deviation: {deviation} max: {deviation_threshold}'
             )
             continue
@@ -1158,7 +1158,7 @@ def update_accounts_pnl(datastore: DataStore):
         )
 
     if not df_data:
-        logging.error('No data were received for pnl')
+        logging.warning('No data were received for pnl')
 
     grouped_transfers = get_transfers_grouped_by_account_name(datastore)
     pnl_updated_string = timezone.now().strftime('%d/%m/%Y %H:%M:%S')
