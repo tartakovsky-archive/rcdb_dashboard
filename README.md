@@ -1,6 +1,6 @@
 # rcdb_dashboard
 
-> Django operations console for the RCDB multi-exchange automated trading platform.
+> Django ops console for the RCDB trading platform.
 
 [![Python](https://img.shields.io/badge/python-3.x-3776AB)](https://www.python.org/)
 [![Django](https://img.shields.io/badge/Django-3.1.7-092E20)](https://www.djangoproject.com/)
@@ -9,7 +9,7 @@
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED)](https://docs.docker.com/compose/)
 [![Status](https://img.shields.io/badge/status-archived-lightgrey)](#lineage)
 
-**Archived** - cloned from `hcmc-project/rcdb_dashboard` for posterity. Part of the **RCDB** automated trading platform, later merged into [3Jane Technologies](https://github.com/3jane).
+**Archived.** Cloned from `hcmc-project/rcdb_dashboard`. Part of the **RCDB** trading stack. Later folded into [3Jane](https://github.com/3jane).
 
 ---
 
@@ -27,58 +27,62 @@
 
 ## What this was
 
-`rcdb_dashboard` was the operations and monitoring console for the RCDB multi-exchange automated trading platform. It centralized exchange credentials across many account tiers, surfaced live USD-aggregated balance snapshots, tracked rolling volume statistics, and exposed per-bot equity, exposure, and PnL for the live trading fleet.
+The ops UI for the RCDB trading stack. Use it to hold keys, watch live USD sums, track rolling volume, and read per-bot equity and PnL.
 
-It is a Django 3.1 application backed by PostgreSQL and Redis, with Celery workers running scheduled jobs that pull live balances and trades from exchange APIs (via [ccxt](https://github.com/ccxt/ccxt)) and pull historical aggregates from the platform's internal `rcdb_datastore` time-series API. Secrets live in an external credential vault (`rcdb_commons.lib.stores.CredentialsStore`); the dashboard never holds raw API secrets at rest. Errors stream to Sentry via the Django and Celery integrations.
+The app runs on Django 3.1 with Postgres and Redis. Celery jobs pull live balances and trades via [ccxt](https://github.com/ccxt/ccxt). They also pull rows from `rcdb_datastore`.
 
-Behind the UI sits a Ninja-based JSON API (`core/api.py`) used by sibling RCDB services for credential lookups, strategy config reads, and per-account status checks, gated by a JWT `HttpBearer` against `is_staff` users.
+Keys sit in a vault (`rcdb_commons.lib.stores.CredentialsStore`). The UI never holds raw keys. Errors go to Sentry.
+
+A Ninja JSON API (`core/api.py`) sits behind the UI. Other RCDB services hit it for keys, configs, and checks. A JWT `HttpBearer` gates it to staff users.
 
 ## Tech stack
 
 | Layer | Tools |
 |---|---|
-| Web framework | Django 3.1.7, `django-ninja`, `django-json-widget`, `whitenoise` |
-| API server | Gunicorn + Uvicorn workers (ASGI), nginx in front |
-| Task queue | Celery 5.0.5 with Redis broker + result backend; `celery beat` for cron |
-| Database | PostgreSQL 12 |
-| Cache / broker | Redis 6.2 |
-| Exchange clients | `ccxt` (Binance, Ascendex via custom subclass, Kucoin) |
-| Data | `pandas`, `numpy`, `pyarrow`, `tables`, on-disk Feather trade files |
-| Auth | Django auth + `pyjwt` bearer tokens for the Ninja API |
-| Observability | `sentry-sdk` (Django + Celery integrations) |
-| Packaging | Docker, Docker Compose, AWS ECR (`deploy.sh`) |
+| Web | Django 3.1.7, `django-ninja`, `django-json-widget`, `whitenoise` |
+| Server | Gunicorn + Uvicorn (ASGI), nginx in front |
+| Queue | Celery 5.0.5 on Redis. `celery beat` for cron |
+| DB | PostgreSQL 12 |
+| Cache | Redis 6.2 |
+| Exchange | `ccxt` (Binance, Ascendex via subclass, Kucoin) |
+| Data | `pandas`, `numpy`, `pyarrow`, `tables`, Feather trade files on disk |
+| Auth | Django auth plus `pyjwt` bearer for the Ninja API |
+| Logs | `sentry-sdk` (Django and Celery) |
+| Pack | Docker, Docker Compose, AWS ECR (`deploy.sh`) |
 | Cloud | AWS S3 (DB backups via `boto3`) |
 | Tests | `pytest`, `pytest-django`, `pytest-mock` |
 
 ## Key models
 
-Defined in [`core/models.py`](core/models.py):
+All defined in [`core/models.py`](core/models.py).
 
-- `Owner` - groups exchange credentials under a single accounting entity; computes per-owner totals (USD balance, borrowed, interest, 1h/24h/7d volume) via aggregate queries on JSONB fields.
-- `Exchange` - registry of supported venues (binance, ascendex, kucoin).
-- `Currency` / `Symbol` / `Instrument` - reference data; `Symbol` exposes `to_ccxt`, `to_binance`, `to_kaiko` formatters.
-- `ExchangeCredentials` - the central record. Holds `account_type`, `meta`, JSONB `balance_snapshot` + `statistics` payloads, `balance_snapshot_clean` / `statistics_clean` projections for cheap aggregation, per-account Feather trade file path, `ignore_balance` / `ignore_datapipes` flags. Margin detection via `is_margin` property.
-- `Bot` - strategy instance; `config` JSONB validated on save against `rcdb_commons.lib.schemas.strategy_configs.AdminConfigInput` (pydantic).
-- `BotStatistic` - time-series row per bot: equity, exposure, employed capital, fair / forex / crypto prices, borrowed base/quote. Computes `price_change` and `price_deviation`.
-- `TradingStatus` - global kill switch singleton (`id=0`) toggling `is_trading_allowed` for the whole platform.
+| Model | Role |
+|---|---|
+| `Owner` | Groups exchange keys under one entity. Sums USD balance, borrowed, interest, and 1h / 24h / 7d volume from JSONB |
+| `Exchange` | Venue list: binance, ascendex, kucoin |
+| `Currency`, `Symbol`, `Instrument` | Reference data. `Symbol` has `to_ccxt`, `to_binance`, `to_kaiko` writers |
+| `ExchangeCredentials` | Core row. Holds `account_type`, `meta`, JSONB `balance_snapshot` and `statistics`, and `*_clean` cuts. Trade Feather path. Flags: `ignore_balance`, `ignore_datapipes`. Prop: `is_margin` |
+| `Bot` | Strategy row. `config` JSONB is checked on save vs `AdminConfigInput` |
+| `BotStatistic` | Per-bot time row. Holds equity, exposure, used capital, fair / fx / crypto prices, base and quote borrows. Adds `price_change` and `price_deviation` |
+| `TradingStatus` | Global kill switch (`id=0`). Toggles `is_trading_allowed` for the whole stack |
 
 ## Background tasks
 
-Scheduled via Celery beat in [`rcdb_execution/settings.py`](rcdb_execution/settings.py), implemented in [`core/tasks.py`](core/tasks.py). All long-running tasks use a Redis-backed `RedisSimpleLock` to prevent overlap.
+Run by Celery beat. Coded in [`core/tasks.py`](core/tasks.py), wired in [`rcdb_execution/settings.py`](rcdb_execution/settings.py). Long jobs use a Redis `RedisSimpleLock` to stop overlap.
 
 | Task | Cadence | Purpose |
 |---|---|---|
-| `t_schedule_update_account_statistics` | every 2 min | Fans out per-credential `t_update_account_statistics` jobs as a Celery `group` for every Binance account with `meta`, gated by `LOCK_SCHEDULE_UPDATE_STATISTIC`. |
-| `t_update_account_statistics` | on-demand | Pulls trades from `DataStore` and refreshes the per-credential `statistics` JSON. |
-| `t_balance_updater` | every 2 min | Async coroutine (`balance_updater`) that rotates credentials, fetches balances per account type via the `AccountConnector` hierarchy, computes USD totals, and writes `balance_snapshot`. Uses `BINANCE_PROXIES` pool and a `GracefulKiller`. |
-| `t_update_accounts_pnl` | every 5 min | Walks transfers from `DataStore` and recomputes per-account PnL. |
-| `t_backup_db` | daily, 00:00 UTC | `S3DBDumper` dumps the Postgres DB to the `rcdb-backups` S3 bucket. |
-| `t_volumes_notify` | hourly | `VolumeNotificator` posts/updates a Slack message in `SLACK_CHANNEL` with platform-wide volume stats. |
-| `t_schedule_update_bot_statistic` / `t_update_bot_statistic` | on-demand | `BotStatisticUpdater` refreshes per-bot equity/exposure/PnL rows (beat entry currently disabled in code). |
+| `t_schedule_update_account_statistics` | every 2 min | Fans out per-key jobs as a Celery `group`. Lock: `LOCK_SCHEDULE_UPDATE_STATISTIC` |
+| `t_update_account_statistics` | on-demand | Pulls trades from `DataStore`. Rewrites the per-key `statistics` JSON |
+| `t_balance_updater` | every 2 min | Async. Rotates keys, pulls per-type balances via `AccountConnector`, sums USD, writes `balance_snapshot`. Uses `BINANCE_PROXIES` |
+| `t_update_accounts_pnl` | every 5 min | Walks transfers from `DataStore`. Redoes per-account PnL |
+| `t_backup_db` | daily, 00:00 UTC | `S3DBDumper` dumps Postgres to the `rcdb-backups` S3 bucket |
+| `t_volumes_notify` | hourly | Posts global volume to a Slack thread in `SLACK_CHANNEL` |
+| `t_schedule_update_bot_statistic`, `t_update_bot_statistic` | on-demand | Rewrites per-bot rows. Beat entry off in code |
 
 ## Supported exchanges and account tiers
 
-Account-type handlers are wired in [`core/services.py`](core/services.py) under `AscendexAccountConnector`, `BinanceAccountConnector`, and `KucoinAccountConnector`.
+Wired in [`core/services.py`](core/services.py) via the per-venue `AccountConnector` types.
 
 | Exchange | Spot | Cross Margin | Isolated Margin | USDT-M Futures | COIN-M Futures | Main |
 |---|---|---|---|---|---|---|
@@ -88,10 +92,12 @@ Account-type handlers are wired in [`core/services.py`](core/services.py) under 
 
 Notes:
 
-- Binance balance fetches route through a configurable proxy pool (`BINANCE_PROXIES`).
-- Ascendex uses a custom `ccxt.ascendex` subclass with `account-category=margin` / `account-category=futures` params.
-- Kucoin COIN-M balances iterate over a fixed currency set (`BTC`, `ETH`, `DOT`, `XRP`) and aggregate.
-- **Kucoin futures API requires separate credentials.** Create a distinct Kucoin account for futures account types, e.g. `user_main_fut` for `USDT-M Futures` and `COIN-M Futures`, and `user_main` for everything else.
+| Venue | Note |
+|---|---|
+| Binance | Routes balance pulls through `BINANCE_PROXIES` |
+| Ascendex | Custom `ccxt.ascendex` subclass. Sets `account-category=margin` or `account-category=futures` |
+| Kucoin COIN-M | Sums a fixed set: `BTC`, `ETH`, `DOT`, `XRP` |
+| Kucoin futures | **Own keys.** Split the Kucoin account: `user_main_fut` for USDT-M and COIN-M, `user_main` for the rest |
 
 ## Architecture
 
@@ -140,16 +146,18 @@ flowchart LR
 
 ### Environment
 
-Required env vars (consumed by `docker-compose.yml` and `rcdb_execution/settings.py`):
+Env vars used by `docker-compose.yml` and `rcdb_execution/settings.py`:
 
-- `ENV` (`PROD` disables `DEBUG`), `AWS_DEFAULT_REGION`
-- `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`
-- `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`
-- `DATASTORE_URL`, `DATASTORE_TOKEN`
-- `CREDENTIALSTORE_URL`, `CREDENTIALSTORE_TOKEN`, `CREDENTIALSTORE_VAULT`
-- `BINANCE_PROXIES` (comma-separated), `BUCKET_NAME` (S3 backups, default `rcdb-backups`)
-- `SENTRY_DSN`, `SLACK_TOKEN`, `SLACK_CHANNEL`
-- `DOCKER_REGISTRY` (AWS ECR registry), `CELERY_QUEUE` (default `default`)
+| Group | Vars |
+|---|---|
+| Mode | `ENV` (`PROD` turns off `DEBUG`), `AWS_DEFAULT_REGION` |
+| Postgres | `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` |
+| Redis | `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` |
+| Datastore | `DATASTORE_URL`, `DATASTORE_TOKEN` |
+| Vault | `CREDENTIALSTORE_URL`, `CREDENTIALSTORE_TOKEN`, `CREDENTIALSTORE_VAULT` |
+| Exchange | `BINANCE_PROXIES` (CSV), `BUCKET_NAME` (S3 backups, default `rcdb-backups`) |
+| Alerts | `SENTRY_DSN`, `SLACK_TOKEN`, `SLACK_CHANNEL` |
+| Deploy | `DOCKER_REGISTRY` (AWS ECR), `CELERY_QUEUE` (default `default`) |
 
 ### Run locally
 
@@ -157,7 +165,7 @@ Required env vars (consumed by `docker-compose.yml` and `rcdb_execution/settings
 docker-compose up --build
 ```
 
-Brings up `nginx`, `web` (gunicorn + uvicorn ASGI), `celery_workers`, `celery_beat`, `db` (Postgres 12, exposed on `5433`), and `redis`.
+Starts: `nginx`, `web` (gunicorn + uvicorn), `celery_workers`, `celery_beat`, `db` (Postgres 12 on `5433`), `redis`.
 
 ### Migrations
 
@@ -172,7 +180,7 @@ docker-compose run web bash -c "./manage.py migrate"
 ./deploy.sh --migrate  # pull, migrate, restart
 ```
 
-Logs in to AWS ECR, pulls `web` + `nginx` images, restarts the stack with `docker-compose.awslogs.yml` overlay.
+Logs in to AWS ECR, pulls `web` and `nginx`, and restarts via `docker-compose.awslogs.yml`.
 
 ### Tests
 
@@ -180,7 +188,7 @@ Logs in to AWS ECR, pulls `web` + `nginx` images, restarts the stack with `docke
 ./run-tests.sh
 ```
 
-Spins up a disposable Postgres 12 on port `5434` and runs `pytest` against [`tests/`](tests/) (`test_api.py`, `test_models.py`, `test_pnl.py`, `test_botstatistc_updater.py`, `test_update_account_statistics.py`).
+Starts a throwaway Postgres 12 on `5434`. Runs `pytest` over [`tests/`](tests/).
 
 ## Lineage
 
